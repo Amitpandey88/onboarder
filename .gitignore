@@ -1,0 +1,12 @@
+node_modules/
+*.log
+.DS_Store
+dist/
+.fuse*
+*.fuse*
+
+# Internal documentation
+Agent.md
+agent.md
+IMPROVEMENTS.md
+plan.md
