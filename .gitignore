@@ -4,6 +4,7 @@ node_modules/
 dist/
 .fuse*
 *.fuse*
+*.zip
 
 # Internal documentation
 Agent.md
