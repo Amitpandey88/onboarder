@@ -421,3 +421,39 @@ export function securityDiagram(scan, facts, security, opts = {}) {
   return { source: lines.join('\n'), nodes };
 }
 
+// The History view: the hotspot cross-tab — complexity × churn — as a heat
+// map. A file high here is both hard to change and changed constantly, which
+// is where a newcomer's caution (and a maintainer's tests) belong. Import
+// arrows are drawn between shown files so hot neighborhoods read at a glance.
+// No history (browser pick, tarball, not a checkout) says why instead of
+// drawing an empty chart.
+export function historyDiagram(scan, facts, history, opts = {}) {
+  if (!history?.available) {
+    return emptyDiagram(history?.reason || 'No history available.');
+  }
+  const include = opts.include || (() => true);
+  const MAX = 26;
+  const band = (s) => (s >= 70 ? 'r3' : s >= 50 ? 'r2' : s >= 30 ? 'r1' : 'r0');
+  const top = history.perFile.filter((f) => include(f.path)).slice(0, MAX);
+  const lines = [themeBlock(), 'flowchart TB', ...classDefLines()];
+  const ids = new Map();
+  const nodes = {};
+  let n = 0;
+  for (const f of top) {
+    const id = 't' + n++;
+    ids.set(f.path, id);
+    nodes[id] = { kind: 'file', path: f.path };
+    lines.push(`  ${id}["${esc(shortName(baseName(f.path)))} · ${f.hotspot}"]:::${band(f.hotspot)}`);
+  }
+  const set = new Set(top.map((f) => f.path));
+  let drawn = 0;
+  for (const e of scan.edges) {
+    if (drawn >= 60) break;
+    if (!set.has(e.from) || !set.has(e.to)) continue;
+    lines.push(`  ${ids.get(e.from)} --> ${ids.get(e.to)}`);
+    drawn++;
+  }
+  if (!top.length) lines.push('  quiet["No file in this repo has been touched in the recent window."]:::note');
+  return { source: lines.join('\n'), nodes };
+}
+

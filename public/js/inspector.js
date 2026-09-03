@@ -15,12 +15,37 @@ const el = {};
 
 let askAIHandler = null;
 let clearFocusHandler = null;
+let inspHooks = {
+  onOpenFile: () => {},
+  onDeepDive: () => {},
+  onToast: () => {},
+};
 
-export function initInspector({ onAskAI, onClearFocus }) {
+export function initInspector(options = {}) {
+  const { onAskAI, onClearFocus, ...rest } = options;
   askAIHandler = onAskAI;
   clearFocusHandler = onClearFocus;
+  inspHooks = { ...inspHooks, ...rest };
   el.aiExplainBtn.addEventListener('click', () => askAIHandler?.());
   el.inspBack.addEventListener('click', () => clearFocusHandler?.());
+
+  el.inspectorBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-insp-action]');
+    if (!btn) return;
+    const action = btn.dataset.inspAction;
+    const targetPath = btn.dataset.path || el.inspPath.textContent;
+    if (action === 'code') {
+      inspHooks.onOpenFile?.(targetPath);
+    } else if (action === 'dive') {
+      inspHooks.onDeepDive?.(targetPath);
+    } else if (action === 'copy') {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(targetPath)
+          .then(() => inspHooks.onToast?.('Path copied to clipboard'))
+          .catch(() => inspHooks.onToast?.('Failed to copy path'));
+      }
+    }
+  });
 }
 
 // Show/hide the small "‹ back" control that returns to the view's own panel.
@@ -38,7 +63,8 @@ export function clearInspector() {
   el.inspectorBody.hidden = true;
 }
 
-export function showFile(path, { scan, facts, history, backLabel }) {
+export function showFile(path, state) {
+  const { scan, facts, history, backLabel } = state;
   const file = scanIndex(scan).fileAt(path);
   const role = roleOf(path, facts);
   setBack(backLabel);
@@ -52,6 +78,15 @@ export function showFile(path, { scan, facts, history, backLabel }) {
   const fin = facts.fanIn[path] || 0;
   const fout = facts.fanOut[path] || 0;
   const hist = history?.byPath?.[path];
+  
+  const actionsHtml = `
+    <div class="insp-actions" style="display:flex; gap:6px; margin: 6px 0 10px;">
+      <button class="btn btn-ghost btn-sm" data-insp-action="code" data-path="${escapeHtml(path)}" title="Open file in Code view">Code</button>
+      <button class="btn btn-ghost btn-sm" data-insp-action="dive" data-path="${escapeHtml(path)}" title="Open Deep Dive flowchart">Deep Dive →</button>
+      <button class="btn btn-ghost btn-sm" data-insp-action="copy" data-path="${escapeHtml(path)}" title="Copy relative path">Copy Path</button>
+    </div>
+  `;
+
   el.inspStats.innerHTML = [
     chip(`<b>${fin}</b> dependents`),
     chip(`<b>${fout}</b> imports`),
@@ -61,9 +96,19 @@ export function showFile(path, { scan, facts, history, backLabel }) {
     file ? chip(`<b>${file.functions.length}</b> functions`) : '',
     file ? chip(`<b>${(file.size / 1024).toFixed(1)}</b> kb`) : '',
     file ? chip(langName(file.lang)) : '',
+    file && file.cognitive !== undefined ? chip(`<b>${file.cognitive}</b> cognitive cx`) : '',
+    file && file.maintainability !== undefined ? chip(`<b>${file.maintainability}</b> MI`) : '',
+    facts.communities && facts.communities[path] ? chip(`community <b>${facts.communities[path]}</b>`) : '',
   ].join('');
 
-  setExplain(mdLite(explainFile(path, file, facts)), 'From the static analysis — no AI involved.');
+  if (file && state && state.health) {
+    const riskData = state.health.perFile?.find(x => x.path === path);
+    if (riskData) {
+      el.inspStats.innerHTML += ` <risk-badge score="${riskData.risk}" style="vertical-align: middle; margin-left: 8px; --risk-size: 32px;"></risk-badge>`;
+    }
+  }
+
+  setExplain(actionsHtml + mdLite(explainFile(path, file, facts)), 'From the static analysis — no AI involved.');
 
   el.inspLists.innerHTML = '';
   addPathList('Imports', facts.importsOf[path] || [], scan);
@@ -272,6 +317,88 @@ export function showSecurity({ scan, security }) {
   el.inspectorBody.hidden = false;
 }
 
+// The History view panel: what the git log says — churn, authorship, the
+// hotspot cross-tab — with the top of each list clickable into the file's
+// deep-dive. When there is no history it says why rather than showing zeros.
+export function showHistory({ scan, history }) {
+  setBack();
+  el.inspTitle.textContent = 'History';
+  if (!history?.available) {
+    el.inspRole.textContent = 'unavailable';
+    el.inspRole.className = 'role-chip is-test';
+    el.inspPath.textContent = scan.name;
+    el.askInput.placeholder = 'Ask anything about this repo…';
+    el.inspStats.innerHTML = '';
+    el.inspExplain.innerHTML =
+      `<p>${escapeHtml(history?.reason || 'No history available.')}</p>`
+      + '<p class="explain-src">History needs a checkout with commits — a git URL clone has one; a folder picked in the browser or a plain directory may not.</p>';
+    el.inspLists.innerHTML = '';
+    el.inspectorEmpty.hidden = true;
+    el.inspectorBody.hidden = false;
+    return;
+  }
+
+  const hotspots = history.perFile.filter((f) => f.hotspot > 0);
+  const top = hotspots[0];
+  el.inspRole.textContent = history.truncated
+    ? `${history.commitCount} of ${history.totalCommits} commits`
+    : `${history.commitCount} commits`;
+  el.inspRole.className = 'role-chip is-entry';
+  el.inspPath.textContent = `${scan.name} — ${span(history.firstCommitAt, history.lastCommitAt)}`;
+  el.askInput.placeholder = 'Ask about the hotspots…';
+  el.inspStats.innerHTML = [
+    chip(`<b>${history.authors.length}</b> ${history.authors.length === 1 ? 'author' : 'authors'}`),
+    chip(`<b>${hotspots.length}</b> ${hotspots.length === 1 ? 'hotspot' : 'hotspots'}`),
+    history.soloFiles ? chip(`<b>${history.soloFiles}</b> solo-owned`) : '',
+    history.pathsGone ? chip(`<b>${history.pathsGone}</b> files gone`) : '',
+  ].join('');
+
+  let note = `<b>${escapeHtml(scan.name)}</b> shows ${history.commitCount} commits by ${history.authors.length} ${history.authors.length === 1 ? 'person' : 'people'}, ${span(history.firstCommitAt, history.lastCommitAt)}.`;
+  if (top) {
+    note += ` The sharpest hotspot is <b>${escapeHtml(top.name)}</b> — touched ${top.churn} ${top.churn === 1 ? 'time' : 'times'} at complexity ${top.complexity}`;
+    note += top.solo ? ', always by the same person.' : ` by ${top.authors} ${top.authors === 1 ? 'person' : 'people'}.`;
+  } else {
+    note += ' Nothing stands out — no file is both complex and frequently changed.';
+  }
+  if (history.truncated) note += ` The window was capped at ${history.commitCount} of ${history.totalCommits} total commits.`;
+
+  const legendHtml = `<div class="score-bd"><h4>How the hotspot score works</h4><ul class="legend">`
+    + `<li><b>churn</b> — how many commits have touched the file</li>`
+    + `<li><b>complexity</b> — decision points, the same number Health uses</li>`
+    + `<li><b>hotspot</b> — both at once, each against the repo's own worst: where change and difficulty meet</li>`
+    + `<li><b>solo</b> — only one person has ever touched it; knowledge leaves with them</li>`
+    + '</ul></div>';
+
+  el.inspExplain.innerHTML = `<p>${note}</p>` + legendHtml
+    + '<p class="explain-src">From the git log — authors keyed by email, no AI involved.</p>';
+  el.inspLists.innerHTML = '';
+  addList('Hotspots', hotspots.map((f) => ({
+    text: f.name,
+    kind: `hotspot ${f.hotspot} · ${f.churn} commits · cx ${f.complexity}${f.solo ? ' · solo' : ''}`,
+    path: f.path,
+  })), scan);
+  if (history.coChanged?.length) {
+    addList('Change together, unconnected', history.coChanged.map((p) => ({
+      text: p.a.split('/').pop() + ' + ' + p.b.split('/').pop(),
+      kind: p.count + '× together',
+      path: p.a,
+      title: p.a + ' ↔ ' + p.b,
+    })), scan);
+  }
+  el.inspectorEmpty.hidden = true;
+  el.inspectorBody.hidden = false;
+}
+
+function span(firstIso, lastIso) {
+  const fmt = (iso) => {
+    if (!iso) return '?';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+  return fmt(firstIso) + ' → ' + fmt(lastIso);
+}
+
 function heatGrid(coupling) {
   const { folders, counts, max } = coupling;
   const grid = document.createElement('div');
@@ -356,6 +483,7 @@ function addList(title, items, scan) {
       const b = document.createElement('button');
       b.textContent = item.text;
       b.dataset.goto = item.path;
+      if (item.title) b.title = item.title;
       li.appendChild(b);
     } else {
       li.textContent = item.text;

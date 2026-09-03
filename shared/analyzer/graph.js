@@ -33,7 +33,7 @@ export function computeFacts(scan, manifest = {}) {
 
   const entrySet = new Set();
   for (const f of files) {
-    const stem = f.name.replace(/\.[^.]+$/, '');
+    const stem = (f.name || f.path || '').replace(/\.[^.]+$/, '');
     if (ENTRY_NAMES.has(stem) || f.hasMain) entrySet.add(f.path);
   }
   for (const p of manifest.entryPoints || []) entrySet.add(p);
@@ -159,7 +159,23 @@ export function computeFacts(scan, manifest = {}) {
     folderEdges.set(key, (folderEdges.get(key) || 0) + 1);
   }
 
+  const paths = files.map(f => f.path);
+  const communitiesMap = louvainCommunities(paths, edges);
+  const commGroups = new Map();
+  for (const [n, c] of communitiesMap.entries()) {
+    if (!commGroups.has(c)) commGroups.set(c, []);
+    commGroups.get(c).push(n);
+  }
+  const communities = [...commGroups.entries()]
+    .map(([id, members]) => ({ id, members, size: members.length }))
+    .sort((a, b) => b.size - a.size);
+
+  const betweennessMap = brandesBetweenness(paths, edges);
+  const betweenness = Object.fromEntries(betweennessMap);
+
   return {
+    communities,
+    betweenness,
     fanIn: Object.fromEntries(fanIn),
     fanOut: Object.fromEntries(fanOut),
     importers: Object.fromEntries(importers),
@@ -312,4 +328,116 @@ export function scanIndex(scan) {
   };
   SCAN_INDEXES.set(scan, index);
   return index;
+}
+
+function louvainCommunities(nodes, edges) {
+  let communities = new Map(nodes.map(n => [n, n]));
+  let tot = new Map(nodes.map(n => [n, 0]));
+  let inC = new Map(nodes.map(n => [n, 0]));
+  let k = new Map(nodes.map(n => [n, 0]));
+  let m2 = 0;
+  
+  const adj = new Map(nodes.map(n => [n, []]));
+  for (const e of edges) {
+    if (!adj.has(e.from)) adj.set(e.from, []);
+    adj.get(e.from).push(e.to);
+    k.set(e.from, (k.get(e.from) || 0) + 1);
+    k.set(e.to, (k.get(e.to) || 0) + 1);
+    m2 += 2;
+  }
+  if (m2 === 0) return communities;
+
+  for (const n of nodes) tot.set(n, k.get(n));
+
+  let iters = 0;
+  let improved = true;
+  while (iters < 3 && improved) {
+    improved = false;
+    for (const u of nodes) {
+      const c_u = communities.get(u);
+      const k_u = k.get(u);
+      
+      const counts = new Map();
+      for (const v of (adj.get(u) || [])) {
+        const c_v = communities.get(v);
+        counts.set(c_v, (counts.get(c_v) || 0) + 1);
+      }
+      
+      let best_c = c_u;
+      let max_gain = 0;
+      
+      for (const [c_v, weight] of counts.entries()) {
+        if (c_v === c_u) continue;
+        const tot_c = tot.get(c_v);
+        const gain = weight - (k_u * tot_c) / m2;
+        if (gain > max_gain) {
+          max_gain = gain;
+          best_c = c_v;
+        }
+      }
+      
+      if (best_c !== c_u) {
+        tot.set(c_u, tot.get(c_u) - k_u);
+        tot.set(best_c, tot.get(best_c) + k_u);
+        communities.set(u, best_c);
+        improved = true;
+      }
+    }
+    iters++;
+  }
+  return communities;
+}
+
+function brandesBetweenness(nodes, edges) {
+  const cb = new Map(nodes.map(n => [n, 0]));
+  if (nodes.length > 1000) return cb;
+  
+  const adj = new Map(nodes.map(n => [n, []]));
+  for (const e of edges) {
+    if (adj.has(e.from)) adj.get(e.from).push(e.to);
+  }
+
+  for (const s of nodes) {
+    const S = [];
+    const P = new Map(nodes.map(n => [n, []]));
+    const sigma = new Map(nodes.map(n => [n, 0]));
+    sigma.set(s, 1);
+    const d = new Map(nodes.map(n => [n, -1]));
+    d.set(s, 0);
+    const Q = [s];
+
+    while (Q.length > 0) {
+      const v = Q.shift();
+      S.push(v);
+      for (const w of (adj.get(v) || [])) {
+        if (d.get(w) < 0) {
+          d.set(w, d.get(v) + 1);
+          Q.push(w);
+        }
+        if (d.get(w) === d.get(v) + 1) {
+          sigma.set(w, sigma.get(w) + sigma.get(v));
+          P.get(w).push(v);
+        }
+      }
+    }
+
+    const delta = new Map(nodes.map(n => [n, 0]));
+    while (S.length > 0) {
+      const w = S.pop();
+      for (const v of P.get(w)) {
+        delta.set(v, delta.get(v) + (sigma.get(v) / sigma.get(w)) * (1 + delta.get(w)));
+      }
+      if (w !== s) {
+        cb.set(w, cb.get(w) + delta.get(w));
+      }
+    }
+  }
+  
+  let max = 0;
+  for (const val of cb.values()) if (val > max) max = val;
+  if (max > 0) {
+    for (const [k, v] of cb.entries()) cb.set(k, v / max);
+  }
+  
+  return cb;
 }

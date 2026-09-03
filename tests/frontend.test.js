@@ -233,7 +233,7 @@ function declaredNames(src) {
   add(/\b([A-Za-z_$][\w$]*)\s*=>/g);                  // single unwrapped param
   add(/\bfunction\s*\*?\s*[A-Za-z_$]*\s*\(([^()]*)\)/g);
   add(/\bcatch\s*\(([^()]*)\)/g);
-  add(/^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^()]*\)\s*\{/gm); // method shorthand
+  add(/^\s*(?:static\s+)?(?:async\s+)?(?:get\s+|set\s+)?([A-Za-z_$][\w$]*)\s*\([^()]*\)\s*\{/gm); // method shorthand
   // Deliberately *not* collecting every `name(` — that is a call site, and
   // counting call sites as declarations made an earlier draft of this check
   // vacuous. The line above is narrower: a name, a parameter list, and an open
@@ -265,6 +265,7 @@ const GLOBALS = new Set([
   'parseInt', 'parseFloat', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Set', 'Map',
   'Date', 'Error', 'Promise', 'RegExp', 'JSON', 'Math', 'URL', 'URLSearchParams', 'Blob',
   'FormData', 'TextDecoder', 'TextEncoder', 'AbortController', 'Intl', 'Symbol', 'BigInt',
+  'CustomEvent', 'Float32Array', 'Uint8Array', 'HTMLElement', 'customElements',
   'if', 'for', 'while', 'switch', 'catch', 'return', 'function', 'typeof', 'await', 'super',
   'async', 'yield', 'new', 'delete', 'void', 'do', 'else',
 ]);

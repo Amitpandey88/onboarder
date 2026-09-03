@@ -6,7 +6,7 @@
 import { blankComments, lineCounter, braceBodyEnd, uniqueBy, callsWithin, declarationOrder } from '../util.js';
 import { dirOf, joinPath, baseName } from '../pathUtil.js';
 
-export const extensions = ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'];
+export const extensions = ['.js', '.jsx', '.mjs', '.cjs'];
 
 const IMPORT_RES = [
   /\bimport\s+(?:type\s+)?[\w$*{}\s,]+?\sfrom\s*['"]([^'"\n]+)['"]/g,
@@ -178,10 +178,11 @@ export function packageNameOf(spec) {
 export function resolveImport(spec, fromPath, has, context = {}) {
   const tryResolve = (base) => {
     if (has(base)) return { path: base };
-    for (const ext of extensions) {
+    const allExts = [...extensions, '.ts', '.tsx'];
+    for (const ext of allExts) {
       if (has(base + ext)) return { path: base + ext };
     }
-    for (const ext of extensions) {
+    for (const ext of allExts) {
       const idx = base + '/index' + ext;
       if (has(idx)) return { path: idx };
     }

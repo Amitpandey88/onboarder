@@ -10,6 +10,8 @@ import { languageFor } from './languages/index.js';
 import { dirOf, baseName, extOf } from './pathUtil.js';
 import { codeStats, complexityOf } from './metrics.js';
 import { analyzeSecurityFile } from './security.js';
+import { analyzeLicenses } from './licenses.js';
+import { analyzeWorkflows } from './workflows.js';
 
 const SKIP_DIRS = new Set([
   'node_modules', '.git', '.hg', '.svn', 'dist', 'build', 'out', '.next',
@@ -337,6 +339,11 @@ export async function scanRepo(source, options = {}) {
     }, {}),
   };
 
+  const [workflows, licenseReport] = await Promise.all([
+    analyzeWorkflows(source).catch(() => []),
+    analyzeLicenses(source, context.manifest || {}).catch(() => null),
+  ]);
+
   return {
     root: source.root || '(unknown)',
     name: source.name || baseName(source.root || '') || 'repo',
@@ -347,6 +354,10 @@ export async function scanRepo(source, options = {}) {
     edges,
     externals: externalList,
     folders,
+    workflows: workflows || [],
+    sbom: licenseReport?.sbom || [],
+    license: licenseReport?.projectLicense || { id: 'UNKNOWN', name: 'Unknown' },
+    licenseReport: licenseReport || undefined,
   };
 }
 

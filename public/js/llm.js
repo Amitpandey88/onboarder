@@ -286,3 +286,12 @@ export function stackSummaryMessages({ repoName, item, docsText, repoNote }) {
   ].join('\n\n');
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
+
+export async function streamTokens(container, text) {
+  container.innerHTML = '';
+  for (let i = 0; i < text.length; i++) {
+    container.innerHTML += text[i];
+    await new Promise(r => setTimeout(r, 10));
+  }
+}
+

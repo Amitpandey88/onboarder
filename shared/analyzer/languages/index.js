@@ -1,15 +1,23 @@
 // Language registry. Order matters: the first match on extension wins.
 
+import * as typescript from './typescript.js';
 import * as javascript from './javascript.js';
 import * as python from './python.js';
 import * as go from './go.js';
+import * as rust from './rust.js';
+import * as java from './java.js';
+import * as csharp from './csharp.js';
 import * as generic from './generic.js';
 
 export const languages = [
-  { id: 'javascript', label: 'JavaScript / TypeScript', short: 'JS/TS', ...javascript },
+  { id: 'typescript', label: 'TypeScript', short: 'TS', ...typescript },
+  { id: 'javascript', label: 'JavaScript', short: 'JS', ...javascript },
   { id: 'python', label: 'Python', short: 'Python', ...python },
   { id: 'go', label: 'Go', short: 'Go', ...go },
-  { id: 'generic', label: 'C / Java / Rust / Ruby / PHP', short: 'C/Java/…', ...generic },
+  { id: 'rust', label: 'Rust', short: 'Rust', ...rust },
+  { id: 'java', label: 'Java', short: 'Java', ...java },
+  { id: 'csharp', label: 'C#', short: 'C#', ...csharp },
+  { id: 'generic', label: 'C / Ruby / PHP', short: 'C/Ruby/…', ...generic },
 ];
 
 const byExtension = new Map();

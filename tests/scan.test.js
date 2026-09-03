@@ -123,7 +123,7 @@ test('scanRepo: mixed languages in one repo', async () => {
   const langs = scan.stats.languages;
   assert.equal(langs.python, 2);
   assert.equal(langs.go, 1);
-  assert.equal(langs.generic, 1);
+  assert.equal(langs.rust, 1);
   assert.ok(scan.edges.some((e) => e.from === 'main.py' && e.to === 'helpers.py'));
 });
 

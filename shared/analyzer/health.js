@@ -78,8 +78,21 @@ export function analyzeHealth(scan, facts) {
   take(orphanRatio * 25, `${Math.round(orphanRatio * 100)}% of files unconnected`);
   score = Math.max(0, Math.round(score));
   const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
+  let lowMI = 0;
+  let totalEffort = 0;
+  for (const f of files) {
+    if (f.maintainabilityIndex < 65) lowMI++;
+    if (f.effort) totalEffort += f.effort;
+  }
+  const techDebtRatio = n ? lowMI / n : 0;
+  const effortHours = totalEffort / 3600;
+  let debtCategory = 'low';
+  if (techDebtRatio > 0.5) debtCategory = 'critical';
+  else if (techDebtRatio > 0.25) debtCategory = 'high';
+  else if (techDebtRatio > 0.10) debtCategory = 'moderate';
 
-  return { score, grade, perFile, breakdown, blastExact: Boolean(blast), totals: { crit, high, avgCx: Math.round(avgCx * 10) / 10, orphanRatio, cycles: facts.cycles.length || 0 } };
+
+    return { score, grade, perFile, breakdown, blastExact: Boolean(blast), totals: { crit, high, avgCx: Math.round(avgCx * 10) / 10, orphanRatio, cycles: facts.cycles.length || 0 }, techDebtRatio, effortHours, debtCategory };
 }
 
 // Importance over the directed import graph: edge a→b (a imports b) means

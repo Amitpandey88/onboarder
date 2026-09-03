@@ -38,3 +38,83 @@ export function complexityOf(source, lang) {
   score += bools ? bools.length : 0;
   return score;
 }
+
+export function halsteadMetrics(source, lang) {
+  const isHash = ['python', 'ruby', 'yaml', 'toml', 'shell'].includes(lang);
+  const clean = blankComments(String(source), { lineChar: isHash ? '#' : '//' });
+  
+  const ops = ['\+', '-', '\*', '/', '=', '==', '===', '!=', '!==', '<', '>', '<=', '>=', '&&', '\|\|', '!', '%', '\*\*', '\+\+', '--', '\+=', '-=', '\*=', '/=', '=>', '\?\?', '\?\.', '\.\.\.'];
+  const opPattern = new RegExp(ops.map(o => o.replace(/[.*+?^$\\{}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+  
+  const operators = new Set();
+  let N1 = 0;
+  for (const m of clean.matchAll(opPattern)) {
+    operators.add(m[0]);
+    N1++;
+  }
+  const n1 = operators.size;
+
+  const operands = new Set();
+  let N2 = 0;
+  for (const m of clean.matchAll(/\b[a-zA-Z_][a-zA-Z0-9_]*\b|\b\d+\b|['"][^'"]*['"]/g)) {
+    const val = m[0];
+    if (["if", "else", "for", "while", "return", "function", "class", "import", "export", "var", "let", "const", "true", "false", "null"].includes(val)) continue;
+    operands.add(val);
+    N2++;
+  }
+  const n2 = operands.size;
+
+  const vocabulary = n1 + n2;
+  const length = N1 + N2;
+  const volume = vocabulary === 0 ? 0 : length * Math.log2(vocabulary);
+  const difficulty = (n2 === 0 || n1 === 0) ? 0 : (n1 / 2) * (N2 / n2);
+  const effort = difficulty * volume;
+
+  return { n1, n2, N1, N2, vocabulary, length, volume, difficulty, effort };
+}
+
+export function cognitiveComplexity(source, lang) {
+  const isHash = ['python', 'ruby', 'yaml', 'toml', 'shell'].includes(lang);
+  const clean = blankComments(String(source), { lineChar: isHash ? '#' : '//' });
+  
+  let score = 0;
+  let nesting = 0;
+  let inSwitch = false;
+
+  const lines = clean.split('\n');
+  for (const line of lines) {
+    const l = line.trim();
+    if (l.includes('{')) {
+      if (/\b(if|for|while|do|switch|catch)\b/.test(l)) {
+        if (/\bswitch\b/.test(l)) {
+          inSwitch = true;
+          score += (1 + nesting);
+          nesting++;
+        } else {
+          score += (1 + nesting);
+          nesting++;
+        }
+      } else {
+        nesting++;
+      }
+    }
+    if (l.includes('}')) {
+      nesting = Math.max(0, nesting - 1);
+    }
+    if (!l.includes('{') && /\b(if|else if|for|while|do|catch)\b/.test(l)) {
+        score += (1 + nesting);
+    }
+    if (/\belse\b(?!\s+if)/.test(l)) {
+       score += 1;
+    }
+    const ops = l.match(/&&|\|\||\?/g);
+    if (ops) score += ops.length;
+  }
+  return score;
+}
+
+export function maintainabilityIndex(halstead, complexity, loc) {
+  if (halstead.volume === 0 || loc === 0) return 100;
+  let MI = (171 - 5.2 * Math.log(halstead.volume) - 0.23 * complexity - 16.2 * Math.log(loc)) * 100 / 171;
+  return Math.max(0, Math.min(100, MI));
+}

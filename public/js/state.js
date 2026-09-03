@@ -11,10 +11,10 @@
 // No DOM, no imports from the view layer: importable in Node.
 
 // The views that share the Explorer tab and its canvas.
-export const EXPLORER_VIEWS = ['map', 'files', 'patterns', 'health', 'security', 'services', 'tour', 'atlas'];
+export const EXPLORER_VIEWS = ['map', 'files', 'patterns', 'health', 'security', 'history', 'services', 'tour', 'atlas'];
 
 // Views whose default inspector panel is their own, rather than the overview.
-const PANEL_VIEWS = { patterns: 'patterns', health: 'health', security: 'security' };
+const PANEL_VIEWS = { patterns: 'patterns', health: 'health', security: 'security', history: 'history' };
 
 // Per-repo state, rebuilt by `loadRepo`. Split out from the rest so "what has
 // to be reset when a new repo arrives" is a list in one place rather than a
@@ -28,6 +28,7 @@ function perRepo() {
     stack: null,
     health: null,
     security: null,
+    history: null,
     patterns: null,
     treeData: null,
     scanId: null,

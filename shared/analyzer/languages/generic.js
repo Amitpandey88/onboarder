@@ -5,7 +5,7 @@
 import { blankComments, lineCounter, uniqueBy } from '../util.js';
 import { dirOf, joinPath, baseName } from '../pathUtil.js';
 
-export const extensions = ['.c', '.h', '.cc', '.cpp', '.hpp', '.java', '.rs', '.rb', '.php'];
+export const extensions = ['.c', '.h', '.cc', '.cpp', '.hpp', '.rb', '.php'];
 
 const BY_EXT = {
   c: 'c', h: 'c', cc: 'c', cpp: 'c', hpp: 'c',

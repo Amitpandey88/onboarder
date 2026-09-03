@@ -176,6 +176,11 @@ export function renderMindMap(container, layout, expanded, handlers) {
   svg.setAttribute('width', layout.width);
   svg.setAttribute('height', layout.height);
 
+  const edgePaths = new Map(); // edge -> svgPath
+  const cellElements = new Map(); // cellId -> domElement
+  const parentMap = new Map(); // cell -> { parentCell, edge }
+  const childMap = new Map(); // cell -> Array<{ childCell, edge }>
+
   for (const edge of layout.edges) {
     const x1 = edge.from.x + edge.from.w;
     const y1 = edge.from.y + edge.from.h / 2;
@@ -186,6 +191,11 @@ export function renderMindMap(container, layout, expanded, handlers) {
     path.setAttribute('d', `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`);
     path.setAttribute('class', 'mm-edge' + (edge.dashed ? ' is-dashed' : ''));
     svg.appendChild(path);
+    edgePaths.set(edge, path);
+
+    parentMap.set(edge.to, { parentCell: edge.from, edge });
+    if (!childMap.has(edge.from)) childMap.set(edge.from, []);
+    childMap.get(edge.from).push({ childCell: edge.to, edge });
   }
   wrap.appendChild(svg);
 
@@ -196,6 +206,7 @@ export function renderMindMap(container, layout, expanded, handlers) {
     el.style.top = cell.y + 'px';
     el.style.width = cell.w + 'px';
     el.style.minHeight = cell.h + 'px';
+    cellElements.set(cell.id, el);
 
     const head = document.createElement('div');
     head.className = 'mm-head';
@@ -218,6 +229,42 @@ export function renderMindMap(container, layout, expanded, handlers) {
       sum.textContent = cell.summary;
       el.appendChild(sum);
     }
+
+    // Branch hover highlighting
+    el.addEventListener('mouseenter', () => {
+      wrap.classList.add('has-hover');
+      el.classList.add('is-active-branch');
+
+      // Trace ancestors up to root
+      let cur = cell;
+      while (parentMap.has(cur)) {
+        const { parentCell, edge } = parentMap.get(cur);
+        const edgePath = edgePaths.get(edge);
+        if (edgePath) edgePath.classList.add('is-active');
+        const pEl = cellElements.get(parentCell.id);
+        if (pEl) pEl.classList.add('is-active-branch');
+        cur = parentCell;
+      }
+
+      // Trace direct children
+      const kids = childMap.get(cell) || [];
+      for (const { childCell, edge } of kids) {
+        const edgePath = edgePaths.get(edge);
+        if (edgePath) edgePath.classList.add('is-active');
+        const cEl = cellElements.get(childCell.id);
+        if (cEl) cEl.classList.add('is-active-branch');
+      }
+    });
+
+    el.addEventListener('mouseleave', () => {
+      wrap.classList.remove('has-hover');
+      for (const edgePath of edgePaths.values()) {
+        edgePath.classList.remove('is-active');
+      }
+      for (const cellEl of cellElements.values()) {
+        cellEl.classList.remove('is-active-branch');
+      }
+    });
 
     el.addEventListener('click', (event) => {
       event.stopPropagation();

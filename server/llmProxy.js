@@ -7,18 +7,19 @@ import { sendError, sendJSON } from './http.js';
 const UPSTREAM_TIMEOUT_MS = 60_000;
 const MAX_MESSAGES_BYTES = 120_000;
 
-// Only these extra request fields pass through to the provider — a guard
-// against the client smuggling anything unexpected into the body.
 const EXTRA_ALLOWED = new Set(['reasoning', 'temperature', 'top_p', 'presence_penalty', 'frequency_penalty']);
+
+export function detectProvider(apiKey, baseUrl) {
+  if (apiKey?.startsWith('sk-ant-')) return 'anthropic';
+  if (apiKey?.startsWith('AIza')) return 'gemini';
+  return 'openai';
+}
 
 export async function proxyChat(res, body) {
   const { baseUrl, apiKey, model, messages } = body || {};
   const stream = body.stream !== false;
   const maxTokens = Math.min(Number(body.max_tokens) || 700, 4096);
 
-  if (!baseUrl || !/^https?:\/\/\S+$/.test(baseUrl)) {
-    return sendError(res, 400, 'A valid base URL is needed — something like https://api.openai.com/v1.');
-  }
   if (!model || typeof model !== 'string') {
     return sendError(res, 400, 'A model name is needed.');
   }
@@ -29,21 +30,65 @@ export async function proxyChat(res, body) {
     return sendError(res, 413, 'That prompt is too large. Try a smaller file.');
   }
 
-  const url = baseUrl.replace(/\/+$/, '') + '/chat/completions';
-  const headers = { 'content-type': 'application/json' };
-  const isAzure = /\.openai\.azure\.com|\.cognitiveservices\.azure\.com/i.test(baseUrl);
-  if (apiKey) {
-    // Azure OpenAI authenticates with `api-key`; everyone else gets Bearer.
-    if (isAzure) headers['api-key'] = apiKey;
-    else headers.authorization = 'Bearer ' + apiKey;
-  }
+  const provider = detectProvider(apiKey, baseUrl);
 
-  const payload = { model, messages, stream };
-  // gpt-5-class models (Azure's current crop) only take the newer field.
-  if (isAzure) payload.max_completion_tokens = maxTokens;
-  else payload.max_tokens = maxTokens;
-  for (const key of Object.keys(body)) {
-    if (EXTRA_ALLOWED.has(key)) payload[key] = body[key];
+  let url;
+  let headers = { 'content-type': 'application/json' };
+  let payload = { stream };
+  const isAzure = /\.openai\.azure\.com|\.cognitiveservices\.azure\.com/i.test(baseUrl || '');
+
+  if (provider === 'anthropic') {
+    url = 'https://api.anthropic.com/v1/messages';
+    headers['x-api-key'] = apiKey;
+    headers['anthropic-version'] = '2023-06-01';
+    
+    let system = '';
+    const anthropicMessages = [];
+    for (const m of messages) {
+      if (m.role === 'system') system += m.content + '\n';
+      else anthropicMessages.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content });
+    }
+    payload = {
+      model,
+      max_tokens: maxTokens,
+      messages: anthropicMessages,
+      system: system.trim() || undefined,
+      stream
+    };
+  } else if (provider === 'gemini') {
+    const streamSuffix = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${streamSuffix}&key=${apiKey}`;
+    
+    let system_instruction = null;
+    const contents = [];
+    for (const m of messages) {
+      if (m.role === 'system') {
+        system_instruction = { parts: [{ text: m.content }] };
+      } else {
+        contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] });
+      }
+    }
+    payload = {
+      contents,
+      system_instruction,
+      generationConfig: { maxOutputTokens: maxTokens }
+    };
+  } else {
+    // OpenAI default
+    if (!baseUrl || !/^https?:\/\/\S+$/.test(baseUrl)) {
+      return sendError(res, 400, 'A valid base URL is needed — something like https://api.openai.com/v1.');
+    }
+    url = baseUrl.replace(/\/+$/, '') + '/chat/completions';
+    if (apiKey) {
+      if (isAzure) headers['api-key'] = apiKey;
+      else headers.authorization = 'Bearer ' + apiKey;
+    }
+    payload = { model, messages, stream };
+    if (isAzure) payload.max_completion_tokens = maxTokens;
+    else payload.max_tokens = maxTokens;
+    for (const key of Object.keys(body)) {
+      if (EXTRA_ALLOWED.has(key)) payload[key] = body[key];
+    }
   }
 
   let upstream;
@@ -55,7 +100,7 @@ export async function proxyChat(res, body) {
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   } catch (err) {
-    const why = err.name === 'TimeoutError' ? 'The endpoint took too long to answer.' : 'Could not reach ' + baseUrl + '.';
+    const why = err.name === 'TimeoutError' ? 'The endpoint took too long to answer.' : 'Could not reach ' + url + '.';
     return sendError(res, 502, why);
   }
 
@@ -65,9 +110,7 @@ export async function proxyChat(res, body) {
     try {
       const parsed = JSON.parse(text);
       detail = parsed.error?.message || detail;
-    } catch {
-      /* plain text it is */
-    }
+    } catch {}
     return sendJSON(res, upstream.status, {
       error: `The provider answered ${upstream.status}.`,
       detail,
@@ -90,8 +133,6 @@ export async function proxyChat(res, body) {
     for await (const chunk of upstream.body) {
       if (!res.write(chunk)) await new Promise((r) => res.once('drain', r));
     }
-  } catch {
-    /* client walked away mid-stream; nothing to do */
-  }
+  } catch {}
   res.end();
 }

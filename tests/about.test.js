@@ -125,3 +125,16 @@ test('a missing date says unknown instead of printing Invalid Date', () => {
 test('a stat tile puts the number and its label where the CSS expects them', () => {
   assert.equal(aboutNum(7, 'hubs'), '<div class="about-num"><b>7</b><span>hubs</span></div>');
 });
+
+test('credits visibility states: shown, hidden, removed', () => {
+  const computeVisibility = (status) => {
+    if (status === 'removed') return { aboutRemoved: true, barRemoved: true };
+    const hidden = status === 'hidden';
+    return { aboutHidden: hidden, barHidden: !hidden };
+  };
+
+  assert.deepEqual(computeVisibility('shown'), { aboutHidden: false, barHidden: true });
+  assert.deepEqual(computeVisibility(null), { aboutHidden: false, barHidden: true });
+  assert.deepEqual(computeVisibility('hidden'), { aboutHidden: true, barHidden: false });
+  assert.deepEqual(computeVisibility('removed'), { aboutRemoved: true, barRemoved: true });
+});

@@ -115,7 +115,8 @@ export function renderTree(container, tree, ctx) {
 
       const head = document.createElement('div');
       head.className = 'tree-dir-head';
-      head.innerHTML = `<span class="tree-caret">▸</span><span>${escapeHtml(name)}/</span>`;
+      const count = countFiles(child);
+      head.innerHTML = `<span class="tree-caret">▸</span><span>${escapeHtml(name)}/</span><span class="tree-count">${count}</span>`;
       head.addEventListener('click', () => {
         if (openState.has(child.path)) openState.delete(child.path);
         else openState.add(child.path);
@@ -137,6 +138,11 @@ export function renderTree(container, tree, ctx) {
       const el = document.createElement('div');
       el.className = 'tree-file' + (path === selected ? ' is-selected' : '');
       el.dataset.path = path;
+
+      const dot = document.createElement('span');
+      dot.className = 'tree-dot';
+      dot.style.backgroundColor = getExtColor(path);
+      el.appendChild(dot);
 
       const label = document.createElement('span');
       label.textContent = name;
@@ -173,4 +179,22 @@ function badge(text, cls) {
   b.className = 'tree-badge ' + cls;
   b.textContent = text;
   return b;
+}
+
+function getExtColor(path) {
+  const ext = (path.match(/\.([A-Za-z0-9]+)$/) || [, ''])[1].toLowerCase();
+  switch (ext) {
+    case 'ts': case 'tsx': return '#3178c6';
+    case 'js': case 'jsx': case 'mjs': case 'cjs': return '#f7df1e';
+    case 'py': return '#3572A5';
+    case 'rs': return '#dea584';
+    case 'go': return '#00ADD8';
+    case 'java': return '#b07219';
+    case 'cs': return '#178600';
+    case 'html': return '#e34c26';
+    case 'css': return '#563d7c';
+    case 'json': return '#cbcb41';
+    case 'md': return '#083fa1';
+    default: return 'var(--faint)';
+  }
 }

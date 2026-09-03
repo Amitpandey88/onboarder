@@ -19,19 +19,27 @@ import { sendError, sendJSON, readBody } from './http.js';
 import { crossOriginReason, rebindingReason } from './httpGuards.js';
 import { proxyChat } from './llmProxy.js';
 import { serveStatic } from './static.js';
+import { handleSearch } from './apiSearch.js';
+import { handleBlame } from './apiGitBlame.js';
+import { handleDiff, handleDiffRefs } from './apiDiff.js';
 
-// `path` matches exactly, `prefix` matches the start and hands the rest to the
-// handler. `body: true` means the JSON body is read before the handler runs —
-// a flag rather than each handler awaiting for itself, so the size limit is
-// applied in one place and cannot be skipped by a new route.
-//
-// `sameOrigin` is the interesting one. Every write gets the cross-origin check
-// for free; a GET only gets it if it says so here. `/api/file` says so because
-// it is the one GET that returns the contents of a file on this machine — a page
-// on another site can make the browser issue it, and without the check the
-// response would be readable through a well-guessed scan id. Static assets and
-// `/api/health` are deliberately open: nothing to spend, nothing to leak.
 const ROUTES = [
+  {
+    method: 'GET', path: '/api/diff/refs', sameOrigin: true,
+    run: ({ res, url }) => handleDiffRefs(res, url.searchParams.get('scan')),
+  },
+  {
+    method: 'GET', path: '/api/diff', sameOrigin: true,
+    run: ({ res, url }) => handleDiff(res, url.searchParams.get('scan'), url.searchParams),
+  },
+  {
+    method: 'POST', path: '/api/search', body: true,
+    run: ({ res, body }) => handleSearch(res, body),
+  },
+  {
+    method: 'GET', path: '/api/blame', sameOrigin: true,
+    run: ({ res, url }) => handleBlame(res, url.searchParams.get('scan'), url.searchParams.get('path')),
+  },
   {
     method: 'POST', path: '/api/scan', body: true,
     run: ({ res, body, config }) => handleScan(res, body, config),

@@ -16,11 +16,20 @@
   </div>
   <nav class="views" id="viewTabs" hidden>
     <button class="view-tab is-active" data-view="explorer">Explorer</button>
+    <button class="view-tab" data-view="graph">Graph</button>
+    <button class="view-tab" data-view="heatmap">Heatmap</button>
+    <button class="view-tab" data-view="insights">Insights</button>
+    <button class="view-tab" data-view="diff">Diff</button>
+    <button class="view-tab" data-view="workflows">Workflows</button>
+    <button class="view-tab" data-view="sbom">SBOM</button>
     <button class="view-tab" data-view="code">Code</button>
     <button class="view-tab" data-view="docs">Docs</button>
     <button class="view-tab" data-view="about">About</button>
   </nav>
   <div class="topbar-right">
+    <button class="btn btn-ghost btn-search-trigger" id="searchTriggerBtn" title="Search files (Cmd+K / Ctrl+K)" hidden>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="search-key-hint">⌘K</span>
+    </button>
     <span class="repo-chip" id="repoChip" hidden></span>
     <button class="btn btn-ghost" id="themeBtn" title="Switch theme">Dark</button>
     <button class="btn btn-ghost" id="newRepoBtn" hidden>New repo</button>
@@ -169,6 +178,7 @@
         <button class="mode-chip" data-mode="patterns">Layers</button>
         <button class="mode-chip" data-mode="health">Health</button>
         <button class="mode-chip" data-mode="security">Security</button>
+        <button class="mode-chip" data-mode="history">History</button>
         <button class="mode-chip" data-mode="services">Services</button>
         <button class="mode-chip" data-mode="tour">Tour</button>
         <button class="mode-chip" data-mode="atlas">Atlas</button>
@@ -184,7 +194,29 @@
     </div>
     <div class="docview" id="docView" hidden></div>
     <div class="docview" id="aboutView" hidden></div>
-    <div class="docview" id="codeView" hidden></div>
+    <div class="docview" id="insightsView" hidden></div>
+    <div class="docview" id="diffView" hidden></div>
+    <div class="docview" id="workflowsView" hidden></div>
+    <div class="docview" id="sbomView" hidden></div>
+    <div class="code-tab-container" id="codeTabContainer" hidden>
+      <div class="blame-gutter" id="blameGutter" hidden></div>
+      <div class="docview code-docview" id="codeView"></div>
+    </div>
+    <section class="graph-view" id="graphView" hidden style="flex:1; position:relative;">
+      <canvas class="graph-canvas" id="graphCanvas"></canvas>
+      <div class="graph-controls" id="graphControls">
+        <input type="search" class="graph-search-input" id="graphSearchInput" placeholder="Filter graph nodes…" style="font-family:var(--mono);font-size:11px;padding:4px 8px;border:1.5px solid var(--ink);border-radius:4px;background:var(--card);color:var(--ink);width:130px;" />
+        <button class="btn btn-ghost" id="graphReset" title="Reset layout">Reset</button>
+        <button class="btn btn-ghost" id="graphZoomIn" title="Zoom in">+</button>
+        <button class="btn btn-ghost" id="graphZoomOut" title="Zoom out">−</button>
+        <button class="btn btn-ghost" id="graphFit" title="Fit graph to screen">Fit</button>
+      </div>
+      <div class="graph-tooltip" id="graphTooltip" hidden></div>
+    </section>
+    <section class="heatmap-view" id="heatmapView" hidden style="flex:1; position:relative;">
+      <canvas class="heatmap-canvas" id="heatmapCanvas"></canvas>
+      <div class="heatmap-tooltip" id="heatmapTooltip" hidden></div>
+    </section>
     <div class="canvas" id="canvas">
       <div class="canvas-content" id="canvasContent"></div>
       <div class="canvas-empty" id="canvasEmpty" hidden></div>
@@ -269,10 +301,14 @@
   </p>
 </aside>
 
+<div class="search-overlay" id="searchOverlay" hidden></div>
 <div class="toast" id="toast" hidden></div>
 
 <script src="/vendor/monaco/vs/loader.js"></script>
 <script src="/vendor/mermaid.min.js"></script>
+<script type="module" src="/js/components/RiskBadge.js"></script>
+<script type="module" src="/js/components/MetricSparkline.js"></script>
+<script type="module" src="/js/components/FileChip.js"></script>
 <script type="module" src="/app.js"></script>
 </body>
 </html>

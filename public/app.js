@@ -23,7 +23,7 @@ import { explainOverview } from '/shared/analyzer/explainLocal.js';
 import { dirOf, pathFilter } from '/shared/analyzer/pathUtil.js';
 import {
   overviewDiagram, folderDiagram, fileDetailDiagram, servicesDiagram, emptyDiagram,
-  layersDiagram, healthDiagram, securityDiagram, setDiagramTheme, diagramThemeBlock,
+  layersDiagram, healthDiagram, securityDiagram, historyDiagram, setDiagramTheme, diagramThemeBlock,
 } from '/shared/diagram/mermaid.js';
 import { analyzeHealth } from '/shared/analyzer/health.js';
 import { summarizeSecurity } from '/shared/analyzer/security.js';
@@ -43,6 +43,14 @@ import { initDocs, renderDocs } from '/js/docsView.js';
 import { initCodeTab, renderCode } from '/js/codeTab.js';
 import { initAiDraft, updateAiBtn, wireAIClicks } from '/js/aiDraft.js';
 import { initAtlas, renderAtlasList, openCardDiagram } from '/js/atlas.js';
+import { initForceGraph } from '/js/forceGraph.js';
+import { initHeatmap } from '/js/heatmap.js';
+import { initSearch } from '/js/search.js';
+import { withTransition } from '/js/transitions.js';
+import { initInsights, renderInsights } from '/js/insightsView.js';
+import { initDiffView, renderDiffView } from '/js/diffView.js';
+import { initWorkflows, renderWorkflows } from '/js/workflowsView.js';
+import { initSbom, renderSbom } from '/js/sbomView.js';
 import {
   state as appState, isExplorerView, loadRepo, unloadRepo,
   focusFile, focusFolder, clearFocus as clearFocusState, inspectorSubject, aiViewKey,
@@ -61,7 +69,14 @@ const dom = {};
   'tourbar', 'tourTitle', 'tourCount', 'tourPrev', 'tourNext', 'tourExit',
   'drawerScrim', 'settingsDrawer', 'drawerClose', 'setBaseUrl', 'setApiKey', 'setModel',
   'saveSettings', 'testSettings', 'settingsStatus', 'toast', 'brandNote', 'askBtn', 'askInput',
+  'graphView', 'graphCanvas', 'graphControls', 'graphReset', 'graphZoomIn', 'graphZoomOut', 'graphFit', 'graphSearchInput', 'graphTooltip',
+  'heatmapView', 'heatmapCanvas', 'heatmapTooltip', 'blameGutter', 'codeTabContainer',
+  'insightsView', 'diffView', 'workflowsView', 'sbomView', 'searchTriggerBtn'
 ].forEach((id) => (dom[id] = $(id)));
+
+let forceGraphCtl = null;
+let heatmapCtl = null;
+let searchCtl = null;
 
 const state = appState;
 
@@ -181,7 +196,10 @@ if (!canPickFolder()) {
 // -------------------------------------------------------------- explorer --
 
 function enterExplorer(payload, opts) {
-  loadRepo(payload, { browserSource: opts.browserSource || null });
+  loadRepo(payload, {
+    browserSource: opts.browserSource || null,
+    history: payload.history || null, // computed server-side; null for browser picks
+  });
   state.stack = analyzeStack(state.manifest, state.scan.stats.languages);
 
   resetOpenState();
@@ -193,6 +211,13 @@ function enterExplorer(payload, opts) {
   dom.testsToggle.classList.add('is-on');
   dom.depthSelect.value = '0';
 
+  if (searchCtl) {
+    searchCtl.updateFiles(state.scan.files, state.scanId);
+    searchCtl.hide();
+  } else {
+    searchCtl = initSearch(state.scan.files, { getScanId: () => state.scanId });
+  }
+
   // Compute everything first, then flip the UI over — a failure here should
   // land on the landing page with the error visible, not a half-dead explorer.
   landingIdle();
@@ -201,11 +226,12 @@ function enterExplorer(payload, opts) {
   dom.viewTabs.hidden = false;
   dom.repoChip.hidden = false;
   dom.newRepoBtn.hidden = false;
+  dom.searchTriggerBtn.hidden = false;
   dom.repoChip.innerHTML =
     `<span class="repo-name">${escapeHtml(state.scan.name)}</span>` +
     `<span class="repo-sub">${escapeHtml(repoSubLabel())}</span>`;
   dom.repoChip.title = state.scan.root;
-  dom.brandNote.textContent = state.scan.stats.filesParsed + ' files, ' + state.scan.stats.edgeCount + ' connections';
+  dom.brandNote.textContent = state.scan.stats.filesParsed + ' files · ' + state.scan.stats.edgeCount + ' connections';
 
   renderSidebar();
   setView('map');
@@ -264,8 +290,10 @@ dom.treeFilter.addEventListener('input', renderSidebar);
 dom.viewTabs.addEventListener('click', (event) => {
   const tab = event.target.closest('.view-tab');
   if (!tab) return;
-  if (tab.dataset.view === 'explorer') return setView(state.lastExplorer || 'map');
-  setView(tab.dataset.view);
+  withTransition(() => {
+    if (tab.dataset.view === 'explorer') return setView(state.lastExplorer || 'map');
+    setView(tab.dataset.view);
+  });
 });
 
 // The inspector's single source of truth. Whatever is focused — a file, a
@@ -283,6 +311,7 @@ function syncInspector() {
     case 'patterns': return inspector.showPatterns(state);
     case 'health': return inspector.showHealth(state);
     case 'security': return inspector.showSecurity(state);
+    case 'history': return inspector.showHistory(state);
     default: return inspector.showOverview(state);
   }
 }
@@ -356,17 +385,47 @@ function onNodeClick(payload) {
 
 inspector.onInspectorNavigate(openFile);
 
+document.addEventListener('search-select', (event) => {
+  if (event.detail?.path) openFile(event.detail.path);
+});
+
+document.addEventListener('file-select', (event) => {
+  if (event.detail?.path) openFile(event.detail.path);
+});
+
+document.addEventListener('graph-node-click', (event) => {
+  if (event.detail?.path) openFile(event.detail.path);
+});
+
+document.addEventListener('heatmap-node-click', (event) => {
+  if (event.detail?.path) openFile(event.detail.path);
+});
+
 async function renderCanvas() {
-  // Docs, About and Code are reading pages, not canvases: swap containers.
   const isDocs = state.view === 'docs';
   const isAbout = state.view === 'about';
   const isCode = state.view === 'code';
-  const isPage = isDocs || isAbout || isCode;
+  const isGraph = state.view === 'graph';
+  const isHeatmap = state.view === 'heatmap';
+  const isInsights = state.view === 'insights';
+  const isDiff = state.view === 'diff';
+  const isWorkflows = state.view === 'workflows';
+  const isSbom = state.view === 'sbom';
+  const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isWorkflows || isSbom;
   const isAtlasList = state.view === 'atlas' && !state.atlasOpen;
+  
   dom.canvas.hidden = isPage;
   dom.docView.hidden = !isDocs;
   dom.aboutView.hidden = !isAbout;
   dom.codeView.hidden = !isCode;
+  if (dom.codeTabContainer) dom.codeTabContainer.hidden = !isCode;
+  if (dom.graphView) dom.graphView.hidden = !isGraph;
+  if (dom.heatmapView) dom.heatmapView.hidden = !isHeatmap;
+  if (dom.insightsView) dom.insightsView.hidden = !isInsights;
+  if (dom.diffView) dom.diffView.hidden = !isDiff;
+  if (dom.workflowsView) dom.workflowsView.hidden = !isWorkflows;
+  if (dom.sbomView) dom.sbomView.hidden = !isSbom;
+  
   dom.copyMermaidBtn.hidden = isPage || isAtlasList;
   dom.svgBtn.hidden = isPage;
   dom.fitBtn.hidden = isPage || isAtlasList;
@@ -378,7 +437,42 @@ async function renderCanvas() {
     dom.aiDrawBtn.hidden = true;
     if (isDocs) renderDocs();
     else if (isCode) renderCode();
-    else renderAbout();
+    else if (isAbout) renderAbout();
+    else if (isInsights) renderInsights(dom.insightsView, state);
+    else if (isDiff) renderDiffView(dom.diffView, state);
+    else if (isWorkflows) renderWorkflows(dom.workflowsView, state);
+    else if (isSbom) renderSbom(dom.sbomView, state);
+    
+    if (isGraph) {
+      if (!forceGraphCtl) forceGraphCtl = initForceGraph(dom.graphCanvas);
+      const edges = state.scan.edges || [];
+      const facts = state.facts || {};
+      const healthMap = new Map((state.health?.perFile || []).map(h => [h.path, h]));
+      const nodes = state.scan.files.map(f => {
+        const h = healthMap.get(f.path);
+        return {
+          path: f.path,
+          fanIn: facts.fanIn?.[f.path] || 0,
+          fanOut: facts.fanOut?.[f.path] || 0,
+          community: facts.communities?.[f.path] || 0,
+          risk: h?.risk || 0,
+          complexity: h?.complexity || f.cognitive || 0,
+          lang: f.lang || 'unknown',
+        };
+      });
+      forceGraphCtl.update(nodes, edges, facts.communities || {});
+    }
+    
+    if (isHeatmap) {
+      const heatFiles = state.scan.files.map(f => ({
+        path: f.path,
+        risk: state.health?.perFile?.find(x => x.path === f.path)?.risk || 0,
+        loc: f.size
+      }));
+      if (!heatmapCtl) heatmapCtl = initHeatmap(dom.heatmapCanvas, heatFiles);
+      else heatmapCtl.update(heatFiles);
+    }
+
     renderCrumbs();
     renderFoot();
     return;
@@ -454,6 +548,8 @@ async function renderCanvas() {
     d = healthDiagram(scan, facts, state.health, { include: pathFilter(state.filters) });
   } else if (state.view === 'security') {
     d = securityDiagram(scan, facts, state.security, { include: pathFilter(state.filters) });
+  } else if (state.view === 'history') {
+    d = historyDiagram(scan, facts, state.history);
   } else if (state.view === 'services') {
     d = servicesDiagram(scan, manifest);
   } else if (state.view === 'tour') {
@@ -587,6 +683,8 @@ function renderCrumbs() {
     parts.push('<span>docs</span>');
   } else if (state.view === 'patterns') {
     parts.push('<span>patterns</span>');
+  } else if (state.view === 'history') {
+    parts.push('<span>history</span>');
   }
 
   dom.crumbs.innerHTML = parts.join('<span class="sep">/</span>');
@@ -678,10 +776,19 @@ dom.svgBtn.addEventListener('click', () => {
 });
 
 dom.fitBtn.addEventListener('click', () => panzoom.fit());
+dom.searchTriggerBtn.addEventListener('click', () => searchCtl?.show());
+dom.graphSearchInput?.addEventListener('input', (e) => forceGraphCtl?.search(e.target.value));
+dom.graphFit?.addEventListener('click', () => forceGraphCtl?.fit());
 
 // ------------------------------------------------------------- AI explain --
 
-inspector.initInspector({ onAskAI: askAI, onClearFocus: clearFocus });
+inspector.initInspector({
+  onAskAI: askAI,
+  onClearFocus: clearFocus,
+  onOpenFile: openFile,
+  onDeepDive: openDeepDive,
+  onToast: toast,
+});
 
 // The About view owns its own rendering; it borrows these three from the shell.
 initAbout({
@@ -701,6 +808,7 @@ initDocs({
 
 initCodeTab({
   host: dom.codeView,
+  blameGutter: dom.blameGutter,
   onSyncInspector: syncInspector,
   onRenderSidebar: renderSidebar,
   onOpenFile: openFile,

@@ -13,6 +13,7 @@ import { roleOf } from '/shared/analyzer/graph.js';
 import { escapeHtml } from './html.js';
 import { highlightCode, langOf } from './highlight.js';
 import { initViewer, showInViewer, monacoLangOf } from './codeViewer.js';
+import { fetchBlame, initBlameView } from './blameView.js';
 import {
   state, focusFile, defaultCodePath, pushCodeHistory, codeHistoryTarget,
 } from './state.js';
@@ -21,12 +22,14 @@ import { readRepoFile } from './repoFiles.js';
 const MAX_FALLBACK_LINES = 3000;
 
 let host = null;
+let renderBlameGutter = null;
 let hooks = {
   onSyncInspector: () => {},
   onRenderSidebar: () => {},
   onOpenFile: () => {},
   onToast: () => {},
   getTheme: () => 'light',
+  blameGutter: null,
 };
 
 let codeSeq = 0;          // render generations — a slow read never overwrites a newer one
@@ -35,6 +38,9 @@ let viewerFailed = false; // Monaco failed to load → hand-rolled fallback
 export function initCodeTab(options) {
   host = options.host;
   hooks = { ...hooks, ...options };
+  if (options.blameGutter) {
+    renderBlameGutter = initBlameView(options.blameGutter);
+  }
 
   host.addEventListener('click', (event) => {
     const b = event.target.closest('button');
@@ -42,6 +48,26 @@ export function initCodeTab(options) {
     if (b.dataset.codeopen) return openCodeFile(b.dataset.codeopen);
     if (b.dataset.codenav) return codeNav(Number(b.dataset.codenav));
     if (b.dataset.codedive !== undefined) return (hooks.onDeepDive || hooks.onOpenFile)(state.code.path); // empty attribute is falsy — test undefined
+    if (b.dataset.codeblame !== undefined) {
+      if (!hooks.blameGutter) return;
+      if (!hooks.blameGutter.hidden) {
+        hooks.blameGutter.hidden = true;
+        b.classList.remove('is-active');
+      } else {
+        hooks.onToast('Fetching git blame...');
+        fetchBlame(state.scanId, state.code.path).then((data) => {
+          if (data && data.lines && data.lines.length) {
+            renderBlameGutter(data);
+            hooks.blameGutter.hidden = false;
+            b.classList.add('is-active');
+            hooks.onToast(`Blame loaded for ${data.lines.length} lines`);
+          } else {
+            hooks.onToast(data?.reason || 'No blame available for this file.');
+          }
+        });
+      }
+      return;
+    }
     if (b.dataset.codecopy !== undefined) {
       const text = state.code.cache[state.code.path];
       if (text !== undefined) {
@@ -162,6 +188,7 @@ function renderHead(headEl, { path, name, ext, text, parsed, isBinary }) {
       <div class="code-meta">${escapeHtml(meta)}</div>
     </div>
     <div class="code-actions">
+      <button class="code-navbtn" data-codeblame ${isBinary ? 'disabled' : ''} title="Toggle Git blame annotations">Blame</button>
       <button class="code-navbtn" data-codecopy ${isBinary ? 'disabled' : ''}>Copy</button>
       <button class="code-navbtn" data-codedive>Deep-dive →</button>
     </div>`;

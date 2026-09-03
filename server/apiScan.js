@@ -54,6 +54,20 @@ export async function handleScan(res, body, { projectRoot }) {
   }
 }
 
+// History is a bonus layer over the scan, never a reason for it to fail. When
+// git is missing, the folder has no .git, or the log somehow blows up, the
+// payload carries the honest unavailable shape instead — the UI says why
+// rather than inventing zeros.
+async function collectHistory(root, scan) {
+  try {
+    const log = await gitLog(root);
+    if (!log.ok) return unavailableHistory(log.reason);
+    return analyzeHistory(scan, parseGitLog(log.text), { totalCommits: log.totalCommits });
+  } catch {
+    return unavailableHistory('The history could not be read — the scan itself is unaffected.');
+  }
+}
+
 // The three request shapes, reduced to a directory. Cloning happens here, which
 // is why this returns rather than sends: the caller owns cleanup if the scan that
 // follows fails.
@@ -90,15 +104,4 @@ export async function handleCleanup(res, cloneId) {
   if (!isCloneId(cloneId)) return sendError(res, 400, 'That is not a clone id.');
   await closeClone(cloneId);
   sendJSON(res, 200, { ok: true });
-}
-
-// Wire the git history provider to the pure analyzer. History is never required
-// — a browser folder pick has no .git, a downloaded tarball has none, and git
-// might not be installed. All of those return the "unavailable" shape so the UI
-// can say why instead of showing zeros. A history failure must not fail the scan.
-async function collectHistory(root, scan) {
-  const result = await gitLog(root);
-  if (!result.ok) return unavailableHistory(result.reason);
-  const commits = parseGitLog(result.text);
-  return analyzeHistory(scan, commits, { totalCommits: result.totalCommits });
 }
