@@ -170,12 +170,18 @@ export function computeFacts(scan, manifest = {}) {
     .map(([id, members]) => ({ id, members, size: members.length }))
     .sort((a, b) => b.size - a.size);
 
-  const betweennessMap = brandesBetweenness(paths, edges);
-  const betweenness = Object.fromEntries(betweennessMap);
+  const betweennessResult = brandesBetweenness(paths, edges);
+  const betweenness = Object.fromEntries(betweennessResult.map);
 
   return {
     communities,
     betweenness,
+    // Whether `betweenness` above is a real measurement or all zeros
+    // because the graph was over the Brandes cap. The UI uses this the
+    // same way it uses `health.blastExact`: it shows an honest
+    // "not computed for repos of this size" instead of pretending the
+    // zeros are a finding.
+    betweennessExact: betweennessResult.exact,
     fanIn: Object.fromEntries(fanIn),
     fanOut: Object.fromEntries(fanOut),
     importers: Object.fromEntries(importers),
@@ -349,9 +355,14 @@ function louvainCommunities(nodes, edges) {
 
   for (const n of nodes) tot.set(n, k.get(n));
 
+  // Eight passes is enough for any practical graph to settle. Three was
+  // the early limit and worked for small repos, but on denser graphs the
+  // modularity gain was still climbing at iteration three. The early-exit
+  // (`improved === false`) keeps the cost bounded on graphs that converge
+  // quickly, so this is not a free pass on every scan — it is a ceiling.
   let iters = 0;
   let improved = true;
-  while (iters < 3 && improved) {
+  while (iters < 8 && improved) {
     improved = false;
     for (const u of nodes) {
       const c_u = communities.get(u);
@@ -388,10 +399,17 @@ function louvainCommunities(nodes, edges) {
   return communities;
 }
 
+// Brandes's algorithm. The old return was just a Map of zeros when the
+// graph had more than 1,000 nodes, which is honest about the cost (O(V·E)
+// in the unweighted case) but dishonest about what the consumer is looking
+// at: a row of zeros reads like a real measurement. The wrapper now returns
+// `{ map, exact }` so the consumer can show "betweenness was not computed
+// for repos over 1,000 files" the way the health panel shows
+// `blastExact: false` next to a fan-in fallback.
 function brandesBetweenness(nodes, edges) {
   const cb = new Map(nodes.map(n => [n, 0]));
-  if (nodes.length > 1000) return cb;
-  
+  if (nodes.length > 1000) return { map: cb, exact: false };
+
   const adj = new Map(nodes.map(n => [n, []]));
   for (const e of edges) {
     if (adj.has(e.from)) adj.get(e.from).push(e.to);
@@ -432,12 +450,12 @@ function brandesBetweenness(nodes, edges) {
       }
     }
   }
-  
+
   let max = 0;
   for (const val of cb.values()) if (val > max) max = val;
   if (max > 0) {
     for (const [k, v] of cb.entries()) cb.set(k, v / max);
   }
-  
-  return cb;
+
+  return { map: cb, exact: true };
 }
