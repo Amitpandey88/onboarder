@@ -1,5 +1,5 @@
 {
-  "name": "codebase-onboarder",
+  "name": "codebase_onboarder",
   "version": "0.1.0",
   "private": true,
   "description": "Drop a path. Get a map. A local tool that draws how a repository fits together.",
