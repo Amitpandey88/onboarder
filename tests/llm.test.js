@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { DEFAULT_SETTINGS, fileMessages, questionMessages, stackSummaryMessages } from '../public/js/llm.js';
+import { extractRequestId } from '../server/llmProxy.js';
 
 test('default settings ship without a bundled credential', () => {
   assert.deepEqual(DEFAULT_SETTINGS, { baseUrl: '', apiKey: '', model: '' });
@@ -117,4 +118,21 @@ test('stackSummaryMessages admits when docs are unavailable', () => {
     repoNote: '',
   });
   assert.ok(msgs[1].content.includes('No official docs could be fetched'));
+});
+
+test('extractRequestId reads the header each provider sends', () => {
+  // A minimal stand-in for `Response.headers` — anything with a `.get`
+  // method satisfies the contract. The tests cover the four spellings
+  // the proxy knows about and a few failure shapes.
+  const headers = (map) => ({ get: (k) => map[k] ?? null });
+
+  assert.equal(extractRequestId(headers({ 'x-request-id': 'req-1' })), 'req-1', 'OpenAI spelling');
+  assert.equal(extractRequestId(headers({ 'request-id': 'req-2' })), 'req-2', 'generic spelling');
+  assert.equal(extractRequestId(headers({ 'x-amzn-requestid': 'req-3' })), 'req-3', 'Bedrock spelling');
+  assert.equal(extractRequestId(headers({ 'x-goog-request-id': 'req-4' })), 'req-4', 'Google spelling');
+  assert.equal(extractRequestId(headers({})), null, 'no id, no field');
+  assert.equal(extractRequestId(null), null, 'missing headers, no field');
+  // `x-request-id` wins when several are set — it is the first thing the
+  // function checks, and providers do not normally send more than one.
+  assert.equal(extractRequestId(headers({ 'x-request-id': 'a', 'request-id': 'b' })), 'a');
 });

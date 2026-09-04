@@ -75,6 +75,35 @@ const RULES = [
   { id: 'empty-catch', severity: 'medium', category: 'quality',
     message: 'Swallowed exception — errors vanish silently here.',
     rx: /(catch\s*\([^)]*\)\s*\{\s*\}|except\s*\w*\s*:\s*pass\b)/, byLine: true },
+  // JSON Web Tokens start with a base64-encoded header that is always
+  // `eyJ…` ("{"). A line that contains one and treats it as a literal
+  // string — rather than reading it from a vault — is the same shape of
+  // mistake as a hardcoded API key. Three base64 segments separated by
+  // dots is the JWT signature; we only require the first segment to keep
+  // the rule cheap.
+  { id: 'jwt-secret', severity: 'critical', category: 'secret',
+    message: 'Looks like a hardcoded JWT — treat it like a credential, not a string.',
+    rx: /['"`](eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})['"`]/, byLine: true },
+  // The `os-system` rule already catches `os.system` and `shell=True` on
+  // subprocess calls, but `subprocess.Popen(..., shell=True)` and
+  // `subprocess.run(..., shell=True)` are the modern Python way to do
+  // the same thing, and a regex on `shell=True` alone matches both
+  // without the false-positive rate. A separate rule for Popen keeps the
+  // message specific and the langs filter honest.
+  { id: 'subprocess-shell', severity: 'high', category: 'injection', langs: ['python'],
+    message: 'subprocess.* with shell=True runs a shell — sanitize any input reaching it.',
+    rx: /\bsubprocess\.(Popen|run|call|check_output|check_call)\s*\([^)]*shell\s*=\s*True/, byLine: true },
+  // Go's `http.ListenAndServe` defaults to binding all interfaces when
+  // given a `":port"` address (the colon makes it a wildcard), and a
+  // literal `0.0.0.0` does the same. That is fine inside a container with
+  // a tight network policy and a bug everywhere else: the dev box, the
+  // staging cluster, the CI runner, the laptop on coffee-shop Wi-Fi. The
+  // rule does not distinguish "0.0.0.0" from "127.0.0.1" because the
+  // safer pattern is always `127.0.0.1:<port>`, so the finding is a
+  // nudge rather than an alarm.
+  { id: 'go-public-listen', severity: 'medium', category: 'config', langs: ['go'],
+    message: 'Go listener binds all interfaces (":port" or "0.0.0.0") — bind 127.0.0.1 explicitly.',
+    rx: /(ListenAndServe|Listen|TLS\s*\.\s*Listen|ListenAndServeTLS)\s*\(\s*["'](:[0-9]+|0\.0\.0\.0(?::[0-9]+)?|::)["']/, byLine: true },
 ];
 
 // Findings for one file, run at scan time while the source is in hand.

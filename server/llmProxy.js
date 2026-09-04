@@ -15,6 +15,21 @@ export function detectProvider(apiKey, baseUrl) {
   return 'openai';
 }
 
+// Extracts the provider's request id from an upstream response. Each
+// provider spells it differently; the order in this list is "what we have
+// seen", not "what is correct" — a missing id is fine and collapses to
+// null. The function is pure and exported for tests; the `headers` argument
+// is anything with a `.get(name)` method, which both `Response.headers` and
+// a hand-rolled plain object can satisfy in the test suite.
+export function extractRequestId(headers) {
+  if (!headers || typeof headers.get !== 'function') return null;
+  return headers.get('x-request-id')
+    || headers.get('request-id')
+    || headers.get('x-amzn-requestid')
+    || headers.get('x-goog-request-id')
+    || null;
+}
+
 export async function proxyChat(res, body) {
   const { baseUrl, apiKey, model, messages } = body || {};
   const stream = body.stream !== false;
@@ -111,10 +126,19 @@ export async function proxyChat(res, body) {
       const parsed = JSON.parse(text);
       detail = parsed.error?.message || detail;
     } catch {}
-    return sendJSON(res, upstream.status, {
+    // The provider's request id, when it sends one. Most providers do —
+    // OpenAI, Anthropic, Google all set one of these on every response —
+    // and "ask the user to paste this" is far more useful than "ask the
+    // user to describe what they did". `extractRequestId` is the one place
+    // that knows the spelling; the response body only carries the field
+    // when there is one to carry, so missing ids stay out of the payload.
+    const requestId = extractRequestId(upstream.headers);
+    const body = {
       error: `The provider answered ${upstream.status}.`,
       detail,
-    });
+    };
+    if (requestId) body.requestId = requestId;
+    return sendJSON(res, upstream.status, body);
   }
 
   if (!stream) {

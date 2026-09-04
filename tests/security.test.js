@@ -46,6 +46,48 @@ test('clean source produces no findings', () => {
   assert.equal(analyzeSecurityFile('const add = (a, b) => a + b;\nexport default add;', 'javascript').length, 0);
 });
 
+test('flags hardcoded JWT as a critical secret', () => {
+  // Three base64 segments, each long enough that a coincidental match in
+  // prose is vanishingly unlikely. The first segment starts with "eyJ" by
+  // JWT spec, the rest are arbitrary.
+  const src = 'const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkphbmUgRG9lIn0.signaturepart";';
+  const f = analyzeSecurityFile(src, 'javascript');
+  assert.ok(f.some((x) => x.rule === 'jwt-secret' && x.severity === 'critical'),
+    'hardcoded JWT should be flagged as critical');
+});
+
+test('does not flag short base64 strings that are not JWTs', () => {
+  // Anything that lacks all three segments should be ignored — the
+  // `hardcoded-secret` rule covers shorter credential strings, the JWT
+  // rule is for the full token shape only.
+  const f = analyzeSecurityFile('const short = "eyJabc";', 'javascript');
+  assert.equal(f.some((x) => x.rule === 'jwt-secret'), false);
+});
+
+test('flags subprocess.*(shell=True) in Python as a high-severity injection sink', () => {
+  const f = analyzeSecurityFile('subprocess.Popen(cmd, shell=True)', 'python');
+  assert.ok(f.some((x) => x.rule === 'subprocess-shell' && x.severity === 'high'));
+  // The general os-system rule should still fire as well.
+  assert.ok(f.some((x) => x.rule === 'os-system'));
+});
+
+test('subprocess-shell does not match when shell=False', () => {
+  const f = analyzeSecurityFile('subprocess.run(cmd, shell=False)', 'python');
+  assert.equal(f.some((x) => x.rule === 'subprocess-shell'), false);
+});
+
+test('flags Go public listeners on ":port" or "0.0.0.0" as a config smell', () => {
+  const f1 = analyzeSecurityFile('http.ListenAndServe(":8080", nil)', 'go');
+  assert.ok(f1.some((x) => x.rule === 'go-public-listen' && x.severity === 'medium'));
+  const f2 = analyzeSecurityFile('http.ListenAndServe("0.0.0.0:8080", nil)', 'go');
+  assert.ok(f2.some((x) => x.rule === 'go-public-listen'));
+});
+
+test('go-public-listen does not flag an explicit 127.0.0.1 binding', () => {
+  const f = analyzeSecurityFile('http.ListenAndServe("127.0.0.1:8080", nil)', 'go');
+  assert.equal(f.some((x) => x.rule === 'go-public-listen'), false);
+});
+
 test('summarizeSecurity rolls up counts, worst-severity files, and a grade', () => {
   const scan = mkScan([
     mkFile('a.js', 'const apiKey = "' + 'abc12345678' + '";\neval(x);'),

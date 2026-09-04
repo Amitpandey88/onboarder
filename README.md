@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Zero Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-success.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-362%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-369%20passing-brightgreen.svg)](tests/)
 
 > **Drop a path. Get a map.**  
 > A lightweight, zero-dependency codebase visualizer and architectural map generator that runs entirely on your local machine.
@@ -97,7 +97,7 @@ codebase-onboarder/
 │   ├── js/          # Vanilla ES modules (State, Inspector, Views, Cache)
 │   ├── vendor/      # Vendored Mermaid & Monaco Editor (Offline)
 │   └── index.html   # Main application interface
-└── tests/           # Comprehensive node:test suite (362 unit tests)
+└── tests/           # Comprehensive node:test suite (369 unit tests)
 ```
 
 ---
@@ -107,7 +107,7 @@ codebase-onboarder/
 Onboarder includes a comprehensive automated test suite built with Node's native test runner:
 
 ```bash
-# Run all 362 tests
+# Run all 369 tests
 npm test
 ```
 

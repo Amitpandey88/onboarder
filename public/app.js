@@ -255,6 +255,14 @@ function buildPatterns(scan, facts, manifest) {
 
 dom.newRepoBtn.addEventListener('click', () => {
   if (state.cloneId) cleanupClone(state.cloneId);
+  // The graph and heatmap views attach `window` resize listeners when
+  // they initialize. The view tab is unmounted by hiding the container,
+  // not by removing the listener, so without this call every new repo
+  // would attach another listener to the same global and the page would
+  // fan out work on every resize. Destroy tears them down before the
+  // next `init*` rebuilds them for a new repo.
+  if (forceGraphCtl) { forceGraphCtl.destroy(); forceGraphCtl = null; }
+  if (heatmapCtl) { heatmapCtl.destroy(); heatmapCtl = null; }
   unloadRepo();
   dom.explorer.hidden = true;
   dom.tourbar.hidden = true;
