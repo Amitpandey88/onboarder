@@ -3,10 +3,6 @@
 
 import { escapeHtml } from './html.js';
 
-export function initSbom(container, callbacks = {}) {
-  // Pure initializer
-}
-
 export function renderSbom(container, { scan }) {
   if (!container) return;
 

@@ -184,6 +184,22 @@ test('firstCommitAt and lastCommitAt span the entire commit list', () => {
   assert.equal(h.lastCommitAt, '2024-12-01');
 });
 
+// The raw commit list travels with the rollups so the insights view (52-week
+// heatmap, punch card) can draw from per-commit dates without re-fetching
+// history. Before this field existed, the view rendered an empty calendar even
+// when history was fully available.
+test('commits array is returned alongside the rollups', () => {
+  const scan = mkScan([mkFile('a.js')]);
+  const commits = [
+    mkCommit('c1', 'a@x', 'A', '2024-01-01', ['a.js']),
+    mkCommit('c2', 'b@x', 'B', '2024-02-01', ['a.js']),
+  ];
+  const h = analyzeHistory(scan, commits);
+  assert.equal(h.commits.length, 2, 'the input commits come back unchanged');
+  assert.equal(h.commits[0].hash, 'c1');
+  assert.equal(h.commits[1].files[0], 'a.js');
+});
+
 // ---------------------------------------------------------------------------
 // co-change pairs
 // ---------------------------------------------------------------------------

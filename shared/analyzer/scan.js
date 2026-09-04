@@ -196,7 +196,6 @@ export async function scanRepo(source, options = {}) {
       complexity: complexityOf(text, lang.id),
       findings: findings.length ? findings : undefined,
       ...analysis,
-      source: options.keepSource ? text : undefined,
     });
     parsed++;
     if (parsed % 25 === 0) onProgress({ phase: 'parse', done: parsed });

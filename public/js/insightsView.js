@@ -3,10 +3,6 @@
 
 import { escapeHtml } from './html.js';
 
-export function initInsights(container, callbacks = {}) {
-  // Pure initializer
-}
-
 export function renderInsights(container, { scan, facts, history }) {
   if (!container) return;
 

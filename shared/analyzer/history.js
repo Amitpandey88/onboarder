@@ -93,6 +93,12 @@ export function analyzeHistory(scan, commits, opts = {}) {
     commitCount: commits.length,
     totalCommits,
     truncated,
+    // The raw commit list, not just the rollups. The insights view draws a
+    // 52-week heatmap and a punch card from per-commit dates; without the
+    // original array, that view rendered an empty calendar even when history
+    // was fully available. The cost is the same parsed commits we already hold
+    // — `parseGitLog` capped at 2,000 — so duplication here is honest.
+    commits,
     authors: [...authorCommits.values()].sort((a, b) => b.commits - a.commits),
     firstCommitAt: dates.length ? dates.reduce((a, b) => (a < b ? a : b)) : null,
     lastCommitAt: dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : null,

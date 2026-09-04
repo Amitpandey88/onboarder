@@ -1,6 +1,14 @@
-// Generic analyzer for C/C++, Java, Rust, Ruby and PHP. It only tries to
-// catch the include/import/use lines plus the obvious function shapes, which
-// is enough to place these files on the map.
+// Generic analyzer for C/C++, Ruby, and PHP — the languages that don't have
+// a dedicated module. Java, Rust, and C# each have their own analyzer in this
+// directory and are dispatched first by `languages/index.js`; the blocks for
+// them used to live here, before they had anywhere better to go, and were
+// removed when those files landed so the dispatch table is the only place
+// that decides which family a file belongs to.
+//
+// The work this module does is deliberately cheap: a regex pass for the
+// include/import/require/use lines plus the obvious function and class
+// shapes. It is enough to place these files on the map; treating it as more
+// than that would be lying.
 
 import { blankComments, lineCounter, uniqueBy } from '../util.js';
 import { dirOf, joinPath, baseName } from '../pathUtil.js';
@@ -9,7 +17,7 @@ export const extensions = ['.c', '.h', '.cc', '.cpp', '.hpp', '.rb', '.php'];
 
 const BY_EXT = {
   c: 'c', h: 'c', cc: 'c', cpp: 'c', hpp: 'c',
-  java: 'java', rs: 'rust', rb: 'ruby', php: 'php',
+  rb: 'ruby', php: 'php',
 };
 
 const CONTROL = new Set(['if', 'for', 'while', 'switch', 'catch', 'return', 'sizeof', 'do', 'else']);
@@ -32,33 +40,6 @@ export function analyze(source, path) {
     }
     for (const m of clean.matchAll(/^[A-Za-z_][\w\s\*]*?\s+([\w]+)\s*\([^;{}]*\)\s*\{/gm)) {
       if (!CONTROL.has(m[1])) functions.push({ name: m[1], kind: 'function', line: lineAt(m.index) });
-    }
-  }
-
-  if (family === 'java') {
-    for (const m of clean.matchAll(/^[ \t]*import\s+(?:static\s+)?([\w.]+)\s*;/gm)) {
-      imports.push({ spec: m[1], kind: 'import', line: lineAt(m.index) });
-    }
-    for (const m of clean.matchAll(/\b(?:class|interface|enum|record)\s+([\w]+)/g)) {
-      classes.push({ name: m[1], line: lineAt(m.index) });
-    }
-    for (const m of clean.matchAll(/^[ \t]*(?:public|private|protected|static|final|synchronized|abstract|\s)+[\w<>\[\],.?]+\s+([\w]+)\s*\([^;{}]*\)\s*(?:throws[^{]+)?\{/gm)) {
-      if (!CONTROL.has(m[1])) functions.push({ name: m[1], kind: 'method', line: lineAt(m.index) });
-    }
-  }
-
-  if (family === 'rust') {
-    for (const m of clean.matchAll(/^[ \t]*use\s+([\w:]+)/gm)) {
-      imports.push({ spec: m[1], kind: 'use', line: lineAt(m.index) });
-    }
-    for (const m of clean.matchAll(/^[ \t]*mod\s+([\w]+)\s*;/gm)) {
-      imports.push({ spec: m[1], kind: 'mod', line: lineAt(m.index) });
-    }
-    for (const m of clean.matchAll(/\bfn\s+([\w]+)\s*(?:<[^>]*>)?\s*\(/g)) {
-      functions.push({ name: m[1], kind: 'function', line: lineAt(m.index) });
-    }
-    for (const m of clean.matchAll(/\b(?:struct|enum|trait)\s+([\w]+)/g)) {
-      classes.push({ name: m[1], line: lineAt(m.index) });
     }
   }
 
@@ -123,34 +104,23 @@ export function resolveImport(spec, fromPath, has, context = {}, meta = {}) {
   const lastSep = Math.max(lastDot, lastSlash, lastColon >= 0 ? lastColon + 1 : -1);
   const lastSegment = lastSep >= 0 ? spec.slice(lastSep + 1) : spec;
 
+  // Only the extensions this module owns. Java/Rust have their own resolvers.
   const candidates = [
     joinPath(fromDir, spec),
-    joinPath(fromDir, cleaned),
-    cleaned + '.java',
-    joinPath(fromDir, cleaned) + '.java',
-    joinPath(fromDir, cleaned) + '.rs',
-    joinPath(fromDir, cleaned, 'mod.rs'),
     joinPath(fromDir, spec) + '.rb',
     joinPath(fromDir, cleaned) + '.rb',
     joinPath(fromDir, cleaned) + '.php',
-    cleaned + '.php',
     joinPath(fromDir, spec) + '.php',
   ];
   for (const cand of candidates) {
     if (cand && has(cand)) return { path: cand };
   }
 
-  // Match class/file name anywhere in the repo
+  // Last resort for quoted includes: match on the file name anywhere.
   if (lastSegment && lastSegment !== '*') {
-    const hitJava = findByName(lastSegment + '.java');
-    if (hitJava) return { path: hitJava };
     const hitPhp = findByName(lastSegment + '.php');
     if (hitPhp) return { path: hitPhp };
-    const hitRs = findByName(lastSegment + '.rs');
-    if (hitRs) return { path: hitRs };
   }
-
-  // Last resort for quoted includes: match on the file name anywhere.
   const hit = findByName(baseName(spec));
   if (hit) return { path: hit };
 

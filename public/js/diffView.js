@@ -9,10 +9,6 @@ let currentRefs = null;
 let selectedFile = null;
 let diffMode = 'unified'; // 'unified' | 'split'
 
-export function initDiffView(container, callbacks = {}) {
-  // Pure initializer
-}
-
 export async function renderDiffView(container, { scan, facts, scanId }) {
   if (!container) return;
   activeScanId = scanId;

@@ -47,10 +47,10 @@ import { initForceGraph } from '/js/forceGraph.js';
 import { initHeatmap } from '/js/heatmap.js';
 import { initSearch } from '/js/search.js';
 import { withTransition } from '/js/transitions.js';
-import { initInsights, renderInsights } from '/js/insightsView.js';
-import { initDiffView, renderDiffView } from '/js/diffView.js';
-import { initWorkflows, renderWorkflows } from '/js/workflowsView.js';
-import { initSbom, renderSbom } from '/js/sbomView.js';
+import { renderInsights } from '/js/insightsView.js';
+import { renderDiffView } from '/js/diffView.js';
+import { renderWorkflows } from '/js/workflowsView.js';
+import { renderSbom } from '/js/sbomView.js';
 import {
   state as appState, isExplorerView, loadRepo, unloadRepo,
   focusFile, focusFolder, clearFocus as clearFocusState, inspectorSubject, aiViewKey,

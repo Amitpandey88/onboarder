@@ -3,10 +3,6 @@
 
 import { escapeHtml } from './html.js';
 
-export function initWorkflows(container, callbacks = {}) {
-  // Pure initializer
-}
-
 export function renderWorkflows(container, { scan }) {
   if (!container) return;
 
