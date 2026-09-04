@@ -28,13 +28,20 @@ import { isCloneDir, removeClone, removeCloneSync } from './gitClone.js';
 // forgotten scanning, not about memory.
 export const MAX_SESSIONS = 12;
 
-// scanId -> { root, cloneDir, at }. Insertion-ordered, which is what makes
-// "oldest first" a `keys().next()` rather than a sort.
+// scanId -> { root, cloneDir, at, searchIndex? }. Insertion-ordered, which is
+// what makes "oldest first" a `keys().next()` rather than a sort.
+//
+// `searchIndex`, when present, is the TF-IDF index built at scan time
+// (`searchIndex.js`). It is held on the session for the same reason `root`
+// is — `/api/search` is a request that has to be answered against this
+// particular scan — and is dropped when the session is evicted. Reopening
+// the same repo would rebuild it; the cost of one scan's worth of work is
+// far below the cost of re-fetching the repo.
 const sessions = new Map();
 
-export function openSession({ root, cloneDir = null }) {
+export function openSession({ root, cloneDir = null, searchIndex = null }) {
   const scanId = crypto.randomBytes(8).toString('hex');
-  sessions.set(scanId, { root, cloneDir, at: Date.now() });
+  sessions.set(scanId, { root, cloneDir, at: Date.now(), searchIndex });
   evictBeyondCap();
   return scanId;
 }

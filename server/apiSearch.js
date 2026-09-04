@@ -1,6 +1,15 @@
-import { promises as fs } from 'node:fs';
+// POST /api/search — runs a TF-IDF query against the index built at scan
+// time. The work that used to live here (re-listing the tree, re-reading
+// every file, parsing its tokens) now lives in `searchIndex.js`, which
+// `apiScan.js` invokes once when the scan finishes. What is left in this
+// module is the request shape: validate, look up the session, score, send.
+//
+// The pure scoring functions (`buildTfIdfIndex` for one-off in-memory
+// indexes used by tests, and `searchIndex` for the score-and-snippet pass)
+// are still exported so the front end and tests can construct indexes
+// directly when they need to.
+
 import { getSession } from './sessions.js';
-import { resolveInside } from './paths.js';
 import { sendError, sendJSON } from './http.js';
 
 export function buildTfIdfIndex(documents) {
@@ -98,43 +107,19 @@ export async function handleSearch(res, body) {
   const q = (query || '').trim();
   if (!q) return sendJSON(res, 200, { results: [] });
 
+  // No index means the scan was opened before this change shipped, or the
+  // caller is using a session that was never given a scan-time index. The
+  // honest answer is "no results" rather than rebuilding the whole thing on
+  // the request thread.
+  if (!session.searchIndex || session.searchIndex.totalDocs === 0) {
+    return sendJSON(res, 200, { results: [], indexed: session.searchIndex?.totalDocs ?? 0 });
+  }
+
   try {
-    if (!session.searchIndex) {
-      const allFiles = [];
-      async function walk(dir) {
-        const ents = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
-        for (const e of ents) {
-          if (e.name === 'node_modules' || e.name === '.git' || e.name === 'dist' || e.name === 'build' || e.name.startsWith('.')) continue;
-          const resPath = resolveInside(dir, e.name);
-          if (e.isDirectory()) {
-            await walk(resPath);
-          } else {
-            allFiles.push(resPath);
-          }
-        }
-      }
-      await walk(session.root);
-
-      const docs = [];
-      for (const absFile of allFiles) {
-        const stat = await fs.stat(absFile).catch(() => null);
-        if (stat && stat.size < 1024 * 1024) { // Cap at 1MB per file
-          const content = await fs.readFile(absFile, 'utf8').catch(() => '');
-          if (content && !content.slice(0, 1000).includes('\0')) {
-            let rel = absFile;
-            if (absFile.startsWith(session.root)) {
-              rel = absFile.slice(session.root.length).replace(/^\//, '');
-            }
-            docs.push({ path: rel, content });
-          }
-        }
-      }
-      session.searchIndex = buildTfIdfIndex(docs);
-    }
-
     const results = searchIndex(session.searchIndex, q, limit);
-    return sendJSON(res, 200, { results });
+    return sendJSON(res, 200, { results, indexed: session.searchIndex.totalDocs });
   } catch (err) {
     return sendError(res, 500, 'Search failed: ' + err.message);
   }
 }
+
