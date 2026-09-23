@@ -17,6 +17,20 @@ export function renderSbom(container, { scan }) {
   const counts = report.counts || { permissive: 0, copyleft: 0, weakCopyleft: 0, unknown: 0, total: sbom.length };
   const projectLicense = report.projectLicense || { id: 'UNKNOWN', name: 'Unknown' };
 
+  // The filter bar is pointless when there is nothing to filter.
+  // Built as a separate template — nesting backticks inline breaks the
+  // dangling-call lint (nested template literals defeat its string blanking).
+  const filterBar = sbom.length ? `
+      <div class="sbom-filter-bar">
+        <input type="text" class="text-input sbom-search-input" id="sbomSearchInput" placeholder="Filter dependencies or licenses…">
+        <div class="sbom-filter-chips">
+          <button class="btn btn-ghost btn-sm is-active" data-filter="all">All (${sbom.length})</button>
+          <button class="btn btn-ghost btn-sm" data-filter="prod">Production</button>
+          <button class="btn btn-ghost btn-sm" data-filter="dev">Development</button>
+          <button class="btn btn-ghost btn-sm" data-filter="copyleft">Copyleft (${counts.copyleft})</button>
+        </div>
+      </div>` : '';
+
   container.innerHTML = `
     <div class="sbom-layout">
       <!-- License Header & Summary -->
@@ -45,16 +59,8 @@ export function renderSbom(container, { scan }) {
         </div>
       </header>
 
-      <!-- Search & Filter Controls -->
-      <div class="sbom-filter-bar">
-        <input type="text" class="text-input sbom-search-input" id="sbomSearchInput" placeholder="Filter dependencies or licenses…">
-        <div class="sbom-filter-chips">
-          <button class="btn btn-ghost btn-sm is-active" data-filter="all">All (${sbom.length})</button>
-          <button class="btn btn-ghost btn-sm" data-filter="prod">Production</button>
-          <button class="btn btn-ghost btn-sm" data-filter="dev">Development</button>
-          <button class="btn btn-ghost btn-sm" data-filter="copyleft">Copyleft (${counts.copyleft})</button>
-        </div>
-      </div>
+      <!-- Search & Filter Controls (only useful with packages to filter) -->
+      ${filterBar}
 
       <!-- Dependencies Inventory Table -->
       <div class="sbom-table-wrap">
@@ -96,7 +102,7 @@ export function renderSbom(container, { scan }) {
         || String(item.license?.id || '').toLowerCase().includes(q);
     });
 
-    if (tableBody) tableBody.innerHTML = renderSbomRows(filtered);
+    if (tableBody) tableBody.innerHTML = renderSbomRows(filtered, { filtered: true });
   }
 
   searchInput?.addEventListener('input', applyFilter);
@@ -111,8 +117,13 @@ export function renderSbom(container, { scan }) {
   });
 }
 
-function renderSbomRows(items) {
+function renderSbomRows(items, { filtered } = {}) {
   if (!items.length) {
+    // Distinguish "nothing matched your filter" from "this project simply
+    // declares no dependencies" — the latter is a finding, not a dead end.
+    if (!filtered) {
+      return '<tr><td colspan="5" class="sbom-no-results">No dependency manifests found — this project declares no npm, pip, Go, or Cargo dependencies.</td></tr>';
+    }
     return '<tr><td colspan="5" class="sbom-no-results">No packages match the current filter.</td></tr>';
   }
 
