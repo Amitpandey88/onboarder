@@ -17,7 +17,7 @@ const el = {};
 let askAIHandler = null;
 let clearFocusHandler = null;
 let inspHooks = {
-  onOpenFile: () => {},
+  onOpenCode: () => {},
   onDeepDive: () => {},
   onToast: () => {},
 };
@@ -36,7 +36,7 @@ export function initInspector(options = {}) {
     const action = btn.dataset.inspAction;
     const targetPath = btn.dataset.path || el.inspPath.textContent;
     if (action === 'code') {
-      inspHooks.onOpenFile?.(targetPath);
+      inspHooks.onOpenCode?.(targetPath);
     } else if (action === 'dive') {
       inspHooks.onDeepDive?.(targetPath);
     } else if (action === 'copy') {

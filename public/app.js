@@ -814,7 +814,9 @@ dom.graphFit?.addEventListener('click', () => forceGraphCtl?.fit());
 inspector.initInspector({
   onAskAI: askAI,
   onClearFocus: clearFocus,
-  onOpenFile: openFile,
+  // The inspector's "Code" button means the Code tab, not the Explorer —
+  // openFile would drop the person back on the map they came from.
+  onOpenCode: openFileInCode,
   onDeepDive: openDeepDive,
   onToast: toast,
 });
