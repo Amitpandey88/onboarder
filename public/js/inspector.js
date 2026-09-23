@@ -8,6 +8,7 @@ import { baseName } from '/shared/analyzer/pathUtil.js';
 import { languageLabel } from '/shared/analyzer/languages/index.js';
 import { escapeHtml } from './html.js';
 import { mdLite, mdInline } from './markdown.js';
+import { renderAnalysisPanel } from './analysisPanel.js';
 
 const el = {};
 ['inspectorEmpty', 'inspectorBody', 'inspTitle', 'inspRole', 'inspPath', 'inspStats', 'inspExplain', 'inspLists', 'aiExplainBtn', 'askInput', 'inspBack']
@@ -308,8 +309,20 @@ export function showSecurity({ scan, security }) {
       + '</ul></div>'
     : '';
 
+  // Attribution: the security story should say which engine told it. Built-in
+  // findings carry no `source`; external ones carry the tool's name.
+  const externalCount = security.files.reduce((n, f) => n + f.findings.filter((x) => x.source === 'external').length, 0);
+  const sourceLine = externalCount
+    ? `From the built-in rule engine plus ${externalCount} finding${externalCount === 1 ? '' : 's'} from external engines (see the list below).`
+    : 'From the built-in rule engine — no external scanner, no AI.';
+
   el.inspExplain.innerHTML = `<p>${note}</p>` + catHtml + sevLegend
-    + '<p class="explain-src">From the built-in rule engine — no external scanner, no AI.</p>';
+    + `<p class="explain-src">${sourceLine}</p>`;
+
+  // The deep-analysis panel: which engines are installed, and the button that
+  // runs them. Rendered on every pass so a finished run re-paints in place.
+  renderAnalysisPanel();
+
   el.inspLists.innerHTML = '';
   const rows = security.files.flatMap((f) => f.findings.slice(0, 6).map((x) => ({ text: `${f.name}:${x.line} — ${x.message}`, kind: x.severity, path: f.path })));
   addList('Findings', rows, scan);

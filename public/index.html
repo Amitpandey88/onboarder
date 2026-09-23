@@ -16,6 +16,7 @@
   </div>
   <nav class="views" id="viewTabs" hidden>
     <button class="view-tab is-active" data-view="explorer">Explorer</button>
+    <button class="view-tab" data-view="analysis">Deep Analysis</button>
     <button class="view-tab" data-view="graph">Graph</button>
     <button class="view-tab" data-view="heatmap">Heatmap</button>
     <button class="view-tab" data-view="insights">Insights</button>
@@ -27,8 +28,8 @@
     <button class="view-tab" data-view="about">About</button>
   </nav>
   <div class="topbar-right">
-    <button class="btn btn-ghost btn-search-trigger" id="searchTriggerBtn" title="Search files (Cmd+K / Ctrl+K)" hidden>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="search-key-hint">⌘K</span>
+    <button class="btn btn-ghost btn-search-trigger" id="searchTriggerBtn" title="Search files, symbols and contents — ext:, path:, is:test, &quot;phrases&quot;, /regex/ (Cmd+K / Ctrl+K)" hidden>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="search-trigger-label">Search</span><span class="search-key-hint">⌘K</span>
     </button>
     <span class="repo-chip" id="repoChip" hidden></span>
     <button class="btn btn-ghost" id="themeBtn" title="Switch theme">Dark</button>
@@ -198,6 +199,7 @@
     <div class="docview" id="diffView" hidden></div>
     <div class="docview" id="workflowsView" hidden></div>
     <div class="docview" id="sbomView" hidden></div>
+    <div class="docview" id="analysisView" hidden></div>
     <div class="code-tab-container" id="codeTabContainer" hidden>
       <div class="blame-gutter" id="blameGutter" hidden></div>
       <div class="docview code-docview" id="codeView"></div>
@@ -246,6 +248,7 @@
         </div>
         <button class="linklike ask-auto" id="aiExplainBtn">no question — just explain this file →</button>
       </section>
+      <section class="inspector-section" id="inspSecurityTools"></section>
       <section class="inspector-section" id="inspLists"></section>
     </div>
   </aside>

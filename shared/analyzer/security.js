@@ -164,3 +164,24 @@ export function summarizeSecurity(scan) {
   return { counts, byCat, files, score, grade, total: files.reduce((s, f) => s + f.count, 0) };
 }
 
+// Fold an external engine's findings into the scan, in place, so the security
+// view — which reads `scan.files[].findings` and re-summarizes — sees one list.
+// Dedup is on (path, line, rule): two engines flagging the same line for the
+// same reason are one problem. This is the shared, pure half of the merge; the
+// fetching and spawning live on the server.
+export function mergeFindingsIntoScan(scan, external) {
+  if (!scan || !Array.isArray(external) || !external.length) return 0;
+  const byPath = new Map(scan.files.map((f) => [f.path, f]));
+  let added = 0;
+  for (const finding of external) {
+    const file = byPath.get(finding.path);
+    if (!file) continue; // a path the scanner never accepted is not ours to show
+    const list = file.findings || (file.findings = []);
+    const dupe = list.some((x) => x.line === finding.line && x.rule === finding.rule);
+    if (dupe) continue;
+    list.push(finding);
+    added++;
+  }
+  return added;
+}
+

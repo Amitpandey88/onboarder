@@ -40,7 +40,9 @@ import * as inspector from '/js/inspector.js';
 import { buildTourStops, describeStop } from '/js/tour.js';
 import { initAbout, renderAbout } from '/js/about.js';
 import { initDocs, renderDocs } from '/js/docsView.js';
-import { initCodeTab, renderCode } from '/js/codeTab.js';
+import { initCodeTab, renderCode, revealLineInCode } from '/js/codeTab.js';
+import { initAnalysisPanel, renderAnalysisPanel, subscribeAnalysis } from '/js/analysisPanel.js';
+import { initDeepAnalysis, renderDeepAnalysis } from '/js/deepAnalysisView.js';
 import { initAiDraft, updateAiBtn, wireAIClicks } from '/js/aiDraft.js';
 import { initAtlas, renderAtlasList, openCardDiagram } from '/js/atlas.js';
 import { initForceGraph } from '/js/forceGraph.js';
@@ -71,7 +73,7 @@ const dom = {};
   'saveSettings', 'testSettings', 'settingsStatus', 'toast', 'brandNote', 'askBtn', 'askInput',
   'graphView', 'graphCanvas', 'graphControls', 'graphReset', 'graphZoomIn', 'graphZoomOut', 'graphFit', 'graphSearchInput', 'graphTooltip',
   'heatmapView', 'heatmapCanvas', 'heatmapTooltip', 'blameGutter', 'codeTabContainer',
-  'insightsView', 'diffView', 'workflowsView', 'sbomView', 'searchTriggerBtn'
+  'insightsView', 'diffView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView'
 ].forEach((id) => (dom[id] = $(id)));
 
 let forceGraphCtl = null;
@@ -373,6 +375,17 @@ function openFile(path) {
   renderSidebar();
 }
 
+// The Code tab, optionally at a line. Search results for symbols and content
+// hits come through here: the scan already knows where a symbol was declared and
+// where a phrase matched, so opening the file at line 1 would throw away the
+// only part of the answer the person did not already know.
+function openFileInCode(path, line) {
+  focusFile(path);
+  state.code.path = path;
+  if (line) revealLineInCode(line);
+  setView('code');
+}
+
 function openDeepDive(path) {
   focusFile(path);
   state.folder = dirOf(path);
@@ -394,7 +407,12 @@ function onNodeClick(payload) {
 inspector.onInspectorNavigate(openFile);
 
 document.addEventListener('search-select', (event) => {
-  if (event.detail?.path) openFile(event.detail.path);
+  const detail = event.detail || {};
+  if (!detail.path) return;
+  // The palette says where a result belongs. A file's home is the graph; a
+  // symbol or a content hit belongs in the Code tab, at its line.
+  if (detail.target === 'code') return openFileInCode(detail.path, detail.line);
+  return openFile(detail.path);
 });
 
 document.addEventListener('file-select', (event) => {
@@ -419,7 +437,8 @@ async function renderCanvas() {
   const isDiff = state.view === 'diff';
   const isWorkflows = state.view === 'workflows';
   const isSbom = state.view === 'sbom';
-  const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isWorkflows || isSbom;
+  const isAnalysis = state.view === 'analysis';
+  const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isWorkflows || isSbom || isAnalysis;
   const isAtlasList = state.view === 'atlas' && !state.atlasOpen;
   
   dom.canvas.hidden = isPage;
@@ -433,6 +452,7 @@ async function renderCanvas() {
   if (dom.diffView) dom.diffView.hidden = !isDiff;
   if (dom.workflowsView) dom.workflowsView.hidden = !isWorkflows;
   if (dom.sbomView) dom.sbomView.hidden = !isSbom;
+  if (dom.analysisView) dom.analysisView.hidden = !isAnalysis;
   
   dom.copyMermaidBtn.hidden = isPage || isAtlasList;
   dom.svgBtn.hidden = isPage;
@@ -450,6 +470,7 @@ async function renderCanvas() {
     else if (isDiff) renderDiffView(dom.diffView, state);
     else if (isWorkflows) renderWorkflows(dom.workflowsView, state);
     else if (isSbom) renderSbom(dom.sbomView, state);
+    else if (isAnalysis) renderDeepAnalysis(dom.analysisView, state);
     
     if (isGraph) {
       if (!forceGraphCtl) forceGraphCtl = initForceGraph(dom.graphCanvas);
@@ -823,6 +844,31 @@ initCodeTab({
   onDeepDive: openDeepDive,
   onToast: toast,
   getTheme,
+});
+
+// The deep-analysis panel lives in the security view's inspector. It runs the
+// external engines through the server, then merges what they find back into the
+// scan so the grade and the finding list update to include them.
+initAnalysisPanel({
+  host: dom.inspSecurityTools,
+  onToast: toast,
+  onOpenFile: openFileInCode,
+});
+
+// The full-page Deep Analysis view. Same store, same run, more room: the whole
+// report with file links and an AI explainer.
+initDeepAnalysis({
+  host: dom.analysisView,
+  onToast: toast,
+  onOpenFile: openFileInCode,
+  onOpenSettings: openSettings,
+  repoOverview,
+});
+
+// A run started from either surface changes the scan's findings, so whatever
+// panel is on screen has to be told. The merge itself happens in the store.
+subscribeAnalysis(() => {
+  if (state.scan) syncInspector();
 });
 
 initAiDraft({

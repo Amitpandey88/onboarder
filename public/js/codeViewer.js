@@ -168,3 +168,17 @@ export function showInViewer(text, lang, theme) {
 export function setViewerTheme(theme) {
   if (editor) monaco.editor.setTheme(theme === 'dark' ? 'ob-dark' : 'ob-light');
 }
+
+// Put the viewer on a line and leave the cursor there. Used when a search result
+// knows where it matched — opening the right file at line 1 is only half an
+// answer, and the other half is the reason a content hit is worth showing.
+export function revealLineInViewer(line) {
+  if (!editor) return;
+  const target = Math.floor(Number(line));
+  if (!Number.isFinite(target) || target < 1) return;
+  const model = editor.getModel();
+  if (!model) return;
+  const clamped = Math.min(target, model.getLineCount());
+  editor.revealLineInCenter(clamped);
+  editor.setPosition({ lineNumber: clamped, column: 1 });
+}

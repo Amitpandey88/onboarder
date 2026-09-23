@@ -287,6 +287,54 @@ export function stackSummaryMessages({ repoName, item, docsText, repoNote }) {
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
 
+// The Deep Analysis report, read back by the model. Two jobs in one builder: a
+// report is either *explained* (no question — prioritize what to fix) or asked
+// about ("is the eval finding actually reachable?"). The engine list is part of
+// the context on purpose: what the engines could not see is often the real
+// answer, and a model that does not know a tool was missing will invent
+// confidence it has not earned.
+const ANALYSIS_SYSTEM = [
+  'You are a senior engineer walking the owner of a codebase through a static-analysis report.',
+  'Be concrete and calm. Name real files, rules and line numbers in backticks.',
+  'Prioritize: what must be fixed now, what can wait, and what is noise. Say plainly when a finding looks like a false positive and why.',
+  'Never invent a finding that is not in the list you were given. If the list is empty, say so — and say what that does and does not prove.',
+  'If some engines did not run or are not installed, say what that leaves unchecked.',
+  'Keep it under 220 words unless the question genuinely needs more.',
+].join(' ');
+
+export function analysisMessages({ repoName, grade, score, counts, engines, findings, question }) {
+  const engineLines = (engines || []).map((e) => {
+    if (e.ran) return `- ${e.label}: ran, ${e.findings} finding(s) in ${e.ms}ms`;
+    if (e.failed) return `- ${e.label}: ran but failed — ${e.failure || 'no reason given'}`;
+    if (e.available) return `- ${e.label}: installed but not run`;
+    return `- ${e.label}: NOT INSTALLED (${e.reason || 'unknown'})`;
+  });
+
+  const findingLines = (findings || []).slice(0, 40).map(
+    (f) => `- [${f.severity}] ${f.path}:${f.line} — ${f.message} (${f.tool} · ${f.rule})`,
+  );
+
+  const user = [
+    `Repository: ${repoName}`,
+    grade ? `Built-in security grade: ${grade} (${score}/100)` : '',
+    counts
+      ? `Findings: ${counts.total} total — ${counts.critical} critical, ${counts.high} high, ${counts.medium} medium, ${counts.low} low. ${counts.external} came from external engines, ${counts.builtin} from the built-in scanner.`
+      : '',
+    engineLines.length ? `Engines:\n${engineLines.join('\n')}` : '',
+    findingLines.length
+      ? `Findings, worst first:\n${findingLines.join('\n')}`
+      : 'No findings were reported by anything.',
+    question
+      ? `Question: ${question}`
+      : 'Explain this report: what matters most, what to fix first, and what the engines could not see.',
+  ].filter(Boolean).join('\n\n');
+
+  return [
+    { role: 'system', content: ANALYSIS_SYSTEM },
+    { role: 'user', content: user },
+  ];
+}
+
 export async function streamTokens(container, text) {
   container.innerHTML = '';
   for (let i = 0; i < text.length; i++) {

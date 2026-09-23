@@ -12,7 +12,7 @@
 import { roleOf } from '/shared/analyzer/graph.js';
 import { escapeHtml } from './html.js';
 import { highlightCode, langOf } from './highlight.js';
-import { initViewer, showInViewer, monacoLangOf } from './codeViewer.js';
+import { initViewer, showInViewer, monacoLangOf, revealLineInViewer } from './codeViewer.js';
 import { fetchBlame, initBlameView } from './blameView.js';
 import {
   state, focusFile, defaultCodePath, pushCodeHistory, codeHistoryTarget,
@@ -34,6 +34,34 @@ let hooks = {
 
 let codeSeq = 0;          // render generations — a slow read never overwrites a newer one
 let viewerFailed = false; // Monaco failed to load → hand-rolled fallback
+let pendingReveal = null; // a line a search result asked for, waiting for its file
+
+// A search result knows which line it matched. The reveal has to wait until the
+// text is on screen, and it must not leak onto the *next* file you open — which
+// is why it is taken once, at the top of `renderCode`, rather than living in
+// `state` where it would outlive the file it was meant for.
+export function revealLineInCode(line) {
+  const target = Math.floor(Number(line));
+  pendingReveal = Number.isFinite(target) && target > 0 ? target : null;
+}
+
+// Monaco is the real answer; without it, the fallback is a single scrolling
+// `<pre>`, so the best we can do is put the line near the top. Approximate, and
+// honest about being approximate — the file is still the right file.
+function applyReveal(alt, line) {
+  if (!line) return;
+  if (!viewerFailed) {
+    revealLineInViewer(line);
+    return;
+  }
+  const shell = alt.querySelector('.code-shell');
+  if (!shell) return;
+  const gutter = shell.querySelector('.code-gutter');
+  const total = gutter ? (gutter.textContent || '').split('\n').length : 0;
+  if (!total) return;
+  const perLine = shell.scrollHeight / total;
+  shell.scrollTop = Math.max(0, (line - 2) * perLine);
+}
 
 export function initCodeTab(options) {
   host = options.host;
@@ -97,6 +125,10 @@ function codeNav(delta) {
 export async function renderCode() {
   const seq = ++codeSeq;
   const path = defaultCodePath();
+  // Taken once and cleared, so a reveal belongs only to the render that followed
+  // the request for it — never to the next file you happen to open.
+  const revealLine = pendingReveal;
+  pendingReveal = null;
   if (!path) {
     host.innerHTML = '<div class="code-empty">Nothing to preview — this repo has no readable files.</div>';
     return;
@@ -157,12 +189,14 @@ export async function renderCode() {
     if (ok) {
       alt.innerHTML = '';
       showInViewer(text, monacoLangOf(path), hooks.getTheme());
+      applyReveal(alt, revealLine);
       return;
     }
     viewerFailed = true;
     monacoEl.hidden = true;
   }
   renderFallback(alt, text, path);
+  applyReveal(alt, revealLine);
 }
 
 // Navigation, identity, actions.

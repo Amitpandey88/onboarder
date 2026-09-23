@@ -51,6 +51,25 @@ function perRepo() {
     atlas: { built: false, items: [] },
     atlasOpen: null,     // an atlas card currently open on the canvas
     code: { path: null, history: [], idx: -1, cache: {} }, // the Code tab
+    // Deep-analysis engines (semgrep, gitleaks, knip…). `status` is which are
+    // installed; `report` is the last run; `findings` merge into the security
+    // view. Only ever filled for a server-side scan — a browser-picked folder
+    // has no server-visible root for a tool to read.
+    //
+    // `install` is per-engine GUI install state ({ running, log, ok, error });
+    // `options` is the per-engine form values the Configure panel edits.
+    tools: {
+      status: null, report: null, running: false, loading: false,
+      findings: [], merged: 0, error: null,
+      install: {}, options: {},
+    },
+    // The Deep Analysis view's own controls: which findings are on screen, and
+    // whatever the AI has said about the report so far. Per-repo, so a new scan
+    // does not inherit the previous repo's filters or its explanation.
+    analysis: {
+      severity: 'all', tool: 'all', q: '',
+      ai: { text: '', error: '', running: false, question: '' },
+    },
     history: null,
   };
 }

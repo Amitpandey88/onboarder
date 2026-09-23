@@ -20,6 +20,7 @@
 
 import crypto from 'node:crypto';
 import path from 'node:path';
+import { realpathSync } from 'node:fs';
 
 import { isCloneDir, removeClone, removeCloneSync } from './gitClone.js';
 
@@ -41,9 +42,24 @@ const sessions = new Map();
 
 export function openSession({ root, cloneDir = null, searchIndex = null }) {
   const scanId = crypto.randomBytes(8).toString('hex');
-  sessions.set(scanId, { root, cloneDir, at: Date.now(), searchIndex });
+  sessions.set(scanId, { root: canonicalRoot(root), cloneDir, at: Date.now(), searchIndex });
   evictBeyondCap();
   return scanId;
+}
+
+// Resolve symlinks once, so the root every consumer sees is the real one. On
+// macOS `/tmp` is a symlink to `/private/tmp`, and an analyzer run against the
+// alias reports paths rooted at the target — without this, `/api/tools/run`
+// findings and `/api/file` lookups would silently miss every file in a repo
+// scanned through a symlinked path. Failing to resolve (a path that is gone)
+// is not fatal: the original is used and the scan's own error path reports it.
+function canonicalRoot(root) {
+  if (typeof root !== 'string' || !root) return root;
+  try {
+    return realpathSync(root);
+  } catch {
+    return root;
+  }
 }
 
 // Reading from a scan keeps it alive. Without the touch, opening files in the

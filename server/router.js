@@ -22,6 +22,7 @@ import { serveStatic } from './static.js';
 import { handleSearch } from './apiSearch.js';
 import { handleBlame } from './apiGitBlame.js';
 import { handleDiff, handleDiffRefs } from './apiDiff.js';
+import { handleToolsInstall, handleToolsRun, handleToolsStatus } from './apiTools.js';
 
 const ROUTES = [
   {
@@ -61,6 +62,25 @@ const ROUTES = [
   {
     method: 'POST', path: '/api/doc', body: true,
     run: ({ res, body }) => handleDocs(res, body),
+  },
+  {
+    // Reports which analyzers are installed — environment information a foreign
+    // page has no business reading, so it is guarded like /api/file.
+    method: 'GET', path: '/api/tools', sameOrigin: true,
+    run: ({ res }) => handleToolsStatus(res),
+  },
+  {
+    // Runs real analyzers over a scanned root. `body: true` applies the size
+    // limit; the session check in the handler is the capability gate.
+    method: 'POST', path: '/api/tools/run', body: true,
+    run: ({ res, body }) => handleToolsRun(res, body),
+  },
+  {
+    // Installs a missing analyzer from the GUI. Same-origin like every POST;
+    // the tool name is validated against the registry and the install plans
+    // are fixed data, so the request body never reaches a command line.
+    method: 'POST', path: '/api/tools/install', body: true,
+    run: ({ res, body }) => handleToolsInstall(res, body),
   },
   {
     method: 'GET', path: '/api/health',
