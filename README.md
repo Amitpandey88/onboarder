@@ -56,6 +56,62 @@ Open **http://localhost:4310** in your browser.
 - **Tour**: Curated step-by-step walkthrough of key architectural waypoints.
 - **Atlas**: Grid gallery of every pre-generated diagram across folders and components.
 
+### 1b. Deep Analysis — plug in the best engines (Optional, self-hosted)
+
+Onboarder is the **frontend**; the sharpest open-source analyzers are the
+**backend**. The built-in scanner above is a fast, zero-dependency first pass —
+extend it with real engines, and their findings merge straight into the security
+grade and finding list.
+
+| Engine | Finds | Install |
+|---|---|---|
+| [**Semgrep**](https://github.com/semgrep/semgrep) (or [Opengrep](https://github.com/opengrep/opengrep)) | SAST: injection, auth, crypto across 30+ languages | `pip install semgrep` |
+| [**Gitleaks**](https://github.com/gitleaks/gitleaks) | Committed secrets, keys, tokens | `brew install gitleaks` |
+| [**Knip**](https://github.com/webpro-nl/knip) | Dead JS/TS files, exports, dependencies | `npm i -g knip` |
+| [**Vulture**](https://github.com/jendrikseipp/vulture) | Dead Python code | `pip install vulture` |
+| [**Depcheck**](https://github.com/depcheck/depcheck) | Unused npm dependencies | `npm i -g depcheck` |
+
+**Nothing is required.** With no engines installed, the panel lists each one,
+says it is missing, and offers an **Install** button — the built-in scanner is
+the floor that never goes away. If you have `uvx` (from [uv](https://docs.astral.sh/uv/))
+or `npx`, Semgrep, Vulture, Knip and Depcheck run without a separate install.
+In the Security view, click **Run deep analysis**.
+
+### 1c. The Deep Analysis tab — the full report, with AI
+
+Next to **Explorer** in the top nav. One page with everything:
+
+- **Engines** — what is installed, how it was found, what each one cost, and a
+  **Run** button per engine (plus *Run all* / *Security only* / *Dead code only*).
+  Missing engines get a one-click **Install**: a console streams the package
+  manager's output live and ends in a plain verdict. Each engine also has a
+  **Configure** disclosure — per-engine options (Semgrep config, Gitleaks
+  redaction, Knip production mode, Vulture confidence, Depcheck skips) edited
+  in a form and sent with the next run. Install plans are per-platform, so the
+  same flow works on **Windows, macOS and Linux**.
+- **Findings** — every finding from every engine, merged and worst-first, with
+  **severity, engine and text filters**. Each row's file is a link: clicking it
+  opens the **Code** tab at that exact line.
+- **What this means** — the AI reads the report: *"Explain this analysis"* for a
+  prioritised read, or ask about a specific finding (*"is the eval finding
+  reachable?"*). It is told which engines did **not** run, so it will not claim
+  coverage it does not have. Needs an OpenAI-compatible endpoint; without one the
+  report is still fully readable and the button offers the API key drawer.
+
+Rules that keep this safe to self-host:
+
+- **Detect by default, install only on click.** Onboarder probes `PATH` and
+  never installs anything behind a scan. When you do click **Install**, the
+  server runs a validated, per-platform plan from the tool registry — the
+  request body picks a plan, it never reaches a command line — and streams the
+  output back over SSE. You decide what is on the box, and you watch it happen.
+- **Run, never eval.** Every engine is spawned with an argument array, never a
+  shell, with a hard timeout and a capped buffer. A crafted filename is an
+  argument; a hung analyzer is one failed pass.
+- **Nothing leaves the machine.** Engines run locally against the scanned root.
+  Gitleaks' report is read for existence only — the credential is never relayed
+  to the UI.
+
 ### 2. Code Preview with Monaco Editor
 - Full read-only VS Code editor experience with native syntax highlighting for 70+ languages.
 - Breadcrumbs, line counts, byte sizes, and bidirectional dependency navigation chips ("Pulls in" & "Leaning on").
@@ -97,7 +153,7 @@ codebase-onboarder/
 │   ├── js/          # Vanilla ES modules (State, Inspector, Views, Cache)
 │   ├── vendor/      # Vendored Mermaid & Monaco Editor (Offline)
 │   └── index.html   # Main application interface
-└── tests/           # Comprehensive node:test suite (369 unit tests)
+└── tests/           # Comprehensive node:test suite (424 unit tests)
 ```
 
 ---
@@ -107,7 +163,7 @@ codebase-onboarder/
 Onboarder includes a comprehensive automated test suite built with Node's native test runner:
 
 ```bash
-# Run all 369 tests
+# Run all 424 tests
 npm test
 ```
 
@@ -116,6 +172,8 @@ Test suites cover:
 - Graph algorithms (Tarjan SCC, PageRank, topological layering, transitive test reach).
 - Security rules, health scoring, and sanitization boundaries.
 - HTTP security guards, path-traversal prevention, and session lifecycle.
+- Deep Analysis tooling: engine detection across Windows/macOS/Linux, install-plan
+  validation, output parsing, and report shaping.
 
 ---
 
