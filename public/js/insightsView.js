@@ -13,11 +13,11 @@ export function renderInsights(container, { scan, facts, history }) {
 
   // Process commit dates & authors
   for (const c of commits) {
-    const author = c.author || 'Anonymous';
-    if (!authorMap.has(author)) {
-      authorMap.set(author, { name: author, commits: 0, additions: 0, deletions: 0, firstDate: c.date, lastDate: c.date, files: new Set() });
+    const { key, name } = authorIdentity(c.author);
+    if (!authorMap.has(key)) {
+      authorMap.set(key, { name, commits: 0, additions: 0, deletions: 0, firstDate: c.date, lastDate: c.date, files: new Set() });
     }
-    const a = authorMap.get(author);
+    const a = authorMap.get(key);
     a.commits++;
     if (c.date < a.firstDate) a.firstDate = c.date;
     if (c.date > a.lastDate) a.lastDate = c.date;
@@ -106,6 +106,20 @@ export function renderInsights(container, { scan, facts, history }) {
     </div>
   `;
 }
+
+// gitHistory shapes commit.author as { name, email }; a bare string is also
+// tolerated so older cached payloads don't break the view. Commits are grouped
+// by email when present — the same person with two name spellings is one
+// contributor, like shared/analyzer/history.js does server-side.
+function authorIdentity(author) {
+  if (author && typeof author === 'object') {
+    const name = author.name || author.email || 'Anonymous';
+    return { key: author.email || name, name };
+  }
+  const name = author || 'Anonymous';
+  return { key: name, name };
+}
+
 
 function renderCalendarHeatmap(dayCounts) {
   const weeks = 52;
