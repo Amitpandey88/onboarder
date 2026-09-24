@@ -27,13 +27,29 @@ function hostnameOf(hostHeader) {
 // nothing wrong. What still gives it away is the Host header, which the page
 // cannot set and which still says evil.com.
 //
+// `extraHosts` is the self-hosted escape hatch: the domain and bind address
+// from the settings file, so a server that was deliberately put on the network
+// answers to its own name and nothing else. A local server passes nothing and
+// keeps the loopback-only rule. Entries may be exact names or `*.suffix`
+// wildcards — enabled tunnels put their random upstream names here, which
+// cannot be known ahead of time.
+//
 // Returns null when the request is fine, or a short reason when it isn't.
-export function rebindingReason(req) {
+export function rebindingReason(req, extraHosts = []) {
   const host = req.headers?.host;
   if (!host) return 'The request arrived with no Host header.';
   const name = hostnameOf(host);
-  if (!LOOPBACK_HOSTS.has(name)) return `It arrived addressed to ${name}.`;
-  return null;
+  if (LOOPBACK_HOSTS.has(name)) return null;
+  for (const extra of extraHosts) {
+    if (extra.startsWith('*.')) {
+      // "*.trycloudflare.com" matches "abc.trycloudflare.com" but not the bare
+      // suffix itself and not "evil-trycloudflare.com".
+      if (name.endsWith(extra.slice(1)) && name.length > extra.length) return null;
+    } else if (name === extra) {
+      return null;
+    }
+  }
+  return `It arrived addressed to ${name}.`;
 }
 
 // Cross-site requests: any page in the browser can POST here without being
@@ -59,8 +75,13 @@ export function crossOriginReason(req) {
   }
   const origin = req.headers?.origin;
   if (origin) {
-    const expected = 'http://' + String(req.headers.host ?? '').trim().toLowerCase();
-    if (String(origin).trim().toLowerCase() !== expected) return `It came from ${origin}.`;
+    // The host was just vetted by the rebinding check, so the origin only has
+    // to agree with it. Both schemes are accepted: a self-hosted server behind
+    // a tunnel is reached over https while the page's fetches still arrive
+    // here addressed to the same host the tunnel forwarded.
+    const host = String(req.headers.host ?? '').trim().toLowerCase();
+    const expected = new Set(['http://' + host, 'https://' + host]);
+    if (!expected.has(String(origin).trim().toLowerCase())) return `It came from ${origin}.`;
   }
   return null;
 }

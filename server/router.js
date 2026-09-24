@@ -23,6 +23,9 @@ import { handleSearch } from './apiSearch.js';
 import { handleBlame } from './apiGitBlame.js';
 import { handleDiff, handleDiffRefs } from './apiDiff.js';
 import { handleToolsInstall, handleToolsRun, handleToolsStatus } from './apiTools.js';
+import { handleMcpStart, handleMcpStatus, handleMcpStop, handleMcpCommand } from './apiMcp.js';
+import { handleGetSettings, handleRotateAccessKey, handleUpdateSettings } from './apiSettings.js';
+import { allowedHosts, authReason, DEFAULT_SETTINGS } from './config.js';
 
 const ROUTES = [
   {
@@ -83,8 +86,49 @@ const ROUTES = [
     run: ({ res, body }) => handleToolsInstall(res, body),
   },
   {
+    // The MCP button's state, and the command an agent harness is configured with.
+    // The config is not secret, but it is a path into this machine and a foreign
+    // page has no business reading either one.
+    method: 'GET', path: '/api/mcp', sameOrigin: true,
+    run: ({ req, res, config }) => handleMcpStatus(req, res, config),
+  },
+  {
+    method: 'GET', path: '/api/mcp/command', sameOrigin: true,
+    run: ({ req, res, config }) => handleMcpCommand(req, res, config),
+  },
+  {
+    // Starting and stopping a process is a side effect on the person's machine, so
+    // these take a body like every other POST and are checked like every other POST.
+    method: 'POST', path: '/api/mcp/start', body: true,
+    run: ({ req, res, config }) => handleMcpStart(req, res, config),
+  },
+  {
+    method: 'POST', path: '/api/mcp/stop', body: true,
+    run: ({ req, res, config }) => handleMcpStop(req, res, config),
+  },
+  {
     method: 'GET', path: '/api/health',
     run: ({ res }) => sendJSON(res, 200, { ok: true }),
+  },
+  {
+    // The settings drawer and the CLI read the same public shape: everything
+    // about the configuration except the access key itself.
+    method: 'GET', path: '/api/settings', sameOrigin: true,
+    run: ({ req, res, config }) => handleGetSettings(req, res, config),
+  },
+  {
+    // PATCH semantics over a small allow-listed key set; the validation that
+    // rejects a bad port or a lawless mode lives in `server/config.js` and is
+    // shared with the CLI wizard, so both surfaces enforce one schema.
+    method: 'PUT', path: '/api/settings', body: true,
+    run: ({ res, body, config }) => handleUpdateSettings(res, body, config),
+  },
+  {
+    // The only way the key changes: generated on the server, shown once in
+    // this response, never readable again. In self-hosted mode this endpoint
+    // is itself behind the current key, so rotation requires possession.
+    method: 'POST', path: '/api/settings/access-key', body: true,
+    run: ({ res, config }) => handleRotateAccessKey(res, config),
   },
 ];
 
@@ -107,14 +151,36 @@ export function matchRoute(method, pathname) {
 // for the demo, and the two roots static serving maps into. Passed in rather
 // than resolved here so a test can point the server somewhere else, and so this
 // module has nothing to say about where it was installed.
+//
+// Settings arrive the same way: `config.getSettings` is read on every request,
+// so a key rotated or a domain changed through the API takes effect on the next
+// request without a restart. A bare `createServer()` (the tests) has no getter
+// and sees the local-mode defaults — never somebody's home directory.
+async function liveSettings(config) {
+  if (typeof config?.getSettings !== 'function') return DEFAULT_SETTINGS;
+  try {
+    return await config.getSettings();
+  } catch {
+    return null; // unreadable config: fail closed, every /api call gets a 500
+  }
+}
+
 export function createRouter(config) {
   return async function handleRequest(req, res) {
     try {
       const url = new URL(req.url, 'http://127.0.0.1');
 
-      const wrongHost = rebindingReason(req);
+      const settings = await liveSettings(config);
+      if (!settings) {
+        return sendError(res, 500, 'The settings file could not be read — run `onboarder doctor` to find out why.');
+      }
+
+      const wrongHost = rebindingReason(req, allowedHosts(settings));
       if (wrongHost) {
-        return sendError(res, 403, 'Onboarder only answers to localhost. ' + wrongHost);
+        const scope = settings.mode === 'self-hosted'
+          ? 'Onboarder only answers to its configured host and domain. '
+          : 'Onboarder only answers to localhost. ';
+        return sendError(res, 403, scope + wrongHost);
       }
 
       const found = matchRoute(req.method, url.pathname);
@@ -123,6 +189,15 @@ export function createRouter(config) {
         if (foreign) {
           return sendError(res, 403, 'That request did not come from Onboarder’s own page. ' + foreign);
         }
+      }
+
+      // The self-hosted gate. It is authentication, unlike the two guards
+      // above: the mode says the network can reach us, so every API call
+      // proves it holds the access key. `/api/health` stays open — a tunnel
+      // or uptime check has no key and tells an attacker nothing.
+      if (found && url.pathname.startsWith('/api/') && url.pathname !== '/api/health') {
+        const denied = authReason(req, settings);
+        if (denied) return sendError(res, 401, denied);
       }
 
       if (found) {

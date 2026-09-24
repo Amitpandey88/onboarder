@@ -28,7 +28,10 @@ import {
 import { analyzeHealth } from '/shared/analyzer/health.js';
 import { summarizeSecurity } from '/shared/analyzer/security.js';
 import { escapeHtml } from '/js/html.js';
-import { scanOnServer, cleanupClone, streamExplain } from '/js/api.js';
+import {
+  scanOnServer, cleanupClone, streamExplain,
+  fetchMcpStatus, startMcpServer, stopMcpServer, fetchMcpCommand,
+} from '/js/api.js';
 import { canPickFolder, pickDirectory, browserFileSource } from '/js/fileSourceBrowser.js';
 import { renderInto, wireNodeClicks, makePanzoom, downloadSvg } from '/js/diagramPane.js';
 import { setViewerTheme } from '/js/codeViewer.js';
@@ -50,6 +53,7 @@ import { initHeatmap } from '/js/heatmap.js';
 import { initSearch } from '/js/search.js';
 import { withTransition } from '/js/transitions.js';
 import { renderInsights } from '/js/insightsView.js';
+import { createServerDrawer } from '/js/serverSettings.js';
 import { renderDiffView } from '/js/diffView.js';
 import { renderWorkflows } from '/js/workflowsView.js';
 import { renderSbom } from '/js/sbomView.js';
@@ -73,7 +77,10 @@ const dom = {};
   'saveSettings', 'testSettings', 'settingsStatus', 'toast', 'brandNote', 'askBtn', 'askInput',
   'graphView', 'graphCanvas', 'graphControls', 'graphReset', 'graphZoomIn', 'graphZoomOut', 'graphFit', 'graphSearchInput', 'graphTooltip',
   'heatmapView', 'heatmapCanvas', 'heatmapTooltip', 'blameGutter', 'codeTabContainer',
-  'insightsView', 'diffView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView'
+  'insightsView', 'diffView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView',
+  'mcpBtn', 'mcpBtnLabel', 'mcpDot', 'mcpDrawer', 'mcpScrim', 'mcpClose', 'mcpPanelDot', 'mcpPanelState',
+  'mcpStart', 'mcpStop', 'mcpStatus', 'mcpConfig', 'mcpCommandInput', 'mcpCopy', 'mcpTabJson', 'mcpTabToml',
+  'mcpConfigBlock', 'mcpToolsHint', 'serverBtn',
 ].forEach((id) => (dom[id] = $(id)));
 
 let forceGraphCtl = null;
@@ -984,6 +991,9 @@ dom.askInput.addEventListener('keydown', (event) => {
 // ---------------------------------------------------------- settings bits --
 
 function openSettings() {
+  // Same reason the MCP drawer closes settings: one scrim at a time.
+  if (!dom.mcpDrawer.hidden) closeMcp();
+  serverDrawer.close();
   const s = llm.getSettings();
   dom.setBaseUrl.value = s.baseUrl;
   dom.setApiKey.value = s.apiKey;
@@ -1000,6 +1010,232 @@ function closeSettings() {
 
 dom.settingsBtn.addEventListener('click', openSettings);
 dom.drawerClose.addEventListener('click', closeSettings);
+
+// ------------------------------------------------------------- server bits --
+
+// The third drawer. Its content and round-trips live in js/serverSettings.js;
+// what stays here is the choreography it shares with the other two drawers —
+// one scrim at a time, Escape to dismiss.
+const serverDrawer = createServerDrawer({ toast });
+
+function openServer() {
+  closeSettings();
+  if (!dom.mcpDrawer.hidden) closeMcp();
+  serverDrawer.open();
+}
+
+dom.serverBtn.addEventListener('click', () => (serverDrawer.isOpen() ? serverDrawer.close() : openServer()));
+
+// ------------------------------------------------------------------- mcp --
+
+// The topbar button, the drawer, and the polling behind them.
+//
+// The shape is deliberately the same as the settings drawer above — one scrim,
+// one panel, a Close button, Escape to dismiss — because the person who learned
+// one has already learned the other. What differs is the content: this panel has
+// a live status, two actions, and a config block, so it polls. Polling continues
+// while closed, slowly, because the dot on the button has to stay truthful when
+// the drawer is not there to explain it.
+
+let mcpPoll = null;
+let mcpBusy = false;
+let mcpCommand = null; // fetched once; the command does not change while it runs
+
+// The dot's three states, and the copy that goes with each. `starting` is
+// separate from `running` because the handshake takes a beat, and claiming
+// success before it is known would be a lie the person acts on.
+function mcpDotClass(state) {
+  if (state === 'running') return 'is-running';
+  if (state === 'starting' || state === 'stopping') return 'is-starting';
+  if (state === 'error' || state === 'unavailable') return 'is-error';
+  return '';
+}
+
+function mcpStateLabel(data) {
+  switch (data.state) {
+    case 'running': return `Running · ${data.toolCount} tools`;
+    case 'starting': return 'Starting…';
+    case 'stopping': return 'Stopping…';
+    case 'error': return 'Failed to start';
+    case 'unavailable': return 'Not available';
+    default: return 'Stopped';
+  }
+}
+
+function formatUptime(ms) {
+  if (!ms && ms !== 0) return '0s';
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+function renderMcpStatus(data) {
+  if (!data) {
+    // No server answered. The button is still there — it always is — but it says
+    // so rather than showing a confident "stopped" for a process we cannot see.
+    dom.mcpDot.className = 'mcp-dot is-error';
+    dom.mcpBtnLabel.textContent = 'MCP';
+    dom.mcpPanelDot.className = 'mcp-dot mcp-dot-lg is-error';
+    dom.mcpPanelState.textContent = 'The server did not answer.';
+    dom.mcpStart.disabled = true;
+    dom.mcpStop.disabled = true;
+    dom.mcpStatus.textContent = 'Is the Onboarder server running?';
+    return;
+  }
+
+  const cls = mcpDotClass(data.state);
+  dom.mcpDot.className = 'mcp-dot ' + cls;
+  dom.mcpPanelDot.className = 'mcp-dot mcp-dot-lg ' + cls;
+  dom.mcpBtnLabel.textContent = data.running ? 'MCP on' : 'MCP';
+  dom.mcpBtn.title = data.running
+    ? `MCP server running · ${data.toolCount} tools · pid ${data.pid}`
+    : 'Start the MCP server so AI agents can read this repository';
+  dom.mcpPanelState.textContent = mcpStateLabel(data);
+
+  // Both buttons stay visible and swap roles through `disabled`, so the panel
+  // does not reflow as the state changes underneath it.
+  const busy = data.state === 'starting' || data.state === 'stopping';
+  dom.mcpStart.disabled = busy || data.state === 'unavailable' || data.running;
+  dom.mcpStop.disabled = busy || data.state === 'unavailable' || !data.running;
+
+  const bits = [];
+  if (data.running) {
+    bits.push(`pid ${data.pid}`);
+    bits.push(`up ${formatUptime(data.uptimeMs)}`);
+  }
+  if (data.lastError) bits.push(data.lastError);
+  dom.mcpStatus.textContent = bits.join(' · ');
+
+  // The config only appears once there is a server to configure against. Shown
+  // earlier, it would be a command for a process that is not running.
+  dom.mcpConfig.hidden = !data.running;
+  if (data.running) {
+    dom.mcpToolsHint.textContent = `${data.toolCount} tools: ${(data.tools || []).join(', ')}`;
+  }
+}
+
+function scheduleMcpPoll(ms) {
+  clearTimeout(mcpPoll);
+  mcpPoll = setTimeout(pollMcp, ms);
+}
+
+async function pollMcp() {
+  renderMcpStatus(await fetchMcpStatus());
+  // Closed: a slow heartbeat, so the dot is right when the person comes back
+  // without the tab asking the server anything it does not need to answer.
+  scheduleMcpPoll(dom.mcpDrawer.hidden ? 8000 : 2500);
+}
+
+async function loadMcpCommand() {
+  if (mcpCommand) return mcpCommand;
+  mcpCommand = await fetchMcpCommand();
+  if (mcpCommand) {
+    dom.mcpCommandInput.value = mcpCommand.command;
+    renderMcpConfigBlock();
+  }
+  return mcpCommand;
+}
+
+async function openMcp() {
+  // Two drawers over one page would stack their scrims, and the top one would win
+  // every click. Closing settings first keeps the invariant the Escape handler
+  // assumes, and matches what the person was doing — switching panels.
+  closeSettings();
+  serverDrawer.close();
+  dom.mcpDrawer.hidden = false;
+  dom.mcpScrim.hidden = false;
+  await pollMcp();
+  await loadMcpCommand();
+  scheduleMcpPoll(2500);
+}
+
+function closeMcp() {
+  dom.mcpDrawer.hidden = true;
+  dom.mcpScrim.hidden = true;
+  scheduleMcpPoll(8000);
+}
+
+// The two config shapes a client is most likely to want: JSON for the harnesses
+// that read a config file, TOML for the ones that do not. Both are built from
+// what the server reported, so neither can drift from the command that actually
+// starts it.
+function renderMcpConfigBlock() {
+  const ex = mcpCommand?.examples?.[0];
+  if (!ex) return;
+  const command = shortCommand(ex.command);
+  const json = { mcpServers: { onboarder: { command, args: ex.args } } };
+  const toml = [
+    '[mcp_servers.onboarder]',
+    `command = ${JSON.stringify(command)}`,
+    `args = [${ex.args.map((a) => JSON.stringify(a)).join(', ')}]`,
+  ].join('\n');
+  dom.mcpConfigBlock.textContent = dom.mcpTabToml.classList.contains('is-on')
+    ? toml
+    : JSON.stringify(json, null, 2);
+}
+
+// The server reports its own `process.execPath` so the config works even where
+// the harness's PATH has no node. But an absolute path is noise in a snippet
+// people read, so the common case is shown short and the input above keeps the
+// exact one.
+function shortCommand(cmd) {
+  return typeof cmd === 'string' && cmd.endsWith('/node') ? 'node' : cmd;
+}
+
+function pickMcpTab(toml) {
+  dom.mcpTabJson.classList.toggle('is-on', !toml);
+  dom.mcpTabToml.classList.toggle('is-on', toml);
+  dom.mcpTabJson.setAttribute('aria-selected', String(!toml));
+  dom.mcpTabToml.setAttribute('aria-selected', String(toml));
+  renderMcpConfigBlock();
+}
+
+dom.mcpTabJson.addEventListener('click', () => pickMcpTab(false));
+dom.mcpTabToml.addEventListener('click', () => pickMcpTab(true));
+dom.mcpBtn.addEventListener('click', () => (dom.mcpDrawer.hidden ? openMcp() : closeMcp()));
+dom.mcpClose.addEventListener('click', closeMcp);
+dom.mcpScrim.addEventListener('click', closeMcp);
+
+dom.mcpCopy.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(dom.mcpConfigBlock.textContent);
+    toast('Config copied');
+  } catch {
+    // Clipboard access can be refused outright; selecting the text is the one
+    // fallback that always works, so the person can copy it themselves.
+    dom.mcpCommandInput.select();
+  }
+});
+
+async function setMcpState(action) {
+  if (mcpBusy) return;
+  mcpBusy = true;
+  // Optimistic: the dot goes amber immediately rather than after a round-trip
+  // during which the button would still read "stopped" and invite a second click.
+  renderMcpStatus({ state: action === 'start' ? 'starting' : 'stopping', running: action === 'stop', toolCount: 0, tools: [] });
+  try {
+    const data = action === 'start' ? await startMcpServer() : await stopMcpServer();
+    renderMcpStatus(data);
+    if (action === 'start') await loadMcpCommand();
+  } catch (err) {
+    renderMcpStatus({ state: 'error', running: action === 'stop', lastError: err.message, tools: [] });
+    toast(err.message);
+  } finally {
+    mcpBusy = false;
+    scheduleMcpPoll(1500);
+  }
+}
+
+dom.mcpStart.addEventListener('click', () => setMcpState('start'));
+dom.mcpStop.addEventListener('click', () => setMcpState('stop'));
+
+// One heartbeat at load. This first fetch is also what decides whether the button
+// already reads "MCP on" for a server that was left running from before.
+scheduleMcpPoll(0);
+
+
 dom.drawerScrim.addEventListener('click', closeSettings);
 
 dom.saveSettings.addEventListener('click', () => {
@@ -1051,8 +1287,15 @@ function toast(message) {
 }
 
 document.addEventListener('keydown', (event) => {
-  if (event.target.matches('input, textarea')) return;
-  if (event.key === 'Escape') return closeSettings();
+  if (event.target.matches('input, textarea, select')) return;
+  // Escape closes whichever drawer is open. The three are kept mutually
+  // exclusive when they open, so at most one is ever showing — but checking
+  // each here means the behavior does not depend on that invariant holding.
+  if (event.key === 'Escape') {
+    if (!dom.mcpDrawer.hidden) return closeMcp();
+    if (serverDrawer.isOpen()) return serverDrawer.close();
+    return closeSettings();
+  }
   if (!state.scan) return;
   if (event.key === '1') setView(state.lastExplorer || 'map');
   if (event.key === '2') setView('code');

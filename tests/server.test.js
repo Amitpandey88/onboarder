@@ -145,12 +145,19 @@ test('every error the UI can show has the same shape', async () => {
 
 // ---- the route table --------------------------------------------------------
 
-test('every route answers its own method and no other', () => {
+test('every route answers its own method, and shared paths are deliberate', () => {
+  // GET and PUT both live on /api/settings (read the public view vs patch it),
+  // so "no other method matches" has to mean "no other *route*" — a different
+  // handler on the same path is a design decision, listed here:
+  const sharedPaths = new Set(['/api/settings']);
   for (const route of routes) {
     const urlPath = route.path || route.prefix + 'x';
     assert.ok(matchRoute(route.method, urlPath), route.method + ' ' + urlPath);
     const other = route.method === 'GET' ? 'POST' : 'GET';
-    assert.equal(matchRoute(other, urlPath), null, other + ' ' + urlPath + ' is not this route');
+    const otherMatch = matchRoute(other, urlPath);
+    if (!otherMatch) continue;
+    assert.notEqual(otherMatch.route, route, other + ' ' + urlPath + ' is not this route');
+    assert.ok(sharedPaths.has(route.path), `${route.method} ${route.path} shares its path — add it to sharedPaths on purpose`);
   }
 });
 
@@ -408,8 +415,11 @@ test('crossOriginReason: Origin is compared against our own host', () => {
   const host = 'localhost:4310';
   assert.equal(crossOriginReason({ headers: { host, origin: 'http://localhost:4310' } }), null);
   assert.equal(crossOriginReason({ headers: { host, origin: 'HTTP://LOCALHOST:4310' } }), null);
+  // The scheme is deliberately not compared: a self-hosted server sits behind
+  // a TLS-terminating tunnel, so its browser origin is https while its Host is
+  // the plain bind. The key gate, not the scheme, is what protects that mode.
+  assert.equal(crossOriginReason({ headers: { host, origin: 'https://localhost:4310' } }), null);
   assert.match(crossOriginReason({ headers: { host, origin: 'http://localhost:9999' } }), /9999/, 'another port is another origin');
-  assert.match(crossOriginReason({ headers: { host, origin: 'https://localhost:4310' } }), /https/, 'so is another scheme');
   assert.match(crossOriginReason({ headers: { host, origin: 'http://evil.com' } }), /evil\.com/);
   assert.match(crossOriginReason({ headers: { host, origin: 'null' } }), /null/, 'an opaque origin is not ours');
 });

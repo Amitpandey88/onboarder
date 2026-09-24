@@ -1,15 +1,48 @@
 {
-  "name": "codebase_onboarder",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Drop a path. Get a map. A local tool that draws how a repository fits together.",
+  "name": "codebase-onboarder",
+  "version": "0.2.0",
+  "description": "Drop a path. Get a map. A zero-dependency codebase visualizer with a CLI onboarding wizard, a web UI, and an optional key-gated self-hosted mode.",
   "type": "module",
+  "bin": {
+    "onboarder": "bin/onboarder.js",
+    "codebase-onboarder": "bin/onboarder.js"
+  },
+  "files": [
+    "bin",
+    "cli",
+    "server",
+    "shared",
+    "public",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test"
+    "mcp": "node server/mcp/standalone.js",
+    "test": "node --test",
+    "postinstall": "node bin/postinstall.js",
+    "prepublishOnly": "npm test"
   },
   "engines": {
     "node": ">=20"
   },
+  "keywords": [
+    "codebase",
+    "visualization",
+    "architecture",
+    "onboarding",
+    "diagram",
+    "mermaid",
+    "mcp",
+    "self-hosted",
+    "developer-tools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Amitpandey88/onboarder.git"
+  },
+  "homepage": "https://github.com/Amitpandey88/onboarder#readme",
+  "bugs": "https://github.com/Amitpandey88/onboarder/issues",
+  "author": "Amit Pandey",
   "license": "MIT"
 }
