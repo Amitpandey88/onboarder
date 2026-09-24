@@ -1,6 +1,6 @@
 {
   "name": "codebase-onboarder",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Drop a path. Get a map. A zero-dependency codebase visualizer with a CLI onboarding wizard, a web UI, and an optional key-gated self-hosted mode.",
   "type": "module",
   "bin": {

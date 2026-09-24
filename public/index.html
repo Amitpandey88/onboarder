@@ -411,13 +411,14 @@
       <button class="btn btn-ghost btn-sm" id="srvRotate" title="Mint a new key; the old one dies immediately">Rotate</button>
     </div>
     <div class="server-fresh-key" id="srvFreshKeyRow" hidden>
-      <p class="drawer-fine">New key — shown once. It is already saved in this browser:</p>
+      <p class="drawer-fine">New key — shown once. This browser has been signed in with it:</p>
       <div class="mcp-config-row">
         <input type="text" class="text-input mcp-config-input" id="srvFreshKey" readonly spellcheck="false">
         <button class="btn btn-ghost btn-sm" id="srvCopyKey">Copy</button>
       </div>
     </div>
     <p class="drawer-fine" id="srvKeyHint"></p>
+    <button class="btn btn-ghost btn-sm" id="srvLogout">Sign out this browser</button>
   </div>
 
   <div class="server-section">

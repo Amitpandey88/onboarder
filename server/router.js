@@ -1,16 +1,14 @@
-// The route table and the two gates in front of it.
+// The route table and the gates in front of it.
 //
 // Everything arrives here: one function decides whether a request is allowed to
 // be answered at all, then which handler answers it. The routes are a list rather
 // than a ladder of `if` statements so that the whole surface of the server is
-// visible in one screen — six endpoints, and everything else is a static file.
+// visible in one screen, and everything else is a static file.
 //
-// Neither gate is authentication. A local server with no accounts cannot
-// authenticate anyone; what it can do is refuse requests that a browser on some
-// other site made on the person's behalf. `server/httpGuards.js` explains both
-// attacks; the short version is that `Host` stops DNS rebinding from turning
-// `evil.com` into our own origin, and `Origin`/`Sec-Fetch-Site` stops a page the
-// person happened to have open from driving the API.
+// There are three concerns. Local mode relies on `Host`, `Origin`, and
+// `Sec-Fetch-Site` to stop another page and DNS rebinding from driving it.
+// Self-hosted mode adds real access-key authentication: local browser requests
+// stay open, remote browsers get a signed session, and API clients use Bearer.
 
 import { handleDocs } from './apiDocs.js';
 import { handleFile } from './apiFile.js';
@@ -25,7 +23,9 @@ import { handleDiff, handleDiffRefs } from './apiDiff.js';
 import { handleToolsInstall, handleToolsRun, handleToolsStatus } from './apiTools.js';
 import { handleMcpStart, handleMcpStatus, handleMcpStop, handleMcpCommand } from './apiMcp.js';
 import { handleGetSettings, handleRotateAccessKey, handleUpdateSettings } from './apiSettings.js';
-import { allowedHosts, authReason, DEFAULT_SETTINGS } from './config.js';
+import { handleAuthStatus, handleLogin, handleLogout } from './apiAuth.js';
+import { accessKeysMatch, allowedHosts, authReason, bearerToken, DEFAULT_SETTINGS } from './config.js';
+import { hasValidSession } from './auth.js';
 
 const ROUTES = [
   {
@@ -111,6 +111,18 @@ const ROUTES = [
     run: ({ res }) => sendJSON(res, 200, { ok: true }),
   },
   {
+    method: 'GET', path: '/api/auth/status', sameOrigin: true,
+    run: ({ req, res, settings }) => handleAuthStatus(req, res, settings),
+  },
+  {
+    method: 'POST', path: '/api/auth/login', body: true, sameOrigin: true,
+    run: ({ req, res, body, settings }) => handleLogin(req, res, body, settings),
+  },
+  {
+    method: 'POST', path: '/api/auth/logout', body: true, sameOrigin: true,
+    run: ({ req, res }) => handleLogout(req, res),
+  },
+  {
     // The settings drawer and the CLI read the same public shape: everything
     // about the configuration except the access key itself.
     method: 'GET', path: '/api/settings', sameOrigin: true,
@@ -128,7 +140,7 @@ const ROUTES = [
     // this response, never readable again. In self-hosted mode this endpoint
     // is itself behind the current key, so rotation requires possession.
     method: 'POST', path: '/api/settings/access-key', body: true,
-    run: ({ res, config }) => handleRotateAccessKey(res, config),
+    run: ({ req, res, config }) => handleRotateAccessKey(req, res, config),
   },
 ];
 
@@ -184,6 +196,7 @@ export function createRouter(config) {
       }
 
       const found = matchRoute(req.method, url.pathname);
+      const publicAuthRoute = ['/api/health', '/api/auth/status', '/api/auth/login', '/api/auth/logout'].includes(url.pathname);
       if (req.method !== 'GET' || found?.route.sameOrigin) {
         const foreign = crossOriginReason(req);
         if (foreign) {
@@ -191,18 +204,34 @@ export function createRouter(config) {
         }
       }
 
-      // The self-hosted gate. It is authentication, unlike the two guards
-      // above: the mode says the network can reach us, so every API call
-      // proves it holds the access key. `/api/health` stays open — a tunnel
-      // or uptime check has no key and tells an attacker nothing.
-      if (found && url.pathname.startsWith('/api/') && url.pathname !== '/api/health') {
-        const denied = authReason(req, settings);
-        if (denied) return sendError(res, 401, denied);
+      // Bearer clients keep their existing API contract. A browser gets a signed,
+      // HttpOnly session from the login form instead of storing the raw key.
+      const bearerClient = accessKeysMatch(settings.accessKey, bearerToken(req));
+      const browserAuthenticated = hasValidSession(req, settings);
+      const authDenied = authReason(req, settings);
+      const locallyExempt = !authDenied;
+      const authenticated = bearerClient || browserAuthenticated || locallyExempt;
+      const remoteSelfHosted = settings.mode === 'self-hosted' && Boolean(authDenied);
+
+      if (remoteSelfHosted && !authenticated && !publicAuthRoute) {
+        // API callers keep a machine-readable 401. A browser navigation gets the
+        // themed sign-in document so the user never has to paste JSON into a tab.
+        const accepts = String(req.headers?.accept || '');
+        if (req.method === 'GET' && (url.pathname === '/' || accepts.includes('text/html'))) {
+          res.statusCode = 200;
+          return await serveStatic(res, '/login.html', config);
+        }
+        return sendError(res, 401, authDenied || 'Sign in with the Onboarder access key first.');
+      }
+
+      if (url.pathname === '/api/auth/logout') {
+        // Always clear the browser cookie, even if it had already expired.
+        return handleLogout(req, res);
       }
 
       if (found) {
         const body = found.route.body ? await readBody(req) : null;
-        return await found.route.run({ req, res, url, body, rest: found.rest, config });
+        return await found.route.run({ req, res, url, body, rest: found.rest, config, settings });
       }
 
       if (req.method === 'GET') return await serveStatic(res, url.pathname, config);

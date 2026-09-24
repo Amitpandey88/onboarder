@@ -202,7 +202,7 @@ with it instead of orphaning a process holding the scan cache.
 Onboarder has two modes, one config file, and three ways to edit it — the CLI wizard, CLI flags, and the web UI's Server drawer all write the same validated `config.json` (`~/.config/onboarder/config.json`, mode `0600`).
 
 - **Local (default)** — binds to loopback only, asks for no credentials. The safe default.
-- **Self-hosted** — a fresh setup binds `0.0.0.0` for direct LAN/VPS access; every API call requires a Bearer access key. Re-running setup preserves an existing loopback tunnel layout. Rotate the key with `onboarder config key rotate`; the old key dies on the next request.
+- **Self-hosted** — a fresh setup binds `0.0.0.0` for direct LAN/VPS access. Any IP-literal address is accepted, while arbitrary Host names are not. Remote browsers get a themed access-key login page and exchange the key for a 7-day signed `HttpOnly`, `SameSite=Strict` session cookie; true localhost requests skip login. API clients can continue using `Authorization: Bearer <access-key>`. Rotate the key with `onboarder config key rotate`; the old key and every old browser session die on the next request.
 
 ```bash
 onboarder setup                          # interactive wizard
@@ -223,7 +223,9 @@ onboarder https status                   # domain, URL, Caddyfile, and Caddy sta
 onboarder doctor                         # config, access key, ports, DNS, TLS, and tunnels
 ```
 
-A fresh self-hosted setup uses `0.0.0.0`, so a VPS is reachable at `http://<server-ip>:<port>` without a reverse proxy. A domain is optional for direct-IP access. If a domain is entered, setup asks whether to enable automatic HTTPS.
+A fresh self-hosted setup uses `0.0.0.0`, so a VPS is reachable at `http://<server-ip>:<port>` without a reverse proxy. The server accepts IPv4 and IPv6 IP literals, including a public address that reaches the host through provider NAT, but still rejects arbitrary DNS Host headers. A domain is optional for direct-IP access. If a domain is entered, setup asks whether to enable automatic HTTPS.
+
+When a remote browser opens the URL, Onboarder shows its themed sign-in page. The access key is sent in a POST body—not in the URL—and the browser stores only the signed session cookie. Opening the same server through `http://localhost:<port>` on that machine skips the page. Caddy and tunnel connections remain authenticated because their public Host is not loopback.
 
 For trusted HTTPS, DNS must already point the domain to the VPS and inbound TCP `80` and `443` must be allowed in both the cloud security group/NSG and the host firewall. On Ubuntu:
 
@@ -236,7 +238,7 @@ onboarder https check
 onboarder https setup
 ```
 
-Onboarder writes a private `Caddyfile` beside `config.json`, validates it, and asks Caddy to obtain and renew the certificate. It never runs `sudo` or installs packages silently. Caddy proxies `https://map.example.com` to `http://127.0.0.1:4310`; Onboarder continues to enforce the access key on every API call. A bare public IP cannot use a normal trusted domain certificate.
+Onboarder writes a private `Caddyfile` beside `config.json`, validates it, and asks Caddy to obtain and renew the certificate. It never runs `sudo` or installs packages silently. Caddy proxies `https://map.example.com` to `http://127.0.0.1:4310`; Onboarder recognizes the connection as remote and shows the access-key login page. A bare public IP cannot use a normal trusted domain certificate.
 
 If startup reports `EADDRINUSE`, run `onboarder status` first. If it identifies an Onboarder PID, use `onboarder stop` or `onboarder restart`; otherwise inspect the unrelated listener with `ss -ltnp` or `lsof -i :4310`, or choose another port. The error names these recovery commands instead of printing only the raw Node error.
 
@@ -254,7 +256,9 @@ codebase-onboarder/
 │   ├── index.js     # createServer / startServer / startup banner
 │   ├── config.js    # Settings schema, normalization, atomic 0600 writes
 │   ├── pidfile.js   # PID ownership for status / stop / restart
-│   ├── router.js    # Route table, live per-request settings, Bearer gate
+│   ├── router.js    # Route table, live per-request settings, auth & CSRF gates
+│   ├── auth.js      # Signed HttpOnly browser sessions
+│   ├── apiAuth.js   # Login/status/logout endpoints
 │   ├── apiSettings.js# GET/PUT /api/settings, key rotation
 │   ├── tunnel.js    # Cloudflare & Tailscale status/commands
 │   ├── https.js     # Caddy config, ACME/TLS readiness & lifecycle
@@ -269,8 +273,9 @@ codebase-onboarder/
 ├── public/          # Frontend client application
 │   ├── js/          # Vanilla ES modules (State, Inspector, Views, Settings)
 │   ├── vendor/      # Vendored Mermaid & Monaco Editor (Offline)
-│   └── index.html   # Main application interface
-└── tests/           # Comprehensive node:test suite (560 unit tests)
+│   ├── index.html   # Main application interface
+│   └── login.html   # Self-hosted access-key sign-in
+└── tests/           # Comprehensive node:test suite (565 tests)
 ```
 
 ---
@@ -280,7 +285,7 @@ codebase-onboarder/
 Onboarder includes a comprehensive automated test suite built with Node's native test runner:
 
 ```bash
-# Run all 560 tests
+# Run all 565 tests
 npm test
 ```
 

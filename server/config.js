@@ -131,9 +131,7 @@ export function maskAccessKey(key) {
 }
 
 export function browserUrl(settings) {
-  const url = new URL(serverUrls(settings).local);
-  if (settings.mode === 'self-hosted' && settings.accessKey) url.searchParams.set('key', settings.accessKey);
-  return url.toString();
+  return new URL(serverUrls(settings).local).toString();
 }
 
 export function publicSettings(value = DEFAULT_SETTINGS) {
@@ -192,16 +190,11 @@ export function allowedHosts(value = DEFAULT_SETTINGS) {
     // A wildcard bind is useful as a literal Host value to diagnostics, even
     // though browsers normally address the machine by one of its real IPs.
     hosts.add(settings.host.toLowerCase());
-    if (settings.host === '0.0.0.0') {
-      // A cloud VPS commonly reaches its public address through provider NAT,
-      // so that address is not present in os.networkInterfaces(). These markers
-      // let the guard accept an IP literal without accepting arbitrary domains.
-      hosts.add('ipv4:*');
-      for (const ip of ownInterfaceHosts()) if (!ip.includes(':')) hosts.add(ip);
-    } else if (settings.host === '::') {
-      hosts.add('ipv6:*');
-      for (const ip of ownInterfaceHosts()) if (ip.includes(':')) hosts.add(ip);
-    }
+    // Any network bind can sit behind NAT: a VPS may be configured as a private
+    // interface address while browsers address its public/NAT IP. Accept every IP
+    // literal, never arbitrary DNS names; the access key protects remote data.
+    hosts.add('ip:*');
+    for (const ip of ownInterfaceHosts()) if (!isLoopbackHost(ip)) hosts.add(ip);
   }
   if (settings.tunnel.cloudflare) hosts.add('*.trycloudflare.com');
   if (settings.tunnel.tailscale) hosts.add('*.ts.net');
@@ -220,9 +213,20 @@ export function bearerToken(req) {
   return match ? match[1].trim() : '';
 }
 
+export function requestIsLoopback(req) {
+  const remote = String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+  return remote === '127.0.0.1' || remote === '::1';
+}
+
 export function authReason(req, settings = DEFAULT_SETTINGS) {
   const normalized = normalizeSettings(settings);
   if (normalized.mode !== 'self-hosted') return null;
+  // A self-hosted server can still be opened on the same machine. Caddy and
+  // tunnels arrive from loopback but keep the public Host, so both signals must
+  // agree before a login page is skipped.
+  const host = String(req.headers?.host || '').toLowerCase();
+  const hostIsLoopback = isLoopbackHost(host.replace(/:\d+$/, '')) || /^localhost:\d+$/.test(host);
+  if (requestIsLoopback(req) && hostIsLoopback) return null;
   if (!normalized.accessKey) return 'Self-hosted mode has no access key configured.';
   const token = bearerToken(req);
   if (!accessKeysMatch(normalized.accessKey, token)) return 'A valid access key is required.';

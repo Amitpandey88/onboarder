@@ -172,7 +172,7 @@ test('allowedHosts accepts the bind host, the domain, and enabled tunnel names',
   assert.ok(!hosts.some((h) => h.includes('ts.net')), 'tailscale is not enabled');
   const lan = allowedHosts(normalizeSettings({ mode: 'self-hosted', host: '0.0.0.0', domain: 'map.example.com' }));
   assert.ok(lan.includes('0.0.0.0'), 'the wildcard bind answers to itself');
-  assert.ok(lan.includes('ipv4:*'), 'wildcard IPv4 accepts public/NAT IP Host headers');
+  assert.ok(lan.includes('ip:*'), 'wildcard bind accepts any IPv4 or IPv6 IP Host header');
   assert.ok(lan.includes('127.0.0.1') === false, 'loopback is allowed separately, not as an extra network host');
   assert.deepEqual(allowedHosts(normalizeSettings({})), [], 'local mode adds nothing — the old loopback-only rule');
 });
@@ -183,16 +183,15 @@ test('local mode asks for nothing, from anyone who can reach the port', () => {
   assert.equal(authReason({ headers: {} }, normalizeSettings({ mode: 'local' })), null);
 });
 
-test('self-hosted mode demands the key, with the reason in the refusal', () => {
+test('self-hosted mode asks a remote browser for the key but exempts a true localhost request', () => {
   const settings = normalizeSettings({ mode: 'self-hosted', accessKey: generateAccessKey() });
-  assert.match(authReason({ headers: {} }, settings), /access key/i);
-  assert.match(authReason({ headers: { authorization: 'Bearer wrong-wrong-wrong' } }, settings), /access key/i);
-  assert.equal(authReason({ headers: { authorization: `Bearer ${settings.accessKey}` } }, settings), null);
-  assert.equal(
-    authReason({ headers: { authorization: `bearer ${settings.accessKey}` } }, settings),
-    null,
-    'the scheme word is case-insensitive, per RFC 7235',
-  );
+  const remote = (headers, remoteAddress = '203.0.113.8') => ({ headers, socket: { remoteAddress } });
+  assert.match(authReason(remote({ host: '140.238.255.19:4310' }), settings), /access key/i);
+  assert.equal(authReason(remote({ host: 'localhost:4310' }, '::ffff:127.0.0.1'), settings), null);
+  assert.match(authReason(remote({ host: 'localhost:4310' }, '203.0.113.8'), settings), /access key/i, 'a forged loopback Host is not a local browser');
+  assert.match(authReason(remote({ host: '140.238.255.19:4310' }, '127.0.0.1'), settings), /access key/i, 'Caddy is local, but its public Host is still remote');
+  assert.equal(authReason(remote({ host: '140.238.255.19:4310', authorization: `Bearer ${settings.accessKey}` }), settings), null);
+  assert.match(authReason(remote({ host: '140.238.255.19:4310', authorization: 'Bearer wrong-wrong-wrong' }), settings), /access key/i);
 });
 
 test('self-hosted with no key set refuses everyone — fail closed, never open', () => {

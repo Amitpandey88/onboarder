@@ -12,6 +12,7 @@ import {
   readSettings, updateSettings, writeSettings, configPath,
 } from './config.js';
 import { sendError, sendJSON } from './http.js';
+import { sessionCookie } from './auth.js';
 import { tunnelStatus } from './tunnel.js';
 import { httpsStatus } from './https.js';
 
@@ -96,7 +97,7 @@ export async function handleUpdateSettings(res, body, config) {
 // Rotation returns the new key in the clear, once. It is never in a GET after
 // that — `hasAccessKey`/`accessKeyMasked` are all the readback there is. The
 // person copies it from this response into the devices that need it.
-export async function handleRotateAccessKey(res, config) {
+export async function handleRotateAccessKey(req, res, config) {
   const file = settingsFile(config);
   if (!file) {
     return sendError(res, 400, 'This server was started without a config file, so there is nothing to save to.');
@@ -108,7 +109,10 @@ export async function handleRotateAccessKey(res, config) {
     sendJSON(res, 200, {
       accessKey,
       settings: publicSettings(next),
-      note: 'Shown once. Update every device that connects remotely; the old key is dead.',
+      note: 'Shown once. This browser is signed in with the new key; update every other device.',
+    }, {
+      'cache-control': 'no-store',
+      'set-cookie': sessionCookie(req, next),
     });
   } catch (err) {
     sendError(res, 400, err.message || 'The key could not be rotated.');

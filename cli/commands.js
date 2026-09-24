@@ -628,7 +628,7 @@ export async function runTunnel(kind, { flags = {}, out = console.log, err = con
       if (m && !announced) {
         announced = true;
         out(tick + 'Public URL: ' + bold(m[0]));
-        out(dim('    Anyone with the URL still needs the access key: ' + m[0] + '?key=<your-key>'));
+        out(dim('    Anyone with the URL still needs the access key: ' + m[0]));
       }
       if (flags.verbose) process.stderr.write(text);
     });

@@ -82,7 +82,7 @@ export function startupBanner(settings, { configFile } = {}) {
     }
   }
   if (settings.mode === 'self-hosted' && settings.accessKey) {
-    lines.push('  Browser this URL is opened with the access key automatically; the key is removed from the address bar.');
+    lines.push('  Remote browsers show an access-key sign-in page; the key is never put in the URL.');
   }
   if (settings.mode === 'self-hosted' && !settings.accessKey) {
     lines.push('  WARNING self-hosted with no access key — every API call is refused until one is set.');
@@ -176,8 +176,8 @@ export async function startServer({ configFile = configPath(), openBrowser, log 
   log(startupBanner(live, { configFile }));
 
   const shouldOpen = openBrowser ?? (live.autoOpen && process.stdout.isTTY && !process.env.NO_OPEN);
-  // The browser adopts a self-hosted key from the query string, stores it locally,
-  // and removes the secret from the visible URL before any API request.
+  // Local requests never need a credential. Remote browsers are sent to the
+  // themed login page and exchange the key for an HttpOnly session cookie.
   if (shouldOpen) openInBrowser(browserUrl(live));
   return { server, settings: live, host, port };
 }

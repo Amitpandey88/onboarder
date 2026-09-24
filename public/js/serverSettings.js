@@ -1,13 +1,13 @@
 // The Server drawer: the web face of the same config file the CLI wizard
 // writes. Reads come back with the key masked; saves send only the changed
-// keys; rotation reveals the new key once and stores it in this browser.
+// keys; rotation reveals the new key once and signs this browser in.
 //
 // The module owns its own DOM and its own round-trips. What it borrows from
 // app.js is the drawer choreography — one scrim at a time, Escape to close —
 // which is why it returns open/close/isOpen instead of wiring the topbar
 // button itself.
 
-import { getAccessKey, setAccessKey, fetchServerSettings, updateServerSettings, rotateServerAccessKey } from '/js/api.js';
+import { fetchServerSettings, updateServerSettings, rotateServerAccessKey, logoutRemoteSession } from '/js/api.js';
 
 // A function declaration, not a const arrow: the import-time DOM check in
 // tests/frontend.test.js blanks top-level function bodies but reads const
@@ -29,7 +29,7 @@ export function createServerDrawer(options = {}) {
   const dom = {};
   [
     'serverDrawer', 'serverScrim', 'serverClose', 'serverModeNote', 'srvMode', 'srvHost', 'srvPort',
-    'srvDomain', 'srvDomainField', 'srvHttps', 'srvHttpsField', 'srvHttpsStatus', 'srvAutoOpen', 'srvKeySection', 'srvKeyMasked', 'srvRotate',
+    'srvDomain', 'srvDomainField', 'srvHttps', 'srvHttpsField', 'srvHttpsStatus', 'srvAutoOpen', 'srvKeySection', 'srvKeyMasked', 'srvRotate', 'srvLogout',
     'srvFreshKeyRow', 'srvFreshKey', 'srvCopyKey', 'srvKeyHint', 'srvName', 'srvEmail',
     'srvTunnelCloudflare', 'srvTunnelCloudflareStatus', 'srvTunnelTailscale', 'srvTunnelTailscaleStatus',
     'srvSave', 'srvStatus', 'srvConfigPath',
@@ -74,9 +74,9 @@ export function createServerDrawer(options = {}) {
     tunnelLine(dom.srvTunnelTailscaleStatus, data.tunnels?.tailscale);
     dom.srvConfigPath.textContent = `Config file: ${data.configFile}`;
     dom.srvKeyMasked.value = s.accessKeyMasked || (s.hasAccessKey ? '' : '(none set — the API refuses every call)');
-    dom.srvKeyHint.textContent = getAccessKey()
-      ? 'This browser holds a key and sends it with every request.'
-      : 'This browser has no key saved. Paste one via rotate, or open the link from the startup banner.';
+    dom.srvKeyHint.textContent = s.hasAccessKey
+      ? 'Remote browsers sign in once; the key is exchanged for a secure HTTP-only session.'
+      : 'No key is set. Generate one before remote access is possible.';
     applyModeVisibility();
   }
 
@@ -145,9 +145,8 @@ export function createServerDrawer(options = {}) {
     status('Rotating…');
     try {
       const data = await rotateServerAccessKey();
-      // The one moment a key is ever shown. It goes straight into this
-      // browser's localStorage too, so this tab keeps working without a paste.
-      setAccessKey(data.accessKey);
+      // The server refreshes this browser's signed session as part of rotation.
+      // The raw key is shown once for copying elsewhere, never stored locally.
       render({ ...current, settings: data.settings });
       dom.srvFreshKey.value = data.accessKey;
       dom.srvFreshKeyRow.hidden = false; // render() does not know about the reveal
@@ -157,10 +156,20 @@ export function createServerDrawer(options = {}) {
     }
   }
 
+  async function signOut() {
+    try {
+      await logoutRemoteSession();
+      location.replace('/');
+    } catch (err) {
+      status(err.message, 'err');
+    }
+  }
+
   dom.srvMode.addEventListener('change', applyModeVisibility);
   dom.srvDomain.addEventListener('input', applyModeVisibility);
   dom.srvSave.addEventListener('click', save);
   dom.srvRotate.addEventListener('click', rotate);
+  dom.srvLogout.addEventListener('click', signOut);
   dom.serverClose.addEventListener('click', close);
   dom.serverScrim.addEventListener('click', close);
   dom.srvCopyKey.addEventListener('click', async () => {

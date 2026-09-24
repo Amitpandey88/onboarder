@@ -37,8 +37,8 @@ export function readBody(req, limit = MAX_BODY_BYTES) {
   });
 }
 
-export function sendJSON(res, status, data) {
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
+export function sendJSON(res, status, data, headers = {}) {
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', ...headers });
   res.end(JSON.stringify(data));
 }
 

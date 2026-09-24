@@ -16,6 +16,7 @@ import { promises as fs } from 'node:fs';
 
 import { CONFIG, createServer } from '../server/index.js';
 import { readSettings, writeSettings, generateAccessKey } from '../server/config.js';
+import { SESSION_COOKIE } from '../server/auth.js';
 
 function request(port, { method = 'GET', path: urlPath = '/', headers = {}, body } = {}) {
   return new Promise((resolve, reject) => {
@@ -26,7 +27,7 @@ function request(port, { method = 'GET', path: urlPath = '/', headers = {}, body
       res.on('end', () => {
         let json = null;
         try { json = JSON.parse(text); } catch { /* not every response is JSON */ }
-        resolve({ status: res.statusCode, text, json });
+        resolve({ status: res.statusCode, text, json, headers: res.headers });
       });
     });
     req.on('error', reject);
@@ -70,6 +71,7 @@ after(() => Promise.all([
 ]));
 
 const bearer = (key) => ({ authorization: `Bearer ${key}` });
+const remote = (headers = {}) => ({ host: 'map.example.com', ...headers });
 
 // ---- local mode --------------------------------------------------------------
 
@@ -141,43 +143,96 @@ test('unknown keys, accessKey patches, and invalid values are all loud 400s', as
 
 // ---- self-hosted mode ----------------------------------------------------------
 
-test('self-hosted mode gates every API route except /api/health', async () => {
+test('self-hosted mode gates every API route except health and browser auth', async () => {
   const open = await request(hosted.port, { path: '/api/health' });
   assert.equal(open.status, 200, 'liveness stays public — load balancers and doctor need it');
+  assert.equal((await request(hosted.port, { path: '/api/auth/status', headers: remote() })).status, 200);
 
   for (const probe of [
     { path: '/api/settings' },
     { path: '/api/mcp' },
     { method: 'POST', path: '/api/scan', body: { demo: true } },
   ]) {
-    const res = await request(hosted.port, probe);
+    const res = await request(hosted.port, { ...probe, headers: remote() });
     assert.equal(res.status, 401, `${probe.method || 'GET'} ${probe.path} is gated`);
-    assert.match(res.json.error, /access key/i);
+    assert.match(res.json.error, /sign in|access key/i);
+  }
+});
+
+test('a remote browser sees the themed login page and exchanges the key for a secure session', async () => {
+  const page = await request(hosted.port, { path: '/', headers: remote({ accept: 'text/html' }) });
+  assert.equal(page.status, 200);
+  assert.match(page.text, /Welcome back/);
+  assert.match(page.text, /id="accessKey"/);
+  assert.equal(page.text.includes(hostedKey), false, 'the access key is never embedded in the page');
+
+  const wrong = await request(hosted.port, {
+    method: 'POST', path: '/api/auth/login', headers: remote({ 'content-type': 'application/json' }),
+    body: { accessKey: 'wrong' },
+  });
+  assert.equal(wrong.status, 401);
+  assert.equal(wrong.headers['set-cookie'], undefined);
+
+  const login = await request(hosted.port, {
+    method: 'POST', path: '/api/auth/login', headers: remote({ 'content-type': 'application/json' }),
+    body: { accessKey: hostedKey },
+  });
+  assert.equal(login.status, 200);
+  const setCookie = login.headers['set-cookie'][0];
+  assert.match(setCookie, new RegExp(`^${SESSION_COOKIE}=`));
+  assert.match(setCookie, /HttpOnly/);
+  assert.match(setCookie, /SameSite=Strict/);
+  assert.match(setCookie, /Max-Age=604800/);
+  assert.doesNotMatch(setCookie, new RegExp(hostedKey));
+
+  const cookie = setCookie.split(';')[0];
+  const authenticated = await request(hosted.port, { path: '/api/settings', headers: remote({ cookie }) });
+  assert.equal(authenticated.status, 200);
+
+  const status = await request(hosted.port, { path: '/api/auth/status', headers: remote({ cookie }) });
+  assert.deepEqual(status.json, { authenticated: true, configured: true });
+
+  const logout = await request(hosted.port, { method: 'POST', path: '/api/auth/logout', headers: remote({ cookie }), body: {} });
+  assert.equal(logout.status, 200);
+  assert.match(logout.headers['set-cookie'][0], /Max-Age=0/);
+});
+
+test('localhost never sees the self-hosted login page, even without a key', async () => {
+  const keyless = await bootedServer({ mode: 'self-hosted', host: '0.0.0.0', accessKey: '' });
+  try {
+    const local = await request(keyless.port, { path: '/', headers: { host: `localhost:${keyless.port}`, accept: 'text/html' } });
+    assert.equal(local.status, 200);
+    assert.match(local.text, /Drop a path/);
+    assert.doesNotMatch(local.text, /Welcome back/);
+    const status = await request(keyless.port, { path: '/api/auth/status', headers: { host: `localhost:${keyless.port}` } });
+    assert.deepEqual(status.json, { authenticated: true, configured: false });
+  } finally {
+    await new Promise((resolve) => keyless.server.close(resolve));
   }
 });
 
 test('the right Bearer key opens the gate; the wrong one does not', async () => {
-  const okRes = await request(hosted.port, { path: '/api/settings', headers: bearer(hostedKey) });
+  const okRes = await request(hosted.port, { path: '/api/settings', headers: remote(bearer(hostedKey)) });
   assert.equal(okRes.status, 200);
   assert.equal(okRes.json.settings.mode, 'self-hosted');
   assert.equal(okRes.json.settings.hasAccessKey, true);
   assert.ok(!JSON.stringify(okRes.json).includes(hostedKey), 'even the authenticated read never echoes the key');
 
-  const wrong = await request(hosted.port, { path: '/api/settings', headers: bearer('nope-nope-nope-nope') });
+  const wrong = await request(hosted.port, { path: '/api/settings', headers: remote(bearer('nope-nope-nope-nope')) });
   assert.equal(wrong.status, 401);
 });
 
 test('rotation returns the new key once and the old key dies immediately', async () => {
   const rotated = await request(hosted.port, {
-    method: 'POST', path: '/api/settings/access-key', headers: bearer(hostedKey),
+    method: 'POST', path: '/api/settings/access-key', headers: remote(bearer(hostedKey)),
   });
   assert.equal(rotated.status, 200);
   assert.match(rotated.json.accessKey, /^ob_/);
   const newKey = rotated.json.accessKey;
 
-  const stale = await request(hosted.port, { path: '/api/settings', headers: bearer(hostedKey) });
+  const stale = await request(hosted.port, { path: '/api/settings', headers: remote(bearer(hostedKey)) });
   assert.equal(stale.status, 401, 'settings are re-read per request, so rotation is live without a restart');
-  const fresh = await request(hosted.port, { path: '/api/settings', headers: bearer(newKey) });
+  const fresh = await request(hosted.port, { path: '/api/settings', headers: remote(bearer(newKey)) });
   assert.equal(fresh.status, 200);
   assert.ok(!JSON.stringify(fresh.json).includes(newKey), 'the new key is only ever in the rotation response');
 
@@ -216,6 +271,10 @@ test('a 0.0.0.0 self-hosted server answers its public NAT IP, not an arbitrary h
   try {
     const byPublicIp = await request(publicServer.port, { path: '/api/health', headers: { host: '140.238.255.19:4310' } });
     assert.equal(byPublicIp.status, 200);
+    const byOtherIp = await request(publicServer.port, { path: '/api/health', headers: { host: '203.0.113.25:4310' } });
+    assert.equal(byOtherIp.status, 200, 'any IP literal is a valid network address');
+    const byIpv6 = await request(publicServer.port, { path: '/api/health', headers: { host: '[2001:db8::42]:4310' } });
+    assert.equal(byIpv6.status, 200);
     const byEvilDomain = await request(publicServer.port, { path: '/api/health', headers: { host: 'evil.example' } });
     assert.equal(byEvilDomain.status, 403);
   } finally {
@@ -234,7 +293,7 @@ test('a corrupt config file fails closed: 500s, never a silent unlock', async ()
 test('self-hosted with no key configured refuses every API call', async () => {
   const keyless = await bootedServer({ mode: 'self-hosted', domain: 'lost.example.com', accessKey: '' });
   try {
-    const res = await request(keyless.port, { path: '/api/settings' });
+    const res = await request(keyless.port, { path: '/api/settings', headers: { host: 'lost.example.com' } });
     assert.equal(res.status, 401);
     assert.match(res.json.error, /no access key/i);
   } finally {

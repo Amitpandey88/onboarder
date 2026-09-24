@@ -43,6 +43,7 @@ export function rebindingReason(req, extraHosts = []) {
   const name = hostnameOf(host);
   if (LOOPBACK_HOSTS.has(name)) return null;
   for (const extra of extraHosts) {
+    if (extra === 'ip:*' && net.isIP(name.replace(/^\[|\]$/g, '')) > 0) return null;
     if (extra === 'ipv4:*' && net.isIP(name) === 4) return null;
     if (extra === 'ipv6:*' && net.isIP(name.replace(/^\[|\]$/g, '')) === 6) return null;
     if (extra.startsWith('*.')) {
