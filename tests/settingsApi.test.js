@@ -45,7 +45,12 @@ async function bootedServer(settings) {
     ...CONFIG,
     configPath: file,
     getSettings: () => readSettings(file),
-    boot: { host: '127.0.0.1', port: settings.port ?? 4310 },
+    boot: {
+      host: '127.0.0.1',
+      port: settings.port ?? 4310,
+      domain: settings.domain || '',
+      https: Boolean(settings.https),
+    },
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   return { server, file, port: server.address().port };
@@ -89,7 +94,7 @@ test('a PUT persists, is reflected in the next GET, and never echoes a key', asy
   });
   assert.equal(put.status, 200);
   assert.equal(put.json.settings.domain, 'map.example.com');
-  assert.deepEqual(put.json.restartRequired, [], 'host and port untouched — live immediately');
+  assert.deepEqual(put.json.restartRequired, ['domain'], 'the managed proxy must reload for a new domain');
 
   const get = await request(local.port, { path: '/api/settings' });
   assert.equal(get.json.settings.domain, 'map.example.com');
@@ -107,7 +112,7 @@ test('a host or port change saves but says restartRequired', async () => {
     body: { port: 5555 },
   });
   assert.equal(res.status, 200);
-  assert.deepEqual(res.json.restartRequired, ['port']);
+  assert.deepEqual(res.json.restartRequired, ['port', 'domain'], 'the earlier domain still needs Caddy setup too');
 });
 
 test('unknown keys, accessKey patches, and invalid values are all loud 400s', async () => {
@@ -204,6 +209,18 @@ test('the rebinding guard accepts the configured domain and enabled tunnel names
   assert.equal(bare.status, 403, 'the wildcard needs a real subdomain');
   const lookalike = await request(hosted.port, { path: '/api/health', headers: { host: 'evil-trycloudflare.com' } });
   assert.equal(lookalike.status, 403);
+});
+
+test('a 0.0.0.0 self-hosted server answers its public NAT IP, not an arbitrary hostname', async () => {
+  const publicServer = await bootedServer({ mode: 'self-hosted', host: '0.0.0.0', accessKey: 'x'.repeat(24) });
+  try {
+    const byPublicIp = await request(publicServer.port, { path: '/api/health', headers: { host: '140.238.255.19:4310' } });
+    assert.equal(byPublicIp.status, 200);
+    const byEvilDomain = await request(publicServer.port, { path: '/api/health', headers: { host: 'evil.example' } });
+    assert.equal(byEvilDomain.status, 403);
+  } finally {
+    await new Promise((resolve) => publicServer.server.close(resolve));
+  }
 });
 
 test('a corrupt config file fails closed: 500s, never a silent unlock', async () => {

@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Zero Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-success.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-551%20passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-560%20passing-brightgreen.svg)](tests/)
 
 > **Drop a path. Get a map.**  
 > A lightweight, zero-dependency codebase visualizer and architectural map generator that runs entirely on your local machine.
@@ -202,12 +202,12 @@ with it instead of orphaning a process holding the scan cache.
 Onboarder has two modes, one config file, and three ways to edit it — the CLI wizard, CLI flags, and the web UI's Server drawer all write the same validated `config.json` (`~/.config/onboarder/config.json`, mode `0600`).
 
 - **Local (default)** — binds to loopback only, asks for no credentials. The safe default.
-- **Self-hosted** — reachable on your network or domain; every API call requires a Bearer access key. Rotate it from the drawer or with `onboarder config key rotate`; the old key dies on the next request, no restart needed.
+- **Self-hosted** — a fresh setup binds `0.0.0.0` for direct LAN/VPS access; every API call requires a Bearer access key. Re-running setup preserves an existing loopback tunnel layout. Rotate the key with `onboarder config key rotate`; the old key dies on the next request.
 
 ```bash
 onboarder setup                          # interactive wizard
 onboarder setup --mode self-hosted \
-  --domain map.example.com --non-interactive
+  --domain map.example.com --https --start
 onboarder config show                    # current settings (key masked)
 onboarder config set host 0.0.0.0        # direct VPS/LAN access (domain optional)
 onboarder config set port 4311           # move away from a busy port
@@ -216,14 +216,31 @@ onboarder status                         # running PID, stopped, or unmanaged po
 onboarder stop                           # stop a PID-file-managed instance
 onboarder restart                        # graceful stop, then start
 onboarder tunnel cloudflare              # expose via a Cloudflare quick tunnel
-onboarder doctor                         # config, port, reachability, and tunnel checks
+onboarder tunnel tailscale               # expose privately over the tailnet
+onboarder https check                    # DNS, ports 80/443, and Caddy readiness
+onboarder https setup                    # write/validate Caddyfile, obtain TLS, reload/start Caddy
+onboarder https status                   # domain, URL, Caddyfile, and Caddy state
+onboarder doctor                         # config, access key, ports, DNS, TLS, and tunnels
 ```
 
-Direct self-hosting does not require DNS: `--host 0.0.0.0` accepts visitors at `http://<server-ip>:<port>`. Put a reverse proxy and TLS in front of it for production. Binding to `127.0.0.1` is still the safer default and is appropriate behind Cloudflare or Tailscale.
+A fresh self-hosted setup uses `0.0.0.0`, so a VPS is reachable at `http://<server-ip>:<port>` without a reverse proxy. A domain is optional for direct-IP access. If a domain is entered, setup asks whether to enable automatic HTTPS.
+
+For trusted HTTPS, DNS must already point the domain to the VPS and inbound TCP `80` and `443` must be allowed in both the cloud security group/NSG and the host firewall. On Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install caddy
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+onboarder https check
+onboarder https setup
+```
+
+Onboarder writes a private `Caddyfile` beside `config.json`, validates it, and asks Caddy to obtain and renew the certificate. It never runs `sudo` or installs packages silently. Caddy proxies `https://map.example.com` to `http://127.0.0.1:4310`; Onboarder continues to enforce the access key on every API call. A bare public IP cannot use a normal trusted domain certificate.
 
 If startup reports `EADDRINUSE`, run `onboarder status` first. If it identifies an Onboarder PID, use `onboarder stop` or `onboarder restart`; otherwise inspect the unrelated listener with `ss -ltnp` or `lsof -i :4310`, or choose another port. The error names these recovery commands instead of printing only the raw Node error.
 
-Cloudflare quick tunnels and Tailscale are supported as reachability layers — the server keeps its loopback bind and the tunnel dials `127.0.0.1`. `ONBOARDER_CONFIG=/path/config.json` overrides the config location (handy for tests and containers).
+Cloudflare quick tunnels and Tailscale remain supported. They terminate TLS and dial `127.0.0.1`, so an existing loopback setup is preserved. `ONBOARDER_CONFIG=/path/config.json` overrides the config location for tests and containers.
 
 ---
 
@@ -240,6 +257,7 @@ codebase-onboarder/
 │   ├── router.js    # Route table, live per-request settings, Bearer gate
 │   ├── apiSettings.js# GET/PUT /api/settings, key rotation
 │   ├── tunnel.js    # Cloudflare & Tailscale status/commands
+│   ├── https.js     # Caddy config, ACME/TLS readiness & lifecycle
 │   ├── httpGuards.js# Host verification & CSRF/rebinding guards
 │   ├── apiScan.js   # Local & remote scan coordination
 │   ├── apiFile.js   # Path-traversal safe file serving
@@ -252,7 +270,7 @@ codebase-onboarder/
 │   ├── js/          # Vanilla ES modules (State, Inspector, Views, Settings)
 │   ├── vendor/      # Vendored Mermaid & Monaco Editor (Offline)
 │   └── index.html   # Main application interface
-└── tests/           # Comprehensive node:test suite (551 unit tests)
+└── tests/           # Comprehensive node:test suite (560 unit tests)
 ```
 
 ---
@@ -262,7 +280,7 @@ codebase-onboarder/
 Onboarder includes a comprehensive automated test suite built with Node's native test runner:
 
 ```bash
-# Run all 551 tests
+# Run all 560 tests
 npm test
 ```
 

@@ -389,9 +389,16 @@
     </label>
   </div>
   <label class="field" id="srvDomainField">
-    <span class="field-label">Domain (optional for LAN, required for a public name)</span>
+    <span class="field-label">Domain (optional for direct IP or a tunnel)</span>
     <input type="text" id="srvDomain" class="text-input" placeholder="map.example.com" spellcheck="false">
   </label>
+  <div id="srvHttpsField" hidden>
+    <label class="check-row">
+      <input type="checkbox" id="srvHttps">
+      <span>Automatic HTTPS with Caddy</span>
+    </label>
+    <p class="drawer-fine" id="srvHttpsStatus"></p>
+  </div>
   <label class="check-row">
     <input type="checkbox" id="srvAutoOpen">
     <span>Open the browser when the server starts</span>

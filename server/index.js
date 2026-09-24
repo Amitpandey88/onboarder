@@ -21,7 +21,7 @@ import { createRouter } from './router.js';
 import { installExitCleanup } from './sessions.js';
 import { createLogger } from './logger.js';
 import { createMcpRunner } from './mcp/runner.js';
-import { configPath, isLoopbackHost, readSettings, serverUrls } from './config.js';
+import { browserUrl, configPath, isLoopbackHost, readSettings, serverUrls } from './config.js';
 import { tunnelStatus } from './tunnel.js';
 import { pidIsAlive, readPidFile, removePidFile, writePidFile } from './pidfile.js';
 
@@ -73,7 +73,17 @@ export function startupBanner(settings, { configFile } = {}) {
     : '  Mode    local — only this machine can reach it');
   lines.push('  Local   ' + urls.local);
   if (urls.network) lines.push('  Network ' + urls.network);
-  if (urls.domain) lines.push('  Domain  ' + urls.domain);
+  if (urls.domain) {
+    lines.push('  Domain  ' + urls.domain);
+    if (settings.domain && !settings.https) {
+      lines.push('  HTTPS   disabled — `onboarder setup` or `onboarder https setup` enables trusted TLS');
+    } else if (settings.https) {
+      lines.push('  HTTPS   Caddy obtains, renews, and terminates TLS for this domain');
+    }
+  }
+  if (settings.mode === 'self-hosted' && settings.accessKey) {
+    lines.push('  Browser this URL is opened with the access key automatically; the key is removed from the address bar.');
+  }
   if (settings.mode === 'self-hosted' && !settings.accessKey) {
     lines.push('  WARNING self-hosted with no access key — every API call is refused until one is set.');
     lines.push('          Run `onboarder setup` or `onboarder config key rotate`.');
@@ -130,7 +140,7 @@ export async function startServer({ configFile = configPath(), openBrowser, log 
     ...CONFIG,
     configPath: configFile,
     getSettings: () => readSettings(configFile),
-    boot: { host, port },
+    boot: { host, port, domain: settings.domain, https: settings.https },
   });
 
   installExitCleanup();
@@ -166,9 +176,9 @@ export async function startServer({ configFile = configPath(), openBrowser, log 
   log(startupBanner(live, { configFile }));
 
   const shouldOpen = openBrowser ?? (live.autoOpen && process.stdout.isTTY && !process.env.NO_OPEN);
-  // Remote visitors still need the key; what opens locally is the loopback URL,
-  // which in local mode needs nothing and in self-hosted mode asks for the key.
-  if (shouldOpen) openInBrowser(serverUrls(live).local);
+  // The browser adopts a self-hosted key from the query string, stores it locally,
+  // and removes the secret from the visible URL before any API request.
+  if (shouldOpen) openInBrowser(browserUrl(live));
   return { server, settings: live, host, port };
 }
 

@@ -17,8 +17,9 @@ import {
 import { startServer } from '../server/index.js';
 import { pidIsAlive, readPidFile, removePidFile } from '../server/pidfile.js';
 import { tunnelStatus, cloudflareCommand, tailscaleCommand, installHint, findOnPath } from '../server/tunnel.js';
+import { caddyRun, caddyValidate, httpsReadiness, httpsStatus, writeCaddyfile } from '../server/https.js';
 import { bold, cyan, dim, ok, warn, bad, kv, tick, cross, dash, welcomeBanner } from './ui.js';
-import { buildSteps, pendingSteps, defaultOf, applyFlags, answersToSettings, summaryLines } from './wizard.js';
+import { buildSteps, unansweredSteps, defaultOf, applyFlags, answersToSettings, summaryLines } from './wizard.js';
 import { runSteps, WizardCancelled } from './prompt.js';
 
 // ---------------------------------------------------------------- setup ---
@@ -49,7 +50,7 @@ export async function runSetup({ flags = {}, out = console.log, err = console.er
 
   // Flag answers go in first; the wizard only asks what is left.
   const seed = {};
-  for (const id of ['name', 'email', 'mode', 'host', 'port', 'domain', 'autoOpen']) {
+  for (const id of ['name', 'email', 'mode', 'host', 'port', 'domain', 'https', 'autoOpen']) {
     if (flags[id] !== undefined) seed[id] = flags[id];
   }
   if (flags.provider !== undefined) seed.provider = flags.provider;
@@ -58,7 +59,7 @@ export async function runSetup({ flags = {}, out = console.log, err = console.er
 
   let answers;
   try {
-    answers = await runSteps(pendingSteps(buildSteps(current), seed), seed);
+    answers = await runSteps(unansweredSteps(buildSteps(current), seed), seed);
   } catch (e) {
     if (e instanceof WizardCancelled) {
       err('\n  Setup cancelled — nothing was written.');
@@ -98,7 +99,9 @@ export async function runSetup({ flags = {}, out = console.log, err = console.er
     out('');
     return runStart({ flags, out, err });
   }
-  out(dim('  Later: `onboarder start`'));
+  out(dim(settings.https
+    ? '  Later: `onboarder start` (starts Caddy automatically), or `onboarder https status`'
+    : '  Later: `onboarder start`'));
   return 0;
 }
 
@@ -163,6 +166,14 @@ export async function runStart({ flags = {}, out = console.log, err = console.er
   if (recorded) removePidFile(file, recorded);
 
   const started = await startServer({ configFile: file, log: out });
+  if (started.settings.https) {
+    out('');
+    const httpsCode = await runHttps('setup', { flags, out: flags.json ? () => {} : out, err });
+    if (httpsCode !== 0) {
+      await new Promise((resolve) => started.server.close(resolve));
+      return httpsCode;
+    }
+  }
   if (flags.json) out(JSON.stringify({ host: started.host, port: started.port, url: serverUrls(started.settings).local }));
   // The listening server holds the event loop; resolve so callers/tests know
   // we are up, but leave the process running.
@@ -272,6 +283,7 @@ const SETTABLE = {
   host: (v) => v,
   port: (v) => { const n = Number(v); if (!Number.isInteger(n) || n < 1 || n > 65535) throw new Error('port must be 1-65535.'); return n; },
   domain: (v) => v,
+  https: (v) => ['true', 'yes', '1', 'on'].includes(String(v).toLowerCase()),
   autoOpen: (v) => ['true', 'yes', '1', 'on'].includes(String(v).toLowerCase()),
   'account.name': (v) => v,
   'account.email': (v) => v,
@@ -313,6 +325,7 @@ export async function runConfig(sub, args, { flags = {}, out = console.log } = {
       out(kv('Mode', settings.mode));
       out(kv('Bind', `${settings.host}:${settings.port}`));
       if (settings.domain) out(kv('Domain', settings.domain));
+      out(kv('HTTPS', settings.https ? `enabled — ${urls.domain}` : settings.domain ? 'disabled (plain HTTP)' : 'no domain configured'));
       out(kv('Local', urls.local));
       if (urls.network) out(kv('Network', urls.network));
       if (urls.domain) out(kv('Public', urls.domain));
@@ -447,14 +460,24 @@ export async function runDoctor({ flags = {}, out = console.log } = {}) {
         id: 'domain', ok: true, required: false,
         detail: settings.domain || (loopback ? '(none — a tunnel or local reverse proxy provides the name)' : '(none — visitors can connect by server IP)'),
       });
+      if (settings.https) {
+        const readiness = await httpsReadiness(settings, { configFile: file });
+        for (const check of readiness.checks.slice(1).filter((item) => item.id !== 'caddy')) {
+          checks.push({ ...check, required: check.id !== 'dns-target' });
+        }
+      }
     }
   }
 
-  for (const name of ['git', 'cloudflared', 'tailscale']) {
-    const wanted = name === 'git' || (settings && settings.tunnel?.[name === 'cloudflared' ? 'cloudflare' : 'tailscale']);
+  for (const name of ['git', 'cloudflared', 'tailscale', 'caddy']) {
+    const wanted = name === 'git'
+      || (name === 'caddy' && settings?.https)
+      || (settings && settings.tunnel?.[name === 'cloudflared' ? 'cloudflare' : 'tailscale']);
     const found = Boolean(findOnPath(name));
     checks.push({
-      id: name, ok: found || !wanted, required: name === 'git',
+      id: name,
+      ok: found || !wanted,
+      required: name === 'git' || (name === 'caddy' && settings?.https),
       detail: found ? 'installed' : wanted ? 'not installed — ' + installHint(name) : 'not installed (not needed for your settings)',
     });
   }
@@ -479,6 +502,92 @@ function portIsFree(host, port) {
     probe.once('error', () => resolve(false));
     probe.listen(port, host, () => probe.close(() => resolve(true)));
   });
+}
+
+// ------------------------------------------------------------------ https ---
+
+export async function runHttps(action = 'status', { flags = {}, out = console.log, err = console.error } = {}) {
+  const file = flags.config || configPath();
+  const settings = await readSettings(file);
+  const status = httpsStatus(settings, file);
+  if (action === 'status') {
+    if (flags.json) out(JSON.stringify(status, null, 2));
+    else {
+      out('');
+      out(bold('  Onboarder HTTPS'));
+      out(kv('Enabled', status.enabled ? 'yes' : 'no'));
+      out(kv('Domain', status.domain || '(not configured)'));
+      out(kv('URL', status.url || '(none)'));
+      out(kv('Caddy', status.caddyInstalled ? status.caddyVersion : 'not installed'));
+      out(kv('Caddyfile', status.caddyfile));
+      if (status.enabled) out(dim('    `onboarder https check` verifies DNS and ports before issuance.'));
+      out('');
+    }
+    return status.enabled ? 0 : 1;
+  }
+  if (action === 'check') {
+    const readiness = await httpsReadiness(settings, { configFile: file });
+    if (flags.json) out(JSON.stringify(readiness, null, 2));
+    else {
+      out('');
+      out(bold('  HTTPS readiness'));
+      for (const check of readiness.checks) out(`${check.ok ? tick : check.required ? cross : dash}${check.id} — ${check.detail}`);
+      if (!readiness.ok) {
+        out('');
+        out(warn('  Fix the required items, then run `onboarder https setup` again.'));
+        out(dim('    DNS: point an A/AAAA record to this VPS. Firewall: allow inbound 80 and 443.'));
+      }
+      out('');
+    }
+    return readiness.ok ? 0 : 1;
+  }
+  if (action === 'setup' || action === 'start') {
+    const readiness = await httpsReadiness(settings, { configFile: file });
+    if (!readiness.ok) {
+      err(bad('  HTTPS setup is not ready:'));
+      for (const check of readiness.checks.filter((item) => item.required && !item.ok)) err(cross + check.id + ' — ' + check.detail);
+      err('    Point DNS at this VPS, allow inbound TCP 80/443, install Caddy, then retry.');
+      return 1;
+    }
+    const caddyfile = await writeCaddyfile(settings, file);
+    out(dim('  Caddyfile: ' + caddyfile));
+    await caddyValidate(settings, file);
+
+    // Ubuntu's package usually leaves Caddy running as a service. Reload first
+    // so repeat setup is idempotent and does not mistake Caddy for a foreign
+    // listener. Reload talks only to Caddy's local admin endpoint and never
+    // stops an unknown process.
+    let result;
+    let reloaded = false;
+    try {
+      result = caddyRun(settings, file, 'reload');
+      reloaded = true;
+    } catch {
+      try {
+        result = caddyRun(settings, file, 'start');
+      } catch (error) {
+        err(bad('  Caddy could not start: ' + (error.message || error)));
+        if (process.platform !== 'win32') {
+          err('    On Ubuntu, start the packaged service once:');
+          err('      sudo systemctl enable --now caddy');
+          err('    Then run `onboarder https setup` again.');
+        }
+        return 1;
+      }
+    }
+    out(tick + (reloaded ? 'Caddy reloaded. It is using' : 'Caddy started. It is using') + ' https://' + settings.domain + '.');
+    out('    Public URL  https://' + settings.domain);
+    out(dim('    Upstream     http://127.0.0.1:' + settings.port));
+    if (result.output) out(dim('    ' + result.output.split('\n').slice(-3).join('\n    ')));
+    return 0;
+  }
+  if (action === 'stop') {
+    if (!status.caddyInstalled) { err('  Caddy is not installed.'); return 1; }
+    caddyRun(settings, file, 'stop');
+    out(tick + 'Caddy stopped. The Onboarder HTTP server is unchanged.');
+    return 0;
+  }
+  throw new Error('Usage: onboarder https <check|setup|start|stop|status>');
 }
 
 // --------------------------------------------------------------- tunnel ---

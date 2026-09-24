@@ -59,6 +59,13 @@ test('domains are lowercased; schemes and nonsense are thrown back', () => {
   assert.throws(() => normalizeSettings({ domain: 'not a domain at all' }), /domain/i);
 });
 
+test('HTTPS requires a domain, but a domain alone remains plain HTTP', () => {
+  assert.throws(() => normalizeSettings({ mode: 'self-hosted', https: true }), /domain/i);
+  const plain = normalizeSettings({ mode: 'self-hosted', domain: 'map.example.com' });
+  assert.equal(plain.https, false);
+  assert.equal(serverUrls(plain).domain, 'http://map.example.com:4310');
+});
+
 test('ports are clamped to the real range or thrown back', () => {
   assert.equal(normalizeSettings({ port: 1 }).port, 1);
   assert.throws(() => normalizeSettings({ port: 0 }), /port/i);
@@ -150,7 +157,9 @@ test('serverUrls derives every address a person might use', () => {
   assert.equal(local.network, undefined, 'loopback has no network URL');
   const hosted = serverUrls(normalizeSettings({ mode: 'self-hosted', host: '0.0.0.0', port: 8080, domain: 'map.example.com' }));
   assert.match(hosted.network, /8080/);
-  assert.equal(hosted.domain, 'https://map.example.com');
+  assert.equal(hosted.domain, 'http://map.example.com:8080', 'a domain is plain HTTP until HTTPS is enabled');
+  const secured = serverUrls(normalizeSettings({ mode: 'self-hosted', host: '0.0.0.0', domain: 'map.example.com', https: true }));
+  assert.equal(secured.domain, 'https://map.example.com');
 });
 
 test('allowedHosts accepts the bind host, the domain, and enabled tunnel names', () => {
@@ -163,6 +172,7 @@ test('allowedHosts accepts the bind host, the domain, and enabled tunnel names',
   assert.ok(!hosts.some((h) => h.includes('ts.net')), 'tailscale is not enabled');
   const lan = allowedHosts(normalizeSettings({ mode: 'self-hosted', host: '0.0.0.0', domain: 'map.example.com' }));
   assert.ok(lan.includes('0.0.0.0'), 'the wildcard bind answers to itself');
+  assert.ok(lan.includes('ipv4:*'), 'wildcard IPv4 accepts public/NAT IP Host headers');
   assert.ok(lan.includes('127.0.0.1') === false, 'loopback is allowed separately, not as an extra network host');
   assert.deepEqual(allowedHosts(normalizeSettings({})), [], 'local mode adds nothing — the old loopback-only rule');
 });

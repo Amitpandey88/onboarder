@@ -29,7 +29,7 @@ export function createServerDrawer(options = {}) {
   const dom = {};
   [
     'serverDrawer', 'serverScrim', 'serverClose', 'serverModeNote', 'srvMode', 'srvHost', 'srvPort',
-    'srvDomain', 'srvDomainField', 'srvAutoOpen', 'srvKeySection', 'srvKeyMasked', 'srvRotate',
+    'srvDomain', 'srvDomainField', 'srvHttps', 'srvHttpsField', 'srvHttpsStatus', 'srvAutoOpen', 'srvKeySection', 'srvKeyMasked', 'srvRotate',
     'srvFreshKeyRow', 'srvFreshKey', 'srvCopyKey', 'srvKeyHint', 'srvName', 'srvEmail',
     'srvTunnelCloudflare', 'srvTunnelCloudflareStatus', 'srvTunnelTailscale', 'srvTunnelTailscaleStatus',
     'srvSave', 'srvStatus', 'srvConfigPath',
@@ -61,6 +61,10 @@ export function createServerDrawer(options = {}) {
     dom.srvHost.value = s.host;
     dom.srvPort.value = s.port;
     dom.srvDomain.value = s.domain || '';
+    dom.srvHttps.checked = Boolean(s.https);
+    dom.srvHttpsStatus.textContent = data.https?.caddyInstalled
+      ? `Caddy ${data.https.caddyVersion || 'installed'}. ${s.https ? 'Run `onboarder https setup` after saving.' : 'Enable HTTPS above, save, then run the command.'}`
+      : 'Caddy is not installed. Ubuntu: sudo apt install caddy; macOS: brew install caddy.';
     dom.srvAutoOpen.checked = Boolean(s.autoOpen);
     dom.srvName.value = s.account?.name || '';
     dom.srvEmail.value = s.account?.email || '';
@@ -82,6 +86,7 @@ export function createServerDrawer(options = {}) {
     const remote = dom.srvMode.value === 'self-hosted';
     dom.srvKeySection.hidden = !remote;
     dom.srvDomainField.hidden = !remote;
+    dom.srvHttpsField.hidden = !remote || !dom.srvDomain.value.trim();
     dom.serverModeNote.textContent = MODE_NOTES[dom.srvMode.value] || '';
   }
 
@@ -113,16 +118,22 @@ export function createServerDrawer(options = {}) {
       account: { name: dom.srvName.value.trim(), email: dom.srvEmail.value.trim() },
       tunnel: { cloudflare: dom.srvTunnelCloudflare.checked, tailscale: dom.srvTunnelTailscale.checked },
     };
-    if (patch.mode === 'self-hosted') patch.domain = dom.srvDomain.value.trim();
+    if (patch.mode === 'self-hosted') {
+      patch.domain = dom.srvDomain.value.trim();
+      patch.https = dom.srvHttps.checked;
+    }
     status('Saving…');
     try {
       const data = await updateServerSettings(patch);
       render({ ...current, settings: data.settings });
       const restart = (data.restartRequired || []).join(' and ');
+      const httpsChanged = (data.restartRequired || []).some((key) => key === 'domain' || key === 'https');
       status(
-        restart
-          ? `Saved. The ${restart} change takes effect after a restart — the running socket cannot move.`
-          : 'Saved — live already.',
+        httpsChanged
+          ? 'Saved. Run `onboarder https setup` to validate the Caddyfile and reload TLS.'
+          : restart
+            ? `Saved. The ${restart} change takes effect after a restart — the running socket cannot move.`
+            : 'Saved — live already.',
         'ok',
       );
     } catch (err) {
@@ -147,6 +158,7 @@ export function createServerDrawer(options = {}) {
   }
 
   dom.srvMode.addEventListener('change', applyModeVisibility);
+  dom.srvDomain.addEventListener('input', applyModeVisibility);
   dom.srvSave.addEventListener('click', save);
   dom.srvRotate.addEventListener('click', rotate);
   dom.serverClose.addEventListener('click', close);

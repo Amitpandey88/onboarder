@@ -34,6 +34,8 @@ test('help is a command as well as a flag', async () => {
   }
   assert.match(lines.join('\n'), /onboarder status/);
   assert.match(lines.join('\n'), /onboarder config/);
+  assert.match(lines.join('\n'), /onboarder https/);
+  assert.match(lines.join('\n'), /--https/);
 });
 
 test('a second start is refused cleanly when the PID record is live', async () => {

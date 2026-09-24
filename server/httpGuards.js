@@ -7,6 +7,8 @@
 // open from driving this server on their behalf. Binding to 127.0.0.1 keeps
 // the network out; it does nothing about the browser, which is already inside.
 
+import net from 'node:net';
+
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 
 // "localhost:4310" -> "localhost", "[::1]:4310" -> "[::1]"
@@ -41,6 +43,8 @@ export function rebindingReason(req, extraHosts = []) {
   const name = hostnameOf(host);
   if (LOOPBACK_HOSTS.has(name)) return null;
   for (const extra of extraHosts) {
+    if (extra === 'ipv4:*' && net.isIP(name) === 4) return null;
+    if (extra === 'ipv6:*' && net.isIP(name.replace(/^\[|\]$/g, '')) === 6) return null;
     if (extra.startsWith('*.')) {
       // "*.trycloudflare.com" matches "abc.trycloudflare.com" but not the bare
       // suffix itself and not "evil-trycloudflare.com".

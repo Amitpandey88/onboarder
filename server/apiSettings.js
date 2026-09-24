@@ -13,6 +13,7 @@ import {
 } from './config.js';
 import { sendError, sendJSON } from './http.js';
 import { tunnelStatus } from './tunnel.js';
+import { httpsStatus } from './https.js';
 
 // Where this request's settings live. The router's config object carries the
 // path when the server was booted with one; tests and a bare `createServer()`
@@ -37,6 +38,7 @@ async function publicBody(config) {
     configFile: settingsFile(config) || configPath(),
     node: process.version,
     tunnels: tunnelStatus(settings),
+    https: httpsStatus(settings, settingsFile(config) || configPath()),
   };
 }
 
@@ -48,15 +50,17 @@ export async function handleGetSettings(req, res, config) {
   }
 }
 
-// Which changes the running server cannot absorb. Auth, domain, and tunnel
-// flags are read live from disk on each request; the bind is a socket that
-// already exists.
+// Which changes the running server cannot absorb. Access-key and tunnel flags
+// are read live per request. Host/port are bound sockets. Domain/HTTPS change
+// the managed Caddyfile and certificate, so Caddy must validate/reload too.
 function restartRequired(config, next) {
   const boot = config?.boot;
   if (!boot) return [];
   const changed = [];
   if (next.host !== boot.host) changed.push('host');
   if (next.port !== boot.port) changed.push('port');
+  if (next.domain !== boot.domain) changed.push('domain');
+  if (next.https !== boot.https) changed.push('https');
   return changed;
 }
 
@@ -70,7 +74,7 @@ export async function handleUpdateSettings(res, body, config) {
   }
   // Only known keys may be patched — a typo like "ports" must be a loud 400,
   // not a silently ignored write that the UI then claims it saved.
-  const allowed = new Set(['mode', 'host', 'port', 'domain', 'autoOpen', 'account', 'tunnel']);
+  const allowed = new Set(['mode', 'host', 'port', 'domain', 'https', 'autoOpen', 'account', 'tunnel']);
   const unknown = Object.keys(body).filter((k) => k !== 'accessKey' && !allowed.has(k));
   if (unknown.length) {
     return sendError(res, 400, `Unknown setting${unknown.length === 1 ? '' : 's'}: ${unknown.join(', ')}.`);

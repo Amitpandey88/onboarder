@@ -404,6 +404,13 @@ test('rebindingReason: only loopback names are answered', () => {
   assert.ok(rebindingReason({ headers: {} }), 'a request with no Host is refused');
 });
 
+test('a wildcard IPv4 self-host accepts its public/NAT IP but not arbitrary domains', () => {
+  assert.equal(rebindingReason({ headers: { host: '140.238.255.19:4310' } }, ['ipv4:*']), null);
+  assert.match(rebindingReason({ headers: { host: 'evil.com:4310' } }, ['ipv4:*']), /evil\.com/);
+  assert.match(rebindingReason({ headers: { host: '[2001:db8::1]:4310' } }, ['ipv4:*']), /2001:db8/);
+  assert.equal(rebindingReason({ headers: { host: '[2001:db8::1]:4310' } }, ['ipv6:*']), null);
+});
+
 test('crossOriginReason: Sec-Fetch-Site decides when the browser sent it', () => {
   assert.equal(crossOriginReason({ headers: { 'sec-fetch-site': 'same-origin', host: 'localhost:1', origin: 'http://localhost:1' } }), null);
   assert.equal(crossOriginReason({ headers: { 'sec-fetch-site': 'none', host: 'localhost:1' } }), null, 'the user typed it themselves');

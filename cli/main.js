@@ -9,7 +9,7 @@ import { parseArgs } from 'node:util';
 
 import {
   runSetup, runStart, runStatus, runStop, runRestart,
-  runConfig, runConfigKey, runConfigReset, runDoctor, runTunnel,
+  runConfig, runConfigKey, runConfigReset, runDoctor, runTunnel, runHttps,
 } from './commands.js';
 
 const PACKAGE = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -26,10 +26,12 @@ const HELP = `
     onboarder restart             Stop and start again
     onboarder config [<…>]         show | get <key> | set <key> <value> | path | reset | key <rotate|show|set>
     onboarder tunnel <name>       cloudflare | tailscale
+    onboarder https <action>      check | setup | start | stop | status
     onboarder doctor              Check the machine and the config
 
   Setup flags (interactive wizard skips what they answer)
     --mode local|self-hosted   --host <addr>   --port <n>   --domain <name>
+    --https                    Set up automatic HTTPS through Caddy
     --access-key generate|<k>  --name <n>   --email <e>
     --provider none|openai-compatible|ollama|openrouter|custom
     --base-url <url>   --model <m>   --cloudflare   --tailscale
@@ -50,7 +52,8 @@ const HELP = `
   Examples
     onboarder setup
     onboarder setup --non-interactive --mode local --port 4310
-    onboarder setup --non-interactive --mode self-hosted --domain map.example.com --access-key generate
+    onboarder setup --non-interactive --mode self-hosted --host 0.0.0.0
+    onboarder setup --non-interactive --mode self-hosted --domain map.example.com --https --start
     onboarder config set tunnel.cloudflare true && onboarder tunnel cloudflare
 `;
 
@@ -69,6 +72,7 @@ const OPTIONS = {
   host: { type: 'string' },
   port: { type: 'string' },
   domain: { type: 'string' },
+  https: { type: 'boolean' },
   'access-key': { type: 'string' },
   name: { type: 'string' },
   email: { type: 'string' },
@@ -129,6 +133,8 @@ export async function main(argv = process.argv.slice(2)) {
         return codeOf(await runConfig(sub || 'show', rest, { flags }));
       case 'tunnel':
         return codeOf(await runTunnel(sub, { flags }));
+      case 'https':
+        return codeOf(await runHttps(sub || 'status', { flags }));
       case 'doctor':
         return codeOf(await runDoctor({ flags }));
       default:

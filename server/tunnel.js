@@ -50,6 +50,11 @@ export function tailscaleCommand(settings) {
 }
 
 export function installHint(name) {
+  if (name === 'caddy') {
+    return process.platform === 'darwin'
+      ? 'brew install caddy'
+      : 'Install Caddy with: sudo apt install caddy';
+  }
   if (name === 'cloudflared') {
     return process.platform === 'darwin'
       ? 'brew install cloudflared  (or see https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)'

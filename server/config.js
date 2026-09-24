@@ -7,7 +7,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 
-export const CONFIG_VERSION = 1;
+export const CONFIG_VERSION = 2;
 export const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 export const DEFAULT_SETTINGS = Object.freeze({
   version: CONFIG_VERSION,
@@ -15,6 +15,10 @@ export const DEFAULT_SETTINGS = Object.freeze({
   host: '127.0.0.1',
   port: 4310,
   domain: '',
+  // When a domain is configured, ask Caddy to obtain and renew a trusted TLS
+  // certificate and reverse-proxy this app. The certificate itself belongs to
+  // Caddy; the server still speaks plain HTTP to its local upstream.
+  https: false,
   accessKey: '',
   // Whether `onboarder start` opens the app in a browser once it is listening.
   // Off in the schema so `npm start` from a checkout stays quiet; the setup
@@ -82,6 +86,7 @@ export function normalizeSettings(value = {}) {
     host,
     port: normalizePort(value.port ?? DEFAULT_SETTINGS.port),
     domain: normalizeDomain(value.domain),
+    https: Boolean(value.https),
     accessKey: cleanString(value.accessKey, 256),
     autoOpen: value.autoOpen === undefined ? DEFAULT_SETTINGS.autoOpen : Boolean(value.autoOpen),
     account: normalizeAccount(value.account),
@@ -91,10 +96,11 @@ export function normalizeSettings(value = {}) {
   if (settings.mode === 'local' && !isLoopbackHost(settings.host)) {
     throw new Error('Local mode only binds to 127.0.0.1, localhost, or ::1. Choose self-hosted mode for a network bind.');
   }
+  if (settings.https && !settings.domain) {
+    throw new Error('HTTPS needs a domain such as map.example.com. A public IP alone cannot be used for a normal trusted certificate.');
+  }
   // Self-hosted needs no domain: a bare-IP bind (a VPS with no DNS name) is a
-  // legitimate layout. The rebinding guard still answers only to the
-  // configured domain or this machine's own interface addresses (see
-  // allowedHosts), and every API call needs the access key either way.
+  // legitimate layout. Every API call needs the access key either way.
   return settings;
 }
 
@@ -113,7 +119,7 @@ export function serverUrls(value = DEFAULT_SETTINGS) {
       ? `http://<this-machine>:${settings.port} (every interface)`
       : `http://${settings.host}:${settings.port}`;
   }
-  if (settings.domain) urls.domain = `https://${settings.domain}`;
+  if (settings.domain) urls.domain = settings.https ? `https://${settings.domain}` : `http://${settings.domain}:${settings.port}`;
   return urls;
 }
 
@@ -124,6 +130,12 @@ export function maskAccessKey(key) {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
+export function browserUrl(settings) {
+  const url = new URL(serverUrls(settings).local);
+  if (settings.mode === 'self-hosted' && settings.accessKey) url.searchParams.set('key', settings.accessKey);
+  return url.toString();
+}
+
 export function publicSettings(value = DEFAULT_SETTINGS) {
   const settings = normalizeSettings(value);
   return {
@@ -132,6 +144,7 @@ export function publicSettings(value = DEFAULT_SETTINGS) {
     host: settings.host,
     port: settings.port,
     domain: settings.domain,
+    https: settings.https,
     autoOpen: settings.autoOpen,
     hasAccessKey: Boolean(settings.accessKey),
     accessKeyMasked: maskAccessKey(settings.accessKey),
@@ -179,8 +192,15 @@ export function allowedHosts(value = DEFAULT_SETTINGS) {
     // A wildcard bind is useful as a literal Host value to diagnostics, even
     // though browsers normally address the machine by one of its real IPs.
     hosts.add(settings.host.toLowerCase());
-    if (settings.host === '0.0.0.0' || settings.host === '::') {
-      for (const ip of ownInterfaceHosts()) hosts.add(ip);
+    if (settings.host === '0.0.0.0') {
+      // A cloud VPS commonly reaches its public address through provider NAT,
+      // so that address is not present in os.networkInterfaces(). These markers
+      // let the guard accept an IP literal without accepting arbitrary domains.
+      hosts.add('ipv4:*');
+      for (const ip of ownInterfaceHosts()) if (!ip.includes(':')) hosts.add(ip);
+    } else if (settings.host === '::') {
+      hosts.add('ipv6:*');
+      for (const ip of ownInterfaceHosts()) if (ip.includes(':')) hosts.add(ip);
     }
   }
   if (settings.tunnel.cloudflare) hosts.add('*.trycloudflare.com');

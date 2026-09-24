@@ -31,12 +31,14 @@ test('local mode prunes the whole network and security branch', () => {
 test('self-hosted mode asks about bind, domain, key, and tunnels', () => {
   const steps = buildSteps(DEFAULT_SETTINGS);
   const pending = stepIds(pendingSteps(steps, { mode: 'self-hosted' }));
-  for (const wanted of ['host', 'domain', 'port', 'keyChoice', 'tunnelChoice']) {
+  for (const wanted of ['host', 'domain', 'keyChoice', 'tunnelChoice']) {
     assert.ok(pending.includes(wanted), wanted);
   }
   // keyValue only exists once "enter my own" is chosen.
   assert.ok(!pending.includes('keyValue'));
   assert.ok(stepIds(pendingSteps(steps, { mode: 'self-hosted', keyChoice: 'enter' })).includes('keyValue'));
+  assert.ok(!pending.includes('https'), 'certificate setup waits until a domain is entered');
+  assert.ok(stepIds(pendingSteps(steps, { mode: 'self-hosted', domain: 'map.example.com' })).includes('https'));
 });
 
 test('an existing key adds a keep-it choice and makes it the default', () => {
@@ -115,6 +117,15 @@ test('an entered key is used verbatim; keep preserves the old one', () => {
   assert.equal(kept.accessKey, existing);
 });
 
+test('a fresh self-hosted setup defaults to every interface for direct VPS access', () => {
+  const interactive = answersToSettings(DEFAULT_SETTINGS, {
+    mode: 'self-hosted', port: '4310', domain: '', keyChoice: 'generate', provider: 'none',
+  });
+  assert.equal(interactive.host, '0.0.0.0');
+  const { settings } = applyFlags(DEFAULT_SETTINGS, { mode: 'self-hosted' });
+  assert.equal(settings.host, '0.0.0.0');
+});
+
 test('a domainless direct-IP self-hosted setup is valid for a VPS', () => {
   const settings = answersToSettings(DEFAULT_SETTINGS, {
     mode: 'self-hosted', host: '10.0.0.2', port: '4310', domain: '', keyChoice: 'generate', provider: 'none',
@@ -155,6 +166,8 @@ test('a full flag set produces settings with nothing left to ask', () => {
   assert.equal(settings.account.baseUrl, PROVIDER_PRESETS.openrouter.baseUrl);
   assert.match(settings.accessKey, /^ob_/, 'self-hosted via flags always gets a key');
   assert.equal(settings.autoOpen, false);
+  assert.equal(settings.host, '0.0.0.0');
+  assert.equal(settings.https, false, 'no domain means no certificate request');
   // The patch is what the flags said, typed for the config file.
   assert.equal(patch.mode, 'self-hosted');
   assert.equal(patch.host, '0.0.0.0');
@@ -192,7 +205,7 @@ test('--provider sets the account endpoint through the preset table', () => {
 
 test('the summary names the config, the mask, and a fresh key in full', () => {
   const key = generateAccessKey();
-  const settings = normalizeSettings({ mode: 'self-hosted', domain: 'map.example.com', accessKey: key });
+  const settings = normalizeSettings({ mode: 'self-hosted', domain: 'map.example.com', https: true, accessKey: key });
   const masked = summaryLines(settings).flat().join('\n');
   assert.ok(masked.includes('self-hosted'));
   assert.ok(masked.includes('https://map.example.com'));

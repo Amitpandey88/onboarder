@@ -99,10 +99,15 @@ export function buildSteps(current = DEFAULT_SETTINGS) {
       id: 'host', section: 'Server', type: 'choice',
       question: 'What should the server bind to?',
       choices: [
-        { value: '127.0.0.1', label: 'Loopback, behind a tunnel (recommended)', hint: 'Cloudflare or Tailscale terminates TLS and dials 127.0.0.1' },
-        { value: '0.0.0.0', label: 'Every interface (LAN)', hint: 'other machines on this network reach it directly — plain HTTP, so front it with a domain + proxy for TLS' },
+        { value: '127.0.0.1', label: 'Loopback only — behind Cloudflare or Tailscale', hint: 'safest remote layout; the tunnel/proxy connects to 127.0.0.1' },
+        { value: '0.0.0.0', label: 'Every interface — direct public/LAN access', hint: 'accessible by server IP; recommended for a cloud VPS' },
       ],
-      default: current.host === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1',
+      default: (answers) => {
+        const currentHost = current.host;
+        if (answers.host) return answers.host;
+        if (current.mode === 'self-hosted' && ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(currentHost)) return currentHost;
+        return '0.0.0.0';
+      },
       when: (a) => a.mode === 'self-hosted',
     },
     {
@@ -113,11 +118,18 @@ export function buildSteps(current = DEFAULT_SETTINGS) {
     },
     {
       id: 'domain', section: 'Server', type: 'text',
-      question: 'Domain (optional; not needed when reached by IP or behind a tunnel)',
-      hint: 'e.g. map.example.com — use a hostname only when visitors will connect by domain',
+      question: 'Domain (optional for direct IP or a tunnel)',
+      hint: 'e.g. map.example.com — point an A/AAAA record to this VPS to enable trusted HTTPS',
       default: current.domain || '',
       validate: validDomain,
       when: (a) => a.mode === 'self-hosted',
+    },
+    {
+      id: 'https', section: 'HTTPS', type: 'confirm',
+      question: 'Set up automatic HTTPS with Caddy?',
+      hint: 'Caddy obtains and renews the certificate, proxies 80/443, and sends traffic to this app',
+      default: Boolean(current.domain && current.https),
+      when: (a) => a.mode === 'self-hosted' && Boolean(a.domain),
     },
     {
       id: 'keyChoice', section: 'Security', type: 'choice',
@@ -231,9 +243,10 @@ export function answersToSettings(current, answers) {
   return normalizeSettings({
     version: current.version,
     mode: selfHosted ? 'self-hosted' : 'local',
-    host: selfHosted ? (answers.host || current.host || '127.0.0.1') : '127.0.0.1',
+    host: selfHosted ? (answers.host || '0.0.0.0') : '127.0.0.1',
     port: Number(answers.port ?? current.port ?? DEFAULT_SETTINGS.port),
     domain: selfHosted ? String(answers.domain ?? current.domain ?? '').trim().toLowerCase() : '',
+    https: selfHosted && Boolean(answers.domain) && Boolean(answers.https),
     accessKey,
     autoOpen: answers.autoOpen ?? current.autoOpen ?? false,
     account,
@@ -265,6 +278,7 @@ export function applyFlags(current, flags = {}) {
     if (err) throw new Error('--domain: ' + err);
     patch.domain = String(flags.domain).trim().toLowerCase();
   }
+  if (flags.https !== undefined) patch.https = Boolean(flags.https);
   if (flags.accessKey === 'generate') patch.accessKey = generateAccessKey();
   else if (flags.accessKey !== undefined) {
     if (String(flags.accessKey).trim().length < 16) throw new Error('--access-key must be at least 16 characters, or "generate".');
@@ -300,11 +314,15 @@ export function applyFlags(current, flags = {}) {
     account: { ...(current.account || DEFAULT_SETTINGS.account), ...account },
     tunnel: { ...(current.tunnel || DEFAULT_SETTINGS.tunnel), ...tunnel },
   };
-  // Mode drove host/domain rules inside normalize; when flags move a config to
-  // local mode the network fields have to come along rather than linger.
+  // A fresh self-hosted setup is direct-first for cloud/VPS use. Re-running setup
+  // preserves an existing deliberate loopback choice for tunnels and Caddy.
+  if (flags.mode === 'self-hosted' && flags.host === undefined && current.mode !== 'self-hosted') {
+    merged.host = '0.0.0.0';
+  }
   if (merged.mode === 'local') {
     if (!['127.0.0.1', 'localhost', '::1', '[::1]'].includes(merged.host)) merged.host = '127.0.0.1';
     if (flags.domain === undefined) merged.domain = '';
+    if (flags.https === undefined) merged.https = false;
   }
   return { patch, settings: normalizeSettings(merged) };
 }
@@ -316,7 +334,7 @@ export function summaryLines(settings, { revealKey = false } = {}) {
     ['Mode', settings.mode],
     ['Bind', `${settings.host}:${settings.port}`],
   ];
-  if (settings.domain) lines.push(['Domain', 'https://' + settings.domain]);
+  if (settings.domain) lines.push(['Domain', (settings.https ? 'https://' : 'http://') + settings.domain + (settings.https ? '' : ':' + settings.port)]);
   if (settings.mode === 'self-hosted') {
     lines.push(['Access key', revealKey
       ? settings.accessKey
