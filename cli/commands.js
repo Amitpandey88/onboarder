@@ -12,13 +12,15 @@ import { spawn } from 'node:child_process';
 
 import {
   DEFAULT_SETTINGS, configPath, configExists, readSettings, writeSettings,
-  publicSettings, serverUrls, maskAccessKey,
+  publicSettings, serverUrls, maskAccessKey, isLoopbackHost,
 } from '../server/config.js';
 import { startServer } from '../server/index.js';
-import { pidIsAlive, readPidFile, removePidFile } from '../server/pidfile.js';
+import { pidIsAlive, readPidFile, removePidFile, readRunInfo, runInfoPath } from '../server/pidfile.js';
+import { logPath, rotateLogIfNeeded, tailLog, followLog, logExists, spawnDetached, waitForPidFile, waitForReady } from '../server/daemon.js';
+import { installStartup, removeStartup, startupStatus, startupTarget } from '../server/startup.js';
 import { tunnelStatus, cloudflareCommand, tailscaleCommand, installHint, findOnPath } from '../server/tunnel.js';
 import { caddyRun, caddyValidate, httpsReadiness, httpsStatus, writeCaddyfile } from '../server/https.js';
-import { bold, cyan, dim, ok, warn, bad, kv, tick, cross, dash, welcomeBanner } from './ui.js';
+import { bold, cyan, dim, ok, warn, bad, paint, kv, tick, cross, dash, welcomeBanner, panel, row, hint } from './ui.js';
 import { buildSteps, unansweredSteps, defaultOf, applyFlags, answersToSettings, summaryLines } from './wizard.js';
 import { runSteps, WizardCancelled } from './prompt.js';
 
@@ -41,6 +43,9 @@ export async function runSetup({ flags = {}, out = console.log, err = console.er
       printSummary(out, settings, { revealKey: Boolean(patchHasNewKey(flags)) });
     }
     await printTunnelFollowup(out, settings);
+    // `start` may be the flag `--start` (true) or the mode a subcommand asked
+    // for ('background') — both mean "boot it now", differently.
+    if (flags.start === 'background') return runStartBackground({ flags, out, err });
     if (flags.start) return runStart({ flags, out, err });
     return 0;
   }
@@ -95,9 +100,9 @@ export async function runSetup({ flags = {}, out = console.log, err = console.er
   }
   await printTunnelFollowup(out, settings);
 
-  if (flags.start || await confirm(out, 'Start Onboarder now?', true)) {
+  if (flags.start === 'background' || (!flags.start && await confirm(out, 'Start Onboarder now?', true))) {
     out('');
-    return runStart({ flags, out, err });
+    return flags.start === 'background' ? runStartBackground({ flags, out, err }) : runStart({ flags, out, err });
   }
   out(dim(settings.https
     ? '  Later: `onboarder start` (starts Caddy automatically), or `onboarder https status`'
@@ -145,6 +150,38 @@ async function printTunnelFollowup(out, settings) {
 
 // ---------------------------------------------------------------- start ---
 
+// What the person is about to be looking at, as a titled panel instead of a
+// loose run of lines. One function serves the foreground banner and the
+// background confirmation, so "what does `onboarder start` tell me" has exactly
+// one answer no matter which mode you used.
+export function serverDetails(started, { configFile, pid = null, mode = 'foreground', logFile = '' } = {}) {
+  const { settings, host, port } = started;
+  const urls = serverUrls(settings);
+  const rows = [
+    row('URL', bold(cyan(urls.local))),
+    row('Bind', `${host}:${port}`),
+    row('Mode', settings.mode === 'self-hosted'
+      ? (isLoopbackHost(host) ? 'self-hosted (loopback — use a tunnel for remote access)' : 'self-hosted (network reachable, access key required)')
+      : 'local (this machine only)'),
+  ];
+  if (urls.network) rows.push(row('Network', urls.network));
+  if (urls.domain) rows.push(row('Public', urls.domain));
+  if (settings.mode === 'self-hosted') {
+    rows.push(row('Access key', settings.accessKey ? maskAccessKey(settings.accessKey) : bad('NOT SET — every API call is refused')));
+  }
+  rows.push(row('PID', String(pid ?? process.pid)));
+  rows.push(row('Config', dim(configFile || '')));
+  if (logFile) rows.push(row('Logs', dim(logFile)));
+  return { rows, urls, mode };
+}
+
+function printServerDetails(out, started, options) {
+  const { rows } = serverDetails(started, options);
+  out('');
+  out(panel('Onboarder is running', rows));
+  out('');
+}
+
 export async function runStart({ flags = {}, out = console.log, err = console.error } = {}) {
   const file = flags.config || configPath();
   if (!await configExists(file)) {
@@ -165,7 +202,9 @@ export async function runStart({ flags = {}, out = console.log, err = console.er
   }
   if (recorded) removePidFile(file, recorded);
 
-  const started = await startServer({ configFile: file, log: out });
+  // `quiet`: the CLI prints its own details panel below, so the loose banner
+  // would be the same facts twice. `node server/index.js` still gets the banner.
+  const started = await startServer({ configFile: file, log: () => {}, openBrowser: false });
   if (started.settings.https) {
     out('');
     const httpsCode = await runHttps('setup', { flags, out: flags.json ? () => {} : out, err });
@@ -175,12 +214,115 @@ export async function runStart({ flags = {}, out = console.log, err = console.er
     }
   }
   if (flags.json) out(JSON.stringify({ host: started.host, port: started.port, url: serverUrls(started.settings).local }));
+  // `start` foreground prints the details itself rather than letting
+  // `startServer` print the old loose banner — the panel replaces it. The
+  // background child lands here too (that is the point of reusing this path),
+  // and ONBOARDER_BACKGROUND is what tells the two apart: one is attached to a
+  // terminal you are about to close, the other is already detached from it.
+  printServerDetails(out, started, { configFile: file, mode: 'foreground' });
+  if (process.env.ONBOARDER_LAUNCH) {
+    // Started by launchd/systemd/the Startup folder: these lines are going into
+    // a log file nobody is watching, so they say what the supervisor is doing
+    // rather than telling a person to press Ctrl-C.
+    out(dim(`  Launched at login by ${process.env.ONBOARDER_LAUNCH}. This process is supervised — stop it with \`onboarder stop\`.`));
+  } else if (process.env.ONBOARDER_BACKGROUND) {
+    out(dim('  Started in the background — this process is now independent of any terminal.'));
+  } else {
+    out(dim('  Running in the foreground. Ctrl-C stops it; closing this terminal stops it too.'));
+    out(dim('  To keep it alive after you close the terminal: ') + cyan('onboarder start background'));
+  }
+  out('');
   // The listening server holds the event loop; resolve so callers/tests know
   // we are up, but leave the process running.
   return { ...started, code: 0 };
 }
 
+// `onboarder start background` — same server, no terminal attached. The child is
+// an ordinary foreground `start`; all this does is detach it and then *wait for
+// it to answer* before reporting success, so a bind failure surfaces here as a
+// failure with the log tail attached rather than a cheerful lie.
+export async function runStartBackground({ flags = {}, out = console.log, err = console.error } = {}) {
+  const file = flags.config || configPath();
+  if (!await configExists(file) && process.stdout.isTTY && !flags.nonInteractive) {
+    out(dim('  No settings yet — running setup first.'));
+    return runSetup({ flags: { ...flags, start: 'background' }, out, err });
+  }
+  const recorded = readPidFile(file);
+  if (recorded && pidIsAlive(recorded)) {
+    err(`  Onboarder is already running (PID ${recorded}).`);
+    err(dim('    Use `onboarder status`, `onboarder stop`, or `onboarder restart`.'));
+    return 1;
+  }
+  if (recorded) removePidFile(file, recorded);
+
+  const settings = await readSettings(file);
+  const log = logPath(file);
+  await rotateLogIfNeeded(log);
+
+  spawnDetached({ configFile: file, log });
+  const pid = await waitForPidFile(file, { timeoutMs: flags.timeout ? Number(flags.timeout) * 1000 : 20000 });
+  const urls = serverUrls(settings);
+  const ready = pid ? await waitForReady(new URL('/api/health', urls.local).toString(), { timeoutMs: 8000 }) : false;
+
+  if (!ready) {
+    // Two different failures with two different fixes, so they are reported
+    // differently. No pid record means the child never finished binding — the
+    // log holds the reason (a busy port, an invalid config). A live pid that will
+    // not answer means it bound and then something in front of it is in the way
+    // (a proxy, a firewall), and no amount of log-reading will show that.
+    if (!pid) {
+      err(bad('  Onboarder did not start in the background.'));
+      const tail = await tailLog(log, 15);
+      if (tail.length) {
+        err(dim(`  Last lines of ${log}:`));
+        for (const line of tail) err('    ' + line);
+      }
+      err(dim('    Fix the cause above, then run `onboarder start background` again.'));
+    } else {
+      err(bad(`  Onboarder is running (PID ${pid}) but ${urls.local} is not answering.`));
+      err(dim(`    Its log is ${log}. If a proxy or firewall fronts this port, check that first.`));
+      err(dim('    Otherwise: `onboarder stop`, then `onboarder start background` again.'));
+    }
+    return 1;
+  }
+
+  if (flags.json) {
+    out(JSON.stringify({ background: true, pid, url: urls.local, log, configFile: file }, null, 2));
+    return 0;
+  }
+
+  out('');
+  out(panel('Onboarder is running in the background', [
+    row('URL', bold(cyan(urls.local))),
+    row('PID', String(pid)),
+    row('Mode', 'background — survives closing this terminal'),
+    row('Logs', dim(log)),
+    row('Config', dim(file)),
+  ]));
+  out('');
+  out(dim('  Follow the log: ') + cyan('onboarder logs -f'));
+  out(dim('  Stop it:         ') + cyan('onboarder stop'));
+  out(dim('  Check on it:     ') + cyan('onboarder status'));
+  out('');
+  return 0;
+}
+
+
 // ------------------------------------------------------------- lifecycle ---
+
+// Panel rows carry their own inline marker rather than the `tick`/`cross`/`dash`
+// constants: those bake in a two-column indent for standalone lines, which would
+// push the first row out of the panel's label column.
+const MARK = { yes: (s) => paint('✓ ', 'green') + s, no: (s) => paint('– ', 'gray') + s, warn: (s) => paint('! ', 'yellow') + s };
+
+// How a live instance presents itself, in one sentence per mode. The point of
+// the sentence is the thing someone actually needs to know: can I close my
+// terminal, or will that kill it?
+const MODE_NOTES = {
+  background: 'background — survives closing the terminal',
+  startup: 'started at login — the OS restarts it if it stops',
+  foreground: 'foreground — stops when you press Ctrl-C or close the terminal',
+};
 
 export async function runStatus({ flags = {}, out = console.log } = {}) {
   const file = flags.config || configPath();
@@ -190,6 +332,9 @@ export async function runStatus({ flags = {}, out = console.log } = {}) {
   try { settings = await readSettings(file); } catch { /* defaults are still meaningful */ }
   const portBusy = settings ? !(await portIsFree(settings.host, settings.port)) : false;
   if (pid && !running) removePidFile(file, pid);
+  // The pid says whether it is up; the run record says *how* it came up, which
+  // is what tells someone whether closing their terminal will kill it.
+  const info = running ? readRunInfo(file) : null;
   const result = {
     running: Boolean(running || portBusy),
     pid: running ? pid : null,
@@ -197,19 +342,51 @@ export async function runStatus({ flags = {}, out = console.log } = {}) {
     portBusy,
     managed: Boolean(running),
     configFile: file,
+    mode: running ? (info?.mode || 'foreground') : null,
+    url: running ? (info?.url || (settings ? serverUrls(settings).local : null)) : null,
+    uptimeMs: running && info?.startedAt ? Date.now() - Date.parse(info.startedAt) : null,
+    log: running && info?.log ? info.log : null,
+    startup: (await startupStatus()).installed,
   };
   if (flags.json) {
     out(JSON.stringify(result, null, 2));
   } else {
     out('');
-    out(bold('  Onboarder status'));
-    if (running) out(`${tick}Running    PID ${pid}`);
-    else if (portBusy) out(`${warn('!')}Port busy  ${result.port} (no Onboarder PID record)`);
-    else out(`${dash}Stopped`);
-    out(kv('Config', file));
-    if (result.portBusy && !running) out(dim('    Inspect it with `ss -ltnp` or `lsof -i :' + settings.port + '` before stopping another process.'));
+    out(panel('Onboarder status', [
+      row('State', running
+        ? MARK.yes(`Running (PID ${pid})`)
+        : portBusy
+          ? MARK.warn(`Port busy — ${result.port}, but no Onboarder process record`)
+          : MARK.no('Stopped')),
+      ...(running ? [
+        row('URL', cyan(result.url || '')),
+        row('Mode', MODE_NOTES[result.mode] || MODE_NOTES.foreground),
+        ...(result.uptimeMs ? [row('Uptime', humanDuration(result.uptimeMs))] : []),
+        ...(result.log ? [row('Logs', dim(result.log))] : []),
+      ] : []),
+      row('Config', dim(file)),
+      row('At login', result.startup ? MARK.yes('Enabled') : MARK.no('Not enabled — `onboarder start startup install`')),
+      ...(result.portBusy && !running
+        ? [hint('Inspect the listener with `ss -ltnp` or `lsof -i :' + settings.port + '` before stopping another process.')]
+        : []),
+    ]));
+    out('');
   }
   return 0;
+}
+
+// "3d 4h", "12m 5s" — coarse on purpose. Precision past the second is noise on
+// something a person glances at.
+export function humanDuration(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  if (days) return `${days}d ${hours}h`;
+  if (hours) return `${hours}h ${minutes}m`;
+  if (minutes) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
 }
 
 function waitForExit(pid, timeoutMs = 5000) {
@@ -272,6 +449,109 @@ export async function runRestart(options = {}) {
     removePidFile(file, pid);
   }
   return runStart(options);
+}
+
+// ----------------------------------------------------------------- logs ---
+
+// `onboarder logs` — the answer to "it is running in the background, what is it
+// doing?". Prints the tail of the same file the background child writes, and
+// `-f` follows it. Line-oriented and level-colored, so a wall of request logs
+// stays scannable instead of being one undifferentiated block.
+export async function runLogs({ flags = {}, out = console.log, err = console.error } = {}) {
+  const file = flags.config || configPath();
+  const log = logPath(file);
+  const lines = flags.lines === undefined ? 40 : Math.max(1, Number(flags.lines) || 40);
+  if (!await logExists(log)) {
+    if (flags.json) out(JSON.stringify({ log, exists: false, lines: [] }, null, 2));
+    else {
+      err(`  No log file yet at ${log}.`);
+      err(dim('    A foreground `onboarder start` prints to the terminal; only `onboarder start background` writes this file.'));
+    }
+    return flags.json ? 0 : 1;
+  }
+  if (!flags.follow) {
+    const tail = await tailLog(log, lines);
+    if (flags.json) { out(JSON.stringify({ log, exists: true, lines: tail }, null, 2)); return 0; }
+    out('');
+    out(bold(`  ${log}`) + dim(`  (last ${tail.length} of ${lines})`));
+    out('');
+    for (const line of tail) out('  ' + line);
+    out('');
+    return 0;
+  }
+  if (flags.json) { err('  --follow and --json do not combine; pick one.'); return 2; }
+  out('');
+  out(bold(`  Following ${log}`) + dim('  (Ctrl-C to stop)'));
+  out('');
+  const stop = followLog(log, (line) => out('  ' + line), { from: 'start' });
+  const finish = () => { stop(); process.exit(0); };
+  process.once('SIGINT', finish);
+  await new Promise((resolve) => process.once('exit', resolve));
+  return 0;
+}
+
+// -------------------------------------------------------------- startup ---
+
+// `onboarder start startup` — run at login, not just right now. Three verbs
+// because the three actions are genuinely different: `install` writes the
+// artifact and hands it to the OS, `remove` takes it back out, `status` only
+// looks. `install` also starts it once so the person is not left waiting for the
+// next reboot to find out whether it worked.
+export async function runStartup(action = 'status', { flags = {}, out = console.log, err = console.error } = {}) {
+  const file = flags.config || configPath();
+  const target = startupTarget();
+  const log = logPath(file);
+
+  if (action === 'install' || action === 'enable' || action === 'on') {
+    const result = await installStartup({ configFile: file, log, target });
+    if (!result.ok) {
+      err(bad('  Could not install the startup entry.'));
+      err('    ' + (result.reason || result.output || result.error || 'unknown error'));
+      return 1;
+    }
+    out(tick + `Onboarder will start at login (${target.hint}).`);
+    out(kv('Startup file', result.path));
+    if (result.output) out(dim('    ' + result.output.split('\n').slice(-2).join('\n    ')));
+    out('');
+    out(dim('  Start it right now too: ') + cyan('onboarder start background'));
+    out(dim('  Turn it off again:      ') + cyan('onboarder start startup remove'));
+    out('');
+    return 0;
+  }
+
+  if (action === 'remove' || action === 'disable' || action === 'off' || action === 'uninstall') {
+    const status = await startupStatus(target);
+    if (!status.installed) {
+      out(dash + 'No startup entry is installed — nothing to remove.');
+      return 0;
+    }
+    const result = await removeStartup({ target });
+    if (!result.ok) { err(bad('  Could not remove the startup entry: ' + (result.reason || 'unknown error'))); return 1; }
+    out(tick + 'Startup entry removed. A running server is untouched — use `onboarder stop` for that.');
+    out(kv('Removed', result.path));
+    out('');
+    return 0;
+  }
+
+  if (action === 'status' || action === undefined) {
+    const status = await startupStatus(target);
+    if (flags.json) { out(JSON.stringify(status, null, 2)); return status.installed ? 0 : 1; }
+    out('');
+    out(panel('Onboarder at login', [
+      row('State', status.installed
+        ? (status.active ? MARK.yes('Enabled and running') : MARK.warn('Enabled, not running'))
+        : MARK.no('Not enabled')),
+      row('How', status.detail),
+      ...(status.path ? [row('File', dim(status.path))] : []),
+      ...(status.supported ? [hint(status.installed
+        ? 'Remove it with `onboarder start startup remove`.'
+        : 'Enable it with `onboarder start startup install`.')] : []),
+    ]));
+    out('');
+    return status.installed ? 0 : 1;
+  }
+
+  throw new Error('Usage: onboarder start startup [install|remove|status]');
 }
 
 // --------------------------------------------------------------- config ---

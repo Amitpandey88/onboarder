@@ -212,7 +212,13 @@ onboarder config show                    # current settings (key masked)
 onboarder config set host 0.0.0.0        # direct VPS/LAN access (domain optional)
 onboarder config set port 4311           # move away from a busy port
 onboarder config key rotate              # mint a new access key
-onboarder status                         # running PID, stopped, or unmanaged port owner
+onboarder start                          # foreground; Ctrl-C stops it
+onboarder start background               # detached; keeps running after you close the terminal
+onboarder logs                           # last 40 log lines  (-n <count>, -f to follow)
+onboarder start startup install          # also start automatically at every login
+onboarder start startup status           # is a login item installed, and is it live?
+onboarder start startup remove           # take the login item back out
+onboarder status                         # running PID, mode, uptime, stopped, or unmanaged port owner
 onboarder stop                           # stop a PID-file-managed instance
 onboarder restart                        # graceful stop, then start
 onboarder tunnel cloudflare              # expose via a Cloudflare quick tunnel
@@ -222,6 +228,38 @@ onboarder https setup                    # write/validate Caddyfile, obtain TLS,
 onboarder https status                   # domain, URL, Caddyfile, and Caddy state
 onboarder doctor                         # config, access key, ports, DNS, TLS, and tunnels
 ```
+
+### Running it in the background
+
+`onboarder start` runs in the foreground on purpose: it is a normal command, and Ctrl-C stops it. When you want the server to outlive the terminal, use `start background`. It re-launches the same CLI as a detached process with its output going to `onboarder.log` beside your config, then **waits for the server to actually answer** `/api/health` before reporting success. A port conflict comes back as a failure with the log tail attached, not as a cheerful green light that dies a second later.
+
+```bash
+onboarder start background   # returns once it is serving
+onboarder logs -f            # watch it, Ctrl-C to stop watching (not the server)
+onboarder stop               # stop it
+```
+
+Log lines are column-aligned — a fixed-width local timestamp, a fixed-width level, then the message — so a wall of requests stays scannable:
+
+```
+16:09:38.985  INFO   GET /api/health 200 (1ms)
+16:09:46.460  INFO   GET /nope 404 (1ms)
+16:10:21.925  WARN   config port=4310 reason="already in use"
+```
+
+Set `ONBOARDER_LOG=json` for one JSON object per line instead (the log file is plain text by default so it stays readable; `--json` on `status`/`logs` is the machine-readable surface).
+
+### Starting at login
+
+`onboarder start startup install` registers Onboarder with whatever your OS uses for login items, and never asks for `sudo`:
+
+| Platform | What it writes | How it loads |
+|---|---|---|
+| macOS | `~/Library/LaunchAgents/com.onboarder.server.plist` | `launchctl bootstrap gui/$UID` |
+| Linux | `~/.config/systemd/user/onboarder.service` | `systemctl --user enable --now` |
+| Windows | `%APPDATA%\...\Startup\Onboarder.cmd` | the file *is* the registration |
+
+All three run the same `onboarder start --config <your config>`, so a login-started server is indistinguishable from a hand-started one — same config, same pid file, same `onboarder stop`. The generated unit uses `Restart=on-failure` (and launchd's `KeepAlive`/`SuccessfulExit=false`), so a crash is restarted but a deliberate `onboarder stop` stays stopped. `onboarder start startup remove` unloads and deletes it; a running server is left alone. On a platform with no known mechanism, the command says so instead of pretending.
 
 A fresh self-hosted setup uses `0.0.0.0`, so a VPS is reachable at `http://<server-ip>:<port>` without a reverse proxy. The server accepts IPv4 and IPv6 IP literals, including a public address that reaches the host through provider NAT, but still rejects arbitrary DNS Host headers. A domain is optional for direct-IP access. If a domain is entered, setup asks whether to enable automatic HTTPS.
 
@@ -255,7 +293,10 @@ codebase-onboarder/
 ├── server/          # Zero-dependency Node.js HTTP server
 │   ├── index.js     # createServer / startServer / startup banner
 │   ├── config.js    # Settings schema, normalization, atomic 0600 writes
-│   ├── pidfile.js   # PID ownership for status / stop / restart
+│   ├── pidfile.js   # PID + run record (mode, url, log) for status / stop / restart
+│   ├── daemon.js    # Detached background start, log file, readiness probe
+│   ├── startup.js   # Login items: launchd plist / systemd --user unit / Startup folder
+│   ├── logger.js    # Aligned-text or JSON log lines from one entry shape
 │   ├── router.js    # Route table, live per-request settings, auth & CSRF gates
 │   ├── auth.js      # Signed HttpOnly browser sessions
 │   ├── apiAuth.js   # Login/status/logout endpoints

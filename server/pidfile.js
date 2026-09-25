@@ -45,5 +45,42 @@ export function writePidFile(configFile) {
 // Remove the file only when it still points at `pid` — a second server that
 // rewrote the file must not lose its record because the first one exited.
 export function removePidFile(configFile, pid = process.pid) {
-  if (readPidFile(configFile) === pid) fs.rmSync(pidPath(configFile), { force: true });
+  if (readPidFile(configFile) === pid) {
+    fs.rmSync(pidPath(configFile), { force: true });
+    removeRunInfo(configFile);
+  }
+}
+
+// The pid answers "is it running?"; it cannot answer "how is it running?".
+// Which mode a live server was launched in (foreground, background, a login
+// item), where its log file is, and when it booted are all things `onboarder
+// status` should be able to print without guessing — so they are written
+// beside the pid, best effort, exactly like the pid itself.
+export function runInfoPath(configFile) {
+  return path.join(path.dirname(path.resolve(configFile)), 'onboarder.run.json');
+}
+
+export function writeRunInfo(configFile, info = {}) {
+  try {
+    fs.writeFileSync(runInfoPath(configFile), JSON.stringify({
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+      ...info,
+    }, null, 2) + '\n', { mode: 0o600 });
+  } catch {
+    // A read-only config dir must never stop a server from booting.
+  }
+}
+
+export function readRunInfo(configFile) {
+  try {
+    const value = JSON.parse(fs.readFileSync(runInfoPath(configFile), 'utf8'));
+    return value && typeof value === 'object' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function removeRunInfo(configFile) {
+  try { fs.rmSync(runInfoPath(configFile), { force: true }); } catch { /* nothing to clean */ }
 }

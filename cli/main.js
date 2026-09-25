@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import { parseArgs } from 'node:util';
 
 import {
-  runSetup, runStart, runStatus, runStop, runRestart,
+  runSetup, runStart, runStartBackground, runStartup, runLogs, runStatus, runStop, runRestart,
   runConfig, runConfigKey, runConfigReset, runDoctor, runTunnel, runHttps,
 } from './commands.js';
 
@@ -20,7 +20,10 @@ const HELP = `
   Usage
     onboarder                     Start the server (runs setup first if needed)
     onboarder setup | onboard     Configure interactively (the wizard)
-    onboarder start               Start the server
+    onboarder start               Start in the foreground (Ctrl-C stops it)
+    onboarder start background    Start detached — keeps running after you close the terminal
+    onboarder start startup       Run automatically at login [install|remove|status]
+    onboarder logs                Show recent log lines  (-n <count>, -f to follow)
     onboarder status              Show whether the server is running
     onboarder stop                Stop the running server
     onboarder restart             Stop and start again
@@ -48,11 +51,16 @@ const HELP = `
   Also accepted
     help | --help       onboarder help | onboarder --help
     config | config show
+    bg | detached       alias for start background
+    fg | foreground     alias for start
 
   Examples
     onboarder setup
+    onboarder start background          # leave it running, close the terminal
+    onboarder logs -f                   # watch what it is doing
+    onboarder start startup install     # also start it every time you log in
+    onboarder start background && open http://localhost:4310
     onboarder setup --non-interactive --mode local --port 4310
-    onboarder setup --non-interactive --mode self-hosted --host 0.0.0.0
     onboarder setup --non-interactive --mode self-hosted --domain map.example.com --https --start
     onboarder config set tunnel.cloudflare true && onboarder tunnel cloudflare
 `;
@@ -82,6 +90,9 @@ const OPTIONS = {
   cloudflare: { type: 'boolean' },
   tailscale: { type: 'boolean' },
   'auto-open': { type: 'boolean' },
+  lines: { type: 'string', short: 'n' },
+  follow: { type: 'boolean', short: 'f' },
+  timeout: { type: 'string' },
 };
 
 // parseArgs speaks kebab-case; the wizard's flags speak camelCase.
@@ -115,8 +126,33 @@ export async function main(argv = process.argv.slice(2)) {
         console.log(HELP);
         return 0;
       case undefined:
-      case 'start':
         return codeOf(await runStart({ flags }));
+      case 'start':
+        // `onboarder start [background|fg|startup [action]]`. The sub-verb is a
+        // positional, not a flag, because `onboarder start` has to keep working
+        // exactly as it did and `startup install` is a different verb from
+        // `start`.
+        if (sub === 'background' || sub === 'bg' || sub === 'daemon' || sub === 'detached') {
+          return codeOf(await runStartBackground({ flags }));
+        }
+        if (sub === 'startup' || sub === 'login' || sub === 'autostart') {
+          return codeOf(await runStartup(rest[0] || 'status', { flags }));
+        }
+        if (sub === 'fg' || sub === 'foreground') return codeOf(await runStart({ flags }));
+        if (sub === 'status') return codeOf(await runStatus({ flags }));
+        if (sub === 'stop') return codeOf(await runStop({ flags }));
+        if (sub === 'logs') return codeOf(await runLogs({ flags }));
+        if (sub) {
+          console.error('  Unknown start mode: ' + sub + '\n' + HELP);
+          return 2;
+        }
+        return codeOf(await runStart({ flags }));
+      case 'logs':
+      case 'log':
+        return codeOf(await runLogs({ flags }));
+      case 'startup':
+      case 'autostart':
+        return codeOf(await runStartup(sub || 'status', { flags }));
       case 'status':
         return codeOf(await runStatus({ flags }));
       case 'stop':

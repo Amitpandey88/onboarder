@@ -23,7 +23,8 @@ import { createLogger } from './logger.js';
 import { createMcpRunner } from './mcp/runner.js';
 import { browserUrl, configPath, isLoopbackHost, readSettings, serverUrls } from './config.js';
 import { tunnelStatus } from './tunnel.js';
-import { pidIsAlive, readPidFile, removePidFile, writePidFile } from './pidfile.js';
+import { pidIsAlive, readPidFile, removePidFile, writePidFile, writeRunInfo, runInfoPath } from './pidfile.js';
+import { logPath } from './daemon.js';
 
 const logger = createLogger();
 
@@ -164,14 +165,33 @@ export async function startServer({ configFile = configPath(), openBrowser, log 
     throw listenError(error, { host, port, pid: recorded && pidIsAlive(recorded) ? recorded : null });
   }
 
+  // The process record is optional by design, so each write is guarded on its
+  // own: a read-only config directory must not stop a server that has already
+  // bound its port, but a *programming* error here would otherwise be swallowed
+  // and look like "it started, but nothing recorded it".
+  try { writePidFile(configFile); } catch { /* read-only config dir */ }
+  // How this process was launched. `background` is a detached child with a log
+  // file; `startup` is one the OS supervisor started at login (also with a log
+  // file); anything else is a person typing `onboarder start` in a terminal.
+  const mode = process.env.ONBOARDER_LAUNCH || (process.env.ONBOARDER_BACKGROUND ? 'background' : 'foreground');
+  const logFile = mode === 'foreground' ? null : logPath(configFile);
   try {
-    writePidFile(configFile);
-    server.once('close', () => removePidFile(configFile));
-    process.once('exit', () => removePidFile(configFile));
-  } catch {
-    // The server is useful even when a read-only config directory cannot hold
-    // the optional process record; binding and serving are the real contract.
+    // Beside the pid: how this instance was launched and where its log goes, so
+    // `onboarder status` answers "how long has it been up, and how do I see its
+    // output" from a record instead of guessing.
+    writeRunInfo(configFile, {
+      mode,
+      host,
+      port,
+      url: serverUrls(live).local,
+      log: logFile,
+      node: process.version,
+    });
+  } catch (error) {
+    logger.warn('could not write the run record', { file: runInfoPath(configFile), error: error.message });
   }
+  server.once('close', () => removePidFile(configFile));
+  process.once('exit', () => removePidFile(configFile));
 
   log(startupBanner(live, { configFile }));
 
