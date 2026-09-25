@@ -126,8 +126,31 @@ export async function scanRepo(source, options = {}) {
   }
   const findByName = (n) => nameIndex.get(n) || null;
 
+  // Find a directory whose path *ends with* a run of segments. This is what C#
+  // needs and Java does not: a C# file's folder mirrors the namespace, but the
+  // root namespace (the company or project name) is normally not a directory,
+  // so `namespace Acme.Services` lives in `src/Services/`. Matching on a path
+  // suffix is the only thing that finds it — stripping the whole namespace, the
+  // Java approach, matches nothing and silently drops every import.
+  //
+  // Keyed by the last three segments, which is enough to tell
+  // `Acme/Models/Entities` apart from a bare `Entities` elsewhere while staying
+  // O(1) per lookup. A collision at the shortest key keeps the first match, and
+  // callers query longest-first, so the most specific answer is tried first.
+  const dirByTail = new Map();
+  for (const d of dirSet) {
+    if (!d) continue;
+    const segments = d.split('/');
+    for (let take = 1; take <= 3 && take <= segments.length; take += 1) {
+      const key = segments.slice(segments.length - take).join('/');
+      if (!dirByTail.has(key)) dirByTail.set(key, d);
+    }
+  }
+  const findDirEndingWith = (suffix) => (suffix ? dirByTail.get(suffix) || null : null);
+
   const context = {
     hasDir,
+    findDirEndingWith,
     findByName,
     modulePath: await readModulePath(source),
     tsPaths: await readTsConfigPaths(source),
@@ -212,15 +235,20 @@ export async function scanRepo(source, options = {}) {
   const tally = { total: 0, internal: 0, external: 0, unresolved: 0 };
   const unresolvedSpecs = new Map(); // spec -> { count, from }
 
-  // Go resolves an import to a *directory*, and every .go file in it is a
+  // A resolver may answer with a *directory* instead of a file: Go's import is a
+  // package, and a C# `using Acme.Models;` names a namespace whose classes we
+  // cannot know from the import alone. Every file in that directory is a
   // target. Indexed once here rather than scanned per import — a Go repo with
   // 1,000 files and 8,000 imports was doing eight million comparisons for it.
-  const goFilesByDir = new Map();
+  //
+  // Language-neutral on purpose: this used to be `goFilesByDir`, built only from
+  // Go files, which meant no other language could use the mechanism that already
+  // existed for exactly this problem.
+  const filesByDir = new Map();
   for (const f of files) {
-    if (f.lang !== 'go') continue;
-    const bucket = goFilesByDir.get(f.dir);
+    const bucket = filesByDir.get(f.dir);
     if (bucket) bucket.push(f.path);
-    else goFilesByDir.set(f.dir, [f.path]);
+    else filesByDir.set(f.dir, [f.path]);
   }
 
   for (const file of files) {
@@ -233,7 +261,10 @@ export async function scanRepo(source, options = {}) {
         addEdge(edges, edgeKeys, file.path, res.path, 'imports', imp.symbols);
       } else if (res.packageDir) {
         tally.internal++;
-        for (const target of goFilesByDir.get(res.packageDir) || []) {
+        // A directory import means "everything in there". addEdge de-duplicates,
+        // so a package with fifty files yields fifty honest edges rather than
+        // one edge standing in for all of them.
+        for (const target of filesByDir.get(res.packageDir) || []) {
           addEdge(edges, edgeKeys, file.path, target, 'imports', imp.symbols);
         }
       } else if (res.external) {

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+
 import { analyze, resolveImport, sourceRootFor } from '../shared/analyzer/languages/java.js';
 import { scanRepo } from '../shared/analyzer/scan.js';
 import { computeFacts } from '../shared/analyzer/graph.js';
