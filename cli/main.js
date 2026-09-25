@@ -12,6 +12,7 @@ import {
   runConfig, runConfigKey, runConfigReset, runDoctor, runTunnel, runHttps,
 } from './commands.js';
 import { runExplore } from './explorer/app.js';
+import { setColorEnabled } from './ui.js';
 
 const PACKAGE = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -37,10 +38,15 @@ const HELP = `
   In the explorer
     map tour explain             what this is, where to start, and why
     tree find show deps          browse it, search it, read it, trace it
+    graph blast symbols          the dependency tree, the blast radius, the outline
     health hubs layers patterns  the analysis, in the same words the site uses
-    stats security stack entry   numbers, findings, dependencies
+    coupling clusters risks      the heat grid, the module groups, what is wrong
+    log hotspots blame           git history, hot files, who wrote a line
+    diagram docs                 Mermaid source, and prose you can write out
     cd rescan web                switch repo, reload, open the web UI
+    !<command>                   run a shell command without leaving
     help exit                    everything, and the way out
+    Tab                          completes commands, then file paths
 
   Setup flags (interactive wizard skips what they answer)
     --mode local|self-hosted   --host <addr>   --port <n>   --domain <name>
@@ -85,7 +91,7 @@ const OPTIONS = {
   reveal: { type: 'boolean' },
   verbose: { type: 'boolean' },
   start: { type: 'boolean' },
-  color: { type: 'boolean' }, // --no-color falls out of parseArgs for free
+  color: { type: 'boolean' }, // `--no-color` is lifted out by extractNegatedFlags; --color forces it on
   config: { type: 'string' },
   mode: { type: 'string' },
   host: { type: 'string' },
@@ -117,16 +123,52 @@ function normalizeFlags(values) {
   return out;
 }
 
+// `parseArgs` cannot express a negated boolean. `--color=false` is rejected
+// outright, `--color false` sets `color: true` and leaves `false` behind as a
+// positional, and `--no-color` is an unknown option — so the documented flag
+// had never worked, for any command, and `--no-color status` would try to run a
+// command called `no-color`.
+//
+// There is no parser-level spelling for "this boolean is false", so the flag is
+// lifted out of argv before parsing and applied to the parsed flags after. That
+// keeps `parseArgs` strict about genuinely unknown options (which is the point
+// of a tool that writes a config file) while making the one negation the CLI
+// documents actually work.
+function extractNegatedFlags(argv) {
+  const rest = [];
+  let noColor = false;
+  for (const arg of argv) {
+    if (arg === '--no-color') noColor = true;
+    else rest.push(arg);
+  }
+  return { argv: rest, noColor };
+}
+
 export async function main(argv = process.argv.slice(2)) {
+  const { argv: argsIn, noColor } = extractNegatedFlags(argv);
   let parsed;
   try {
-    parsed = parseArgs({ args: argv, options: OPTIONS, allowPositionals: true });
+    parsed = parseArgs({ args: argsIn, options: OPTIONS, allowPositionals: true });
   } catch (e) {
     console.error('  ' + e.message + '\n' + HELP);
     return 2;
   }
   const { values, positionals } = parsed;
   const flags = normalizeFlags(values);
+
+  // Color is decided here, after the flags exist and before anything is
+  // painted. An explicit `--no-color` wins over `FORCE_COLOR`: a person who
+  // typed the flag meant it, and a stray `FORCE_COLOR` inherited from a CI
+  // profile should not override the thing they just asked for.
+  if (noColor) {
+    flags.color = false;
+    setColorEnabled(false);
+  } else if (flags.color === true) {
+    // `--color` was accepted by the parser and then ignored, which is the same
+    // lie in the other direction. It is the documented way to keep ANSI in a
+    // captured log, so it has to actually turn color on.
+    setColorEnabled(true);
+  }
 
   if (flags.help) { console.log(HELP); return 0; }
   if (flags.version) { console.log(PACKAGE.version); return 0; }

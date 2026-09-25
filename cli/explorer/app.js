@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { openRepo } from './session.js';
-import { CLEAR, EXIT, commandNames, helpText, lookup, tokenize } from './commands.js';
+import { CLEAR, EXIT, commandNames, completer, helpText, lookup, shellEscape, tokenize } from './commands.js';
 import { overview } from './views.js';
 import { bold, cyan, dim, ok, bad, paint } from '../ui.js';
 import { configPath, readSettings, serverUrls } from '../../server/config.js';
@@ -121,14 +121,36 @@ function session({ repo, flags, out, err, version }) {
     prompt: promptFor(repo),
     terminal: true,
     historySize: 200,
+    // The completer closes over the *current* repo rather than the one captured
+    // here, so after a `cd` it completes paths in the new repository. Reading
+    // `ctx.repo` at completion time is the whole trick.
+    completer: (line) => completer(ctx.repo)(line),
   });
 
   let queue = Promise.resolve();
   let closed = false;
   let interrupts = 0;
+  let onResize = null;
 
+  // One poisoned promise must not end the session. `handleLine` catches its own
+  // errors, but anything thrown outside it — a prompt write to a closed stream,
+  // an error in a command's argument handling — would otherwise reject this
+  // chain and silently swallow every command typed afterwards. The session would
+  // look alive and do nothing, which is the worst failure mode a REPL has.
   rl.on('line', (line) => {
-    queue = queue.then(() => handleLine(ctx, line, rl, out, err));
+    queue = queue
+      .then(() => handleLine(ctx, line, rl, out, err))
+      .catch((e) => {
+        err('  ' + bad((e?.message || String(e))));
+        if (!closed) {
+          try {
+            rl.setPrompt(promptFor(ctx.repo));
+            rl.prompt();
+          } catch {
+            // The stream is gone; the close handler finishes the session.
+          }
+        }
+      });
   });
 
   // Ctrl-D on an empty line is the universal "I'm done". On a line with text,
@@ -140,7 +162,9 @@ function session({ repo, flags, out, err, version }) {
   // its input is followed immediately by `exit`. The exit waits on the queue.
   rl.on('close', () => {
     closed = true;
-    process.stdout.off('resize', onResize);
+    // The listener is removed on every exit path, including the interval one
+    // below, so a session that ends by any route leaves stdout as it found it.
+    if (onResize) process.stdout.off('resize', onResize);
   });
 
   // Ctrl-C twice leaves. Once clears the line, which is what readline already
@@ -158,7 +182,7 @@ function session({ repo, flags, out, err, version }) {
   });
 
   // A resize redraws rather than leaving the prompt stranded mid-wrap.
-  const onResize = () => {
+  onResize = () => {
     if (!closed) rl.write(null, { ctrl: true, name: 'l' });
   };
   process.stdout.on('resize', onResize);
@@ -191,6 +215,18 @@ async function handleLine(ctx, line, rl, out, err) {
     return;
   }
   const [name, ...args] = words;
+
+  // `!cmd` runs a shell command from inside the session and prints its output.
+  // It is the only way out to a shell, which is the point: the set of things
+  // that can happen here stays small enough to remember.
+  if (name.startsWith('!') && name.length > 1) {
+    const result = await shellEscape(line.replace(/^!\s*/, ''), ctx.repo.root);
+    if (result) out(result);
+    rl.setPrompt(promptFor(ctx.repo));
+    rl.prompt();
+    return;
+  }
+
   const cmd = lookup(name);
 
   if (!cmd) {
@@ -244,12 +280,19 @@ async function startWeb(ctx) {
   const recorded = readPidFile(file);
 
   if (recorded && pidIsAlive(recorded)) {
-    return ['  ' + ok('Already running.') + dim(`  PID ${recorded.pid}`), '    ' + cyan(urls.local)].join('\n');
+    return ['  ' + ok('Already running.') + dim(`  PID ${recorded}`), '    ' + cyan(urls.local)].join('\n');
   }
 
   const { runStartBackground } = await import('../commands.js');
   const code = await runStartBackground({
-    flags: { ...ctx.flags, json: true },
+    // `nonInteractive` is not optional here. With no config on disk,
+    // `runStartBackground` hands off to `runSetup`, which opens its own readline
+    // on the same stdin this session is already reading — the wizard and the
+    // explorer would then compete for keystrokes, and the explorer could process
+    // a wizard answer as a command. Inside a session the server either starts
+    // from the config that exists or reports that there is none; the person can
+    // run `onboarder setup` deliberately if they want the wizard.
+    flags: { ...ctx.flags, json: true, nonInteractive: true },
     out: () => {},
     err: () => {},
   });

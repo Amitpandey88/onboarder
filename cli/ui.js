@@ -4,7 +4,36 @@
 // all strip styling in one place. Nothing here is load-bearing — every message
 // has to read fine as plain text, because that is how logs and CI see it.
 
-export const supportsColor = process.stdout.isTTY && !process.env.NO_COLOR;
+// Color resolution, in strict precedence order:
+//
+//   1. An explicit `--no-color` / `NO_COLOR`  → off. A person who asked for plain
+//      text gets plain text, whatever the environment says.
+//   2. An explicit `--color` / `FORCE_COLOR`   → on. This is the documented way
+//      to keep ANSI in a captured log or a pipe, so it has to beat the TTY sniff.
+//   3. Otherwise, a TTY                         → on.
+//   4. Otherwise                               → off.
+//
+// Every step reads live rather than caching at import, because `main` parses
+// flags *after* the module graph has loaded. The old `const supportsColor = ...`
+// decided once, at import, which is before `--no-color` was knowable — so the
+// documented flags were silently ignored everywhere.
+let forced = null; // null = undecided, true = force on, false = force off
+
+export function setColorEnabled(on) {
+  forced = on === undefined ? null : Boolean(on);
+}
+
+export function colorEnabled() {
+  if (forced === false) return false;
+  if (forced === true) return true;
+  if (process.env.NO_COLOR !== undefined && process.env.NO_COLOR !== '') return false;
+  if (process.env.FORCE_COLOR) return true;
+  return Boolean(process.stdout.isTTY);
+}
+
+export function supportsColor() {
+  return colorEnabled();
+}
 
 const CODES = {
   reset: 0, bold: 1, dim: 2, italic: 3,
@@ -12,7 +41,7 @@ const CODES = {
 };
 
 export function paint(text, ...styles) {
-  if (!supportsColor || !styles.length) return String(text);
+  if (!colorEnabled() || !styles.length) return String(text);
   const open = styles.map((s) => `\x1b[${CODES[s]}m`).join('');
   return `${open}${text}\x1b[0m`;
 }

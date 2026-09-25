@@ -60,9 +60,11 @@ It lands on a `map` of the repo, then waits:
 
 ```
   codebase > tour
+  codebase > hotspots
   codebase > find resolveImport
   codebase > deps logger.js
-  codebase > show logger.js
+  codebase > blast pathUtil.js      # what breaks if this breaks
+  codebase > !git log --oneline -3  # shell, without leaving
   codebase > exit
 ```
 
@@ -70,11 +72,17 @@ It lands on a `map` of the repo, then waits:
 |---|---|
 | **map · tour · explain** | What this is, the reading order for a new teammate, and a file or folder explained in prose |
 | **tree · find · show · deps** | Browse it, search it, read it, and trace what it connects to |
+| **graph · blast · symbols** | The dependency tree as arrows, the transitive blast radius, and a file's outline |
 | **health · hubs · layers · patterns** | The analysis, in the same words the site uses |
-| **stats · security · stack · entry · externals** | Numbers, findings, dependencies, and drift |
+| **coupling · clusters · risks** | Folder traffic as a heat grid, module groups, and everything wrong in one list |
+| **log · hotspots · blame** | Git history, the files that are complex *and* often changed, and who wrote a line |
+| **diagram · docs** | Real Mermaid source, and prose you can print or write to `ONBOARDER.md` |
 | **cd · rescan · web** | Switch repo, reload from disk, or start the web UI without leaving |
+| **Tab · `!cmd`** | Completes commands then file paths; runs a shell command inline |
 
 **It is the website's engine, not a reimplementation.** `onboarder explore` runs the same modules in the same order as `POST /api/scan` — `scanRepo` → `detectManifest` → `computeFacts` → `buildSearchIndex` — and the same projections the browser's views are projections of. A second implementation would drift, and a drifted map is worse than no map.
+
+Where the site draws a canvas, the terminal draws its own idiom from the same numbers: the coupling heat grid becomes block characters (which survive being piped to a file or read in black and white), and the force-directed graph becomes an arrow tree (`→` imports, `←` imported by) that shows the part that answers *what breaks if I break this*.
 
 Details worth knowing:
 

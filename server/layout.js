@@ -44,26 +44,53 @@ export function fit(text, max, { tail = true } = {}) {
 // 'frame'. The default is identity, which is what the server banner and the
 // `--no-color` path want.
 export function panel(title, rows, { indent = '  ', columns, paint = (t) => String(t) } = {}) {
-  // The hard ceiling is the terminal. A floor below it would be a lie: on a 40
-  // column terminal a 59-wide panel is exactly the overflow this exists to
-  // prevent, so the floor only guards against a nonsensical zero, and short
-  // titles/values are handled by the `fit` calls below rather than by a minimum.
-  const available = Math.max(24, (columns || termWidth()) - indent.length);
-  const labelWidth = Math.min(12, Math.max(...rows.map((r) => width(r.label ?? '')), 0));
-  // indent(2) + gap(2) + label + gap(2) + value + right border(2)
-  const valueRoom = Math.max(8, available - 2 - labelWidth - 2 - 2);
+  // The hard ceiling is the terminal, and it is the *only* ceiling. This used to
+  // clamp to a 24-column floor "to guard against a nonsensical zero", but a
+  // floor above the available width is precisely the overflow this function
+  // exists to prevent: in a 10-column terminal it produced 26-column lines and
+  // wrapped the border. A terminal can be narrower than a box; below the point
+  // where a bordered box is readable at all, the frame degrades to a plain
+  // aligned list, which is still honest output instead of a lie about width.
+  const total = Math.max(1, Math.floor(columns || termWidth()) - indent.length);
+
+  // A border costs 2 cells on each side; the label column costs `labelWidth`,
+  // then a 2-cell gap, then a content indent. Below what is left there is no
+  // room for a readable value, so the border is dropped entirely rather than
+  // drawn wider than the terminal. The content indent goes too: at a 3-column
+  // terminal, indent(2) + content(2) + one character is already 5, and the
+  // indent is decoration, not information.
+  const borderWorthIt = total >= 16;
+  const bodyIndent = total >= 8 ? 2 : 0;
+  const labelWidth = borderWorthIt ? Math.min(12, Math.max(...rows.map((r) => width(r.label ?? '')), 0)) : 0;
+  const gap = labelWidth ? 2 : 0;
+  const valueRoom = Math.max(1, total - (borderWorthIt ? 2 : 0) - labelWidth - gap - bodyIndent);
+
   const body = rows.map((r) => (r.hint
-    ? '  ' + ' '.repeat(labelWidth + 2) + paint(fit(r.hint, valueRoom), 'hint')
-    : '  ' + paint(fit(r.label ?? '', labelWidth).padEnd(labelWidth), 'label') + '  ' + fit(r.value ?? '', valueRoom)));
+    ? ' '.repeat(labelWidth + gap) + paint(fit(r.hint, valueRoom), 'hint')
+    : (labelWidth ? paint(fit(r.label ?? '', labelWidth).padEnd(labelWidth), 'label') + ' '.repeat(gap) : '')
+      + fit(r.value ?? '', valueRoom)));
+
+  if (!borderWorthIt) {
+    // No room for a frame. Still fitted, still labeled, just not boxed. The
+    // indent goes first — it is decoration, and at a 1–2 column terminal the
+    // 2-space indent plus a single content character is already 3, which wraps.
+    const lead = ' '.repeat(Math.max(0, Math.min(indent.length, total - 1)));
+    return [
+      paint(fit(title, total), 'title'),
+      ...body.map((line) => lead + ' '.repeat(bodyIndent) + fit(line, Math.max(1, total - lead.length - bodyIndent))),
+    ].join('\n');
+  }
 
   // Frame width = whatever the body needs, capped to what the terminal has.
-  const wanted = Math.max(...body.map(width), 12);
-  const inner = Math.max(8, Math.min(available - 2, wanted));
-  const shownTitle = fit(title, Math.max(2, inner - 4));
+  // The 2-cell content indent belongs to the body, so it counts toward the
+  // width the border has to enclose.
+  const wanted = Math.max(...body.map((line) => width('  ' + line)), 1);
+  const inner = Math.min(total - 2, Math.max(1, wanted));
+  const shownTitle = fit(title, Math.max(0, inner - 4));
   const top = paint('┌─ ', 'frame') + paint(shownTitle, 'title')
     + ' ' + paint('─'.repeat(Math.max(0, inner - shownTitle.length - 3)) + '┐', 'frame');
   const bottom = paint('└' + '─'.repeat(inner) + '┘', 'frame');
-  return [top, ...body, bottom].map((line) => indent + line).join('\n');
+  return [indent + top, ...body.map((line) => indent + '  ' + line), indent + bottom].join('\n');
 }
 
 // A one-line note rendered in the panel's muted voice.

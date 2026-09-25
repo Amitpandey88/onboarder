@@ -13,12 +13,15 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { openRepo, resolveTarget, readRepoFile, searchRepo } from '../cli/explorer/session.js';
+import { openRepo, resolveTarget, readRepoFile, searchRepo, lineNumber } from '../cli/explorer/session.js';
 import * as V from '../cli/explorer/views.js';
-import { COMMANDS, commandNames, helpText, lookup, tokenize } from '../cli/explorer/commands.js';
+import { wrapText } from '../cli/explorer/wrap.js';
+import { COMMANDS, commandNames, completer, helpText, lookup, shellEscape, tokenize } from '../cli/explorer/commands.js';
+import * as A from '../cli/explorer/advanced.js';
 import { runExplore } from '../cli/explorer/app.js';
 import { main } from '../cli/main.js';
 import { width } from '../server/layout.js';
+import { panel, row } from '../server/layout.js';
 
 // A small repo with the shape the views care about: an entry point, a hub that
 // several files import, a test, a cycle, a nested folder, and an external
@@ -326,3 +329,206 @@ test('the version shown in `about` is the one in package.json', async () => {
   assert.match(V.about(repo, pkg.version), new RegExp(pkg.version.replace(/\./g, '\\.')));
 });
 
+// ---------------------------------------------------------------------
+// Regressions. Every test below is a bug that shipped and was fixed; each
+// one says what broke, so the reason it exists survives the next refactor.
+// ---------------------------------------------------------------------
+
+test('`.` means the root, not a fuzzy match against eight random files', async () => {
+  await ensureRepo();
+  const found = resolveTarget(repo, '.');
+  assert.ok(found.folder, 'the root resolves as a folder');
+  assert.equal(found.folder.path, '', 'and the root folder has an empty path');
+  assert.equal(found.candidates, undefined, 'no misleading suggestions');
+
+  // …and the commands that take a target must all handle it.
+  assert.match(String(lookup('tree').run({ repo }, ['.'])), /tree · \./);
+  assert.ok(String(await lookup('explain').run({ repo }, ['.'])).length > 0);
+});
+
+test('`help <command>` answers about that command instead of ignoring it', async () => {
+  await ensureRepo();
+  const about = helpText({ repo }, 'find');
+  assert.match(about, /find <query>/);
+  assert.match(about, /also: search, grep/);
+  // The old bug printed the entire command list here.
+  assert.ok(!/health\s+Health grade/.test(about), 'it is not the full list');
+
+  assert.match(helpText({ repo }, 'definitely-not-a-command'), /No command called/);
+});
+
+test('a fractional line number is refused, not printed as a range', async () => {
+  await ensureRepo();
+  assert.equal(lineNumber('1.5', 0), null, 'a fraction is not a line');
+  assert.equal(lineNumber('abc', 0), null, 'so is nonsense');
+  assert.equal(lineNumber('-4', 0), null, 'and a negative');
+  assert.equal(lineNumber('7', 0), 7, 'a whole positive number passes');
+  assert.equal(lineNumber(undefined, 3), 3, 'an absent value takes the fallback');
+
+  const out = String(await lookup('show').run({ repo }, ['index.js', '1.5', '2.5']));
+  assert.match(out, /whole numbers/);
+  assert.ok(!/1\.5–/.test(out), 'no fractional range label');
+});
+
+test('the wrapper terminates on a terminal narrower than the indent', () => {
+  // This hung: `room` went to 0, the hard-split loop sliced a word to the empty
+  // string and re-read the same word forever. At room <= 0 it now completes.
+  for (const room of [-4, 0, 1]) {
+    const out = wrapText('a very long sentence that has to be folded somewhere', '  ', room);
+    assert.ok(out.length > 0, `room=${room} produced output`);
+  }
+  // And every view must survive a tiny terminal rather than wedge.
+  const before = process.env.COLUMNS;
+  process.env.COLUMNS = '2';
+  return (async () => {
+    try {
+      const r = await openRepo(dir);
+      for (const out of [V.explain(r, {}), V.overview(r), V.health(r), V.security(r), V.patterns(r)]) {
+        assert.ok(String(out).length > 0);
+      }
+    } finally {
+      if (before === undefined) delete process.env.COLUMNS;
+      else process.env.COLUMNS = before;
+    }
+  })();
+});
+
+test('a panel never draws wider than the terminal, at any width', () => {
+  // The panel used to clamp to a 24-column floor, which in a 10-column terminal
+  // produced 26-column lines and wrapped the border. Below the width where a
+  // box is readable it now degrades to a plain aligned list.
+  const rows = [row('URL', 'http://localhost:4310'), row('Config', '/home/u/.config/onboarder/config.json')];
+  for (const columns of [1, 2, 5, 8, 10, 14, 16, 20, 24, 30, 40, 80, 200]) {
+    for (const line of panel('Onboarder is running', rows, { columns }).split('\n')) {
+      // The 2-space indent is the caller's, so allow for it.
+      assert.ok(line.length <= Math.max(2, columns), `line of ${line.length} exceeds ${columns}: ${line}`);
+    }
+  }
+});
+
+test('the help screen fits the terminal it is printed into', async () => {
+  await ensureRepo();
+  const before = process.env.COLUMNS;
+  for (const cols of ['40', '60', '100']) {
+    process.env.COLUMNS = cols;
+    for (const line of helpText({ repo }).split('\n')) {
+      assert.ok(width(line) <= Number(cols), `help line exceeds ${cols}: ${JSON.stringify(line)}`);
+    }
+  }
+  process.env.COLUMNS = before;
+});
+
+test('--no-color and --color are honored, and neither is a no-op', async () => {
+  const ui = await import('../cli/ui.js');
+  const originalLog = console.log;
+  console.log = () => {};
+  try {
+    // `--no-color` was rejected outright by parseArgs and then ignored by the
+    // import-time color snapshot, so it had never worked for any command.
+    await main(['--no-color', '--version']);
+    assert.equal(ui.colorEnabled(), false, '--no-color turns color off');
+
+    // `--color` parsed fine and was then ignored, so color could not be forced
+    // into a pipe — which is the whole reason the flag exists.
+    ui.setColorEnabled(undefined);
+    await main(['--color', '--version']);
+    assert.equal(ui.colorEnabled(), true, '--color forces color on');
+  } finally {
+    ui.setColorEnabled(undefined);
+    console.log = originalLog;
+  }
+});
+
+test('a genuinely unknown flag is still rejected', () => {
+  // `--no-color` is lifted out before parsing, which must not turn the parser
+  // lenient about everything else: a tool that writes a config file should still
+  // refuse a typo rather than silently ignoring it.
+  const originalErr = console.error;
+  const originalLog = console.log;
+  const errors = [];
+  console.error = (l) => errors.push(String(l));
+  console.log = () => {};
+  return main(['--definitely-not-a-flag']).then((code) => {
+    console.error = originalErr;
+    console.log = originalLog;
+    assert.equal(code, 2, 'an unknown flag is an error');
+    assert.match(errors.join('\n'), /Unknown option/);
+  }, (e) => {
+    console.error = originalErr;
+    console.log = originalLog;
+    throw e;
+  });
+});
+
+
+
+// Every terminal view, at every width, on a real repo. This is the test that
+// matters most for a terminal app: a view that overflows "mess the terminal",
+// and the bug is invisible until someone happens to be in an 80-column window
+// on a phone-width terminal. The widths below run from narrower than any real
+// terminal to much wider, so a floor that beats the available width shows up.
+test('no terminal view ever exceeds the terminal, at any width', async () => {
+  await ensureRepo();
+  const terminalViews = {
+    log: () => A.log(repo), hotspots: () => A.hotspots(repo), coupling: () => A.coupling(repo),
+    clusters: () => A.clusters(repo), blast: () => A.blast(repo, { target: 'render.js' }),
+    graph: () => A.graph(repo, { target: 'render.js' }), symbols: () => A.symbols(repo, { target: 'render.js' }),
+    risks: () => A.risks(repo), blame: () => A.blame(repo, { target: 'render.js' }),
+    overview: () => V.overview(repo), health: () => V.health(repo), hubs: () => V.hubs(repo),
+    stats: () => V.stats(repo), find: () => V.find(repo, { query: 'render' }), tour: () => V.tour(repo),
+    patterns: () => V.patterns(repo), layers: () => V.layers(repo), entry: () => V.entry(repo),
+    externals: () => V.externals(repo), tree: () => V.tree(repo, {}),
+    deps: () => V.deps(repo, { target: 'render.js' }), security: () => V.security(repo),
+    stack: () => V.stack(repo),
+  };
+  // `docs`, `diagram` and `layers-diagram` are excluded on purpose: they emit
+  // Markdown and Mermaid *for another tool*, where a long line is correct.
+  const before = process.env.COLUMNS;
+  try {
+    for (const cols of ['8', '12', '16', '20', '30', '40', '60', '80', '120', '200', '400']) {
+      process.env.COLUMNS = cols;
+      for (const [name, fn] of Object.entries(terminalViews)) {
+        for (const line of String(await fn()).split('\n')) {
+          assert.ok(width(line) <= Number(cols), `${name} at ${cols} columns produced a ${width(line)}-wide line: ${JSON.stringify(line)}`);
+        }
+      }
+    }
+  } finally {
+    if (before === undefined) delete process.env.COLUMNS;
+    else process.env.COLUMNS = before;
+  }
+});
+
+test('the new commands are all reachable and produce output', async () => {
+  await ensureRepo();
+  const added = ['graph', 'blast', 'symbols', 'docs', 'log', 'hotspots', 'blame', 'coupling', 'clusters', 'diagram', 'layers-diagram', 'risks'];
+  for (const name of added) {
+    const cmd = lookup(name);
+    assert.ok(cmd, `${name} is in the table`);
+    const args = { explain: [], graph: ['render.js'], blast: ['render.js'], symbols: ['render.js'], docs: [], log: [], hotspots: [], blame: ['render.js'], coupling: [], clusters: [], diagram: [], 'layers-diagram': [], risks: [] }[name] || [];
+    const out = String(await cmd.run({ repo, version: '0.5.0' }, args));
+    assert.ok(out.length > 0, `${name} produced output`);
+    assert.ok(!/\[object Promise\]|undefined/.test(out), `${name} has no unresolved values`);
+  }
+});
+
+test('tab completion offers commands and then file paths', async () => {
+  await ensureRepo();
+  const done = completer(repo);
+  const [cmdHits] = done('bl');
+  assert.ok(cmdHits.includes('blast') || cmdHits.includes('blame'), 'completes a command prefix');
+
+  // After a space it switches to paths in the loaded repo.
+  const [paths, frag] = done('show rend');
+  assert.equal(frag, 'rend');
+  assert.ok(paths.includes('render.js'), `expected a path hit, got ${JSON.stringify(paths)}`);
+});
+
+test('the shell escape runs a command and survives a non-zero exit', async () => {
+  const cwd = process.cwd();
+  const ok = await shellEscape('echo hello', cwd);
+  assert.match(ok, /hello/);
+  // A failing command is an answer, not a crash.
+  const failed = await shellEscape('false', cwd);
+  assert.match(failed, /exit/);
+});

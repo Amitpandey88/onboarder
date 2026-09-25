@@ -21,7 +21,7 @@ import { scanRepo } from '../../shared/analyzer/scan.js';
 import { detectManifest } from '../../shared/analyzer/services.js';
 import { computeFacts, roleOf } from '../../shared/analyzer/graph.js';
 import { analyzeHealth } from '../../shared/analyzer/health.js';
-import { computeLayers, detectPatterns } from '../../shared/analyzer/patterns.js';
+import { computeLayers, detectPatterns, couplingMatrix } from '../../shared/analyzer/patterns.js';
 import { summarizeSecurity } from '../../shared/analyzer/security.js';
 import { analyzeStack } from '../../shared/analyzer/stack.js';
 import { buildTourStops } from '../../shared/analyzer/tour.js';
@@ -45,7 +45,9 @@ export async function openRepo(target = '.', { onProgress } = {}) {
 
   // The layers projection is an input to patterns, not a parallel view of the
   // same thing — `detectPatterns` reads the layer depths to place a file in the
-  // architecture. Compute once, share.
+  // architecture. Compute once, share. The coupling matrix is the same kind of
+  // thing: a projection of `facts.folderEdges` that both the site and the
+  // terminal's heat grid read, so it is computed once here rather than per view.
   const layers = computeLayers(scan, facts);
 
   return {
@@ -56,6 +58,7 @@ export async function openRepo(target = '.', { onProgress } = {}) {
     manifest,
     searchIndex,
     layers,
+    coupling: couplingMatrix(scan, facts),
     health: analyzeHealth(scan, facts),
     patterns: detectPatterns(scan, facts, manifest, layers),
     security: summarizeSecurity(scan),
@@ -83,6 +86,12 @@ export function resolveTarget(repo, typed) {
   const raw = String(typed || '').trim().replace(/^\.\//, '');
   if (!raw) return { error: 'Name a file or folder.' };
 
+  // `.` and `./` are the root, which is a real folder and a common thing to type
+  // (`tree .`, `explain .`). Without this they fell through to the substring
+  // match and offered eight unrelated files as "did you mean", which is worse
+  // than useless — it is actively misleading. The root folder's path is `''`.
+  if (raw === '.' || raw === './') return { folder: ROOT_FOLDER };
+
   const files = repo.scan.files;
   if (!repo.byPath) repo.byPath = new Map(files.map((f) => [f.path, f]));
   if (repo.byPath.has(raw)) return { file: repo.byPath.get(raw) };
@@ -107,11 +116,16 @@ export function resolveTarget(repo, typed) {
   return { error: 'Nothing in this repo matches "' + raw + '".' };
 }
 
+// The root folder is a real answer, not a sentinel: `tree .` and `explain .`
+// both need one, and it carries the same fields `resolveTarget` returns for any
+// other folder so the callers need no special case.
+const ROOT_FOLDER = Object.freeze({ name: '', path: '', loc: 0, comment: 0, blank: 0, size: 0, langs: {} });
+
 function folderFor(repo, typed) {
   const clean = typed.replace(/\/+$/, '');
-  if (repo.scan.folders.some((d) => d.path === clean)) {
-    return repo.scan.folders.find((d) => d.path === clean);
-  }
+  if (clean === '') return ROOT_FOLDER;
+  const exact = repo.scan.folders.find((d) => d.path === clean);
+  if (exact) return exact;
   const matches = repo.scan.folders.filter((d) => d.path.endsWith('/' + clean) || d.name === clean);
   return matches.length === 1 ? matches[0] : null;
 }
@@ -132,6 +146,17 @@ export async function readRepoFile(repo, repoPath) {
 // function.
 export function searchRepo(repo, query, { limit = 12 } = {}) {
   return searchDocuments(repo.searchIndex, query, { limit });
+}
+
+// A number a person typed, or nothing. `show f 1.5 2.5` used to print
+// `1.5–3 of 344`: `Number('1.5')` passed the `|| 1` fallback, the label
+// interpolated the fraction, and only `slice()` coerced it. A line range is
+// either a whole number of lines or it is a mistake, and a mistake gets a
+// message rather than a wrong heading.
+export function lineNumber(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 export function explainRepoFile(repo, file) {

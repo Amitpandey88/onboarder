@@ -11,6 +11,14 @@
 // handled once, in the tokenizer, and every command sees the same shape.
 
 import * as V from './views.js';
+import * as A from './advanced.js';
+import { lineNumber } from './session.js';
+import { bold, cyan, dim, ok, fit, termWidth } from '../ui.js';
+import { wrapText } from './wrap.js';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const run = promisify(execFile);
 
 export const EXIT = Symbol('exit');
 export const CLEAR = Symbol('clear');
@@ -18,8 +26,10 @@ export const CLEAR = Symbol('clear');
 export const COMMANDS = [
   {
     name: 'help', aliases: ['?'], group: 'basics',
-    usage: 'help', summary: 'This list.',
-    run: (ctx) => ctx.help(),
+    usage: 'help [command]', summary: 'This list, or everything about one command.',
+    // The topic is forwarded. `help find` used to ignore its argument and print
+    // the whole list, which reads as the command not working.
+    run: (ctx, args) => ctx.help(args.join(' ')),
   },
   {
     name: 'map', aliases: ['overview', 'home'], group: 'basics',
@@ -42,10 +52,12 @@ export const COMMANDS = [
     run: (ctx, args) => {
       // A lone number is the depth, not a folder called "2". `tree 3` is what
       // everyone types when they want to see more; making them spell
-      // `tree . 3` would be pedantry in a tool built to be forgiving.
+      // `tree . 3` would be pedantry in a tool built to be forgiving. `.` is the
+      // root, so it must not be taken as a folder name either.
       const onlyDepth = args.length === 1 && /^\d+$/.test(args[0]);
+      const sub = onlyDepth ? '' : (args[0] || '');
       return V.tree(ctx.repo, {
-        sub: onlyDepth ? '' : (args[0] || ''),
+        sub: sub === '.' ? '' : sub,
         depth: onlyDepth ? Number(args[0]) : (Number(args[1]) || 2),
       });
     },
@@ -58,10 +70,14 @@ export const COMMANDS = [
   {
     name: 'show', aliases: ['open', 'cat', 'read'], group: 'navigate',
     usage: 'show <file> [from] [count]', summary: 'Read a file. Name it loosely: `show logger.js` works.',
-    run: (ctx, args) => V.show(ctx.repo, { target: args[0] || '', from: Number(args[1]) || 0, count: Number(args[2]) || 0 }),
+    run: (ctx, args) => V.show(ctx.repo, {
+      target: args[0] || '',
+      from: lineNumber(args[1], 0),
+      count: lineNumber(args[2], 0),
+    }),
   },
   {
-    name: 'deps', aliases: ['connections', 'graph'], group: 'navigate',
+    name: 'deps', aliases: ['connections'], group: 'navigate',
     usage: 'deps <file>', summary: 'What a file imports, and what imports it.',
     run: (ctx, args) => V.deps(ctx.repo, { target: args.join(' ') }),
   },
@@ -109,6 +125,75 @@ export const COMMANDS = [
     name: 'externals', aliases: ['drift'], group: 'analyze',
     usage: 'externals', summary: 'External packages, plus dependency drift.',
     run: (ctx) => V.externals(ctx.repo),
+  },
+  {
+    name: 'graph', aliases: ['tree-graph'], group: 'navigate',
+    usage: 'graph <file> [depth]', summary: 'The dependency tree around a file, as arrows.',
+    run: (ctx, args) => A.graph(ctx.repo, { target: args[0] || '', depth: Number(args[1]) || 2 }),
+  },
+  {
+    name: 'blast', aliases: ['impact', 'radius'], group: 'navigate',
+    usage: 'blast <file>', summary: 'What breaks if this file breaks, transitively.',
+    run: (ctx, args) => A.blast(ctx.repo, { target: args.join(' ') }),
+  },
+  {
+    name: 'symbols', aliases: ['outline', 'functions'], group: 'navigate',
+    usage: 'symbols <file>', summary: 'Functions, classes and exports in a file.',
+    run: (ctx, args) => A.symbols(ctx.repo, { target: args.join(' ') }),
+  },
+  {
+    name: 'docs', aliases: ['document'], group: 'analyze',
+    usage: 'docs [file|folder] | docs --write', summary: 'Prose docs for a file, or write ONBOARDER.md.',
+    run: async (ctx, args) => {
+      // `--write` is the one command here that touches the filesystem. It is
+      // opt-in, explicit, and prints where it wrote — a map tool should never
+      // leave a file behind just because someone asked what the docs say.
+      if (args[0] === '--write') {
+        const abs = await A.writeDocs(ctx.repo, args[1] || 'ONBOARDER.md');
+        return '  ' + ok('Wrote ') + cyan(abs);
+      }
+      return A.docs(ctx.repo, { target: args.filter((a) => a !== '--write').join(' ') });
+    },
+  },
+  {
+    name: 'log', aliases: ['history', 'commits'], group: 'git',
+    usage: 'log [count]', summary: 'Recent commits, and who wrote them.',
+    run: (ctx, args) => A.log(ctx.repo, { limit: Number(args[0]) || 15 }),
+  },
+  {
+    name: 'hotspots', aliases: ['churn'], group: 'git',
+    usage: 'hotspots [count]', summary: 'Files that are both complex and frequently changed.',
+    run: (ctx, args) => A.hotspots(ctx.repo, { limit: Number(args[0]) || 12 }),
+  },
+  {
+    name: 'blame', aliases: ['authors'], group: 'git',
+    usage: 'blame <file>', summary: 'Who wrote each line of a file.',
+    run: (ctx, args) => A.blame(ctx.repo, { target: args.join(' ') }),
+  },
+  {
+    name: 'coupling', aliases: ['matrix', 'heatmap'], group: 'analyze',
+    usage: 'coupling', summary: 'Folder-to-folder import traffic, as a heat grid.',
+    run: (ctx) => A.coupling(ctx.repo),
+  },
+  {
+    name: 'clusters', aliases: ['communities', 'modules'], group: 'analyze',
+    usage: 'clusters', summary: 'Groups of files that import each other more than the rest.',
+    run: (ctx) => A.clusters(ctx.repo),
+  },
+  {
+    name: 'diagram', aliases: ['mermaid'], group: 'analyze',
+    usage: 'diagram [file]', summary: 'Mermaid source for the repo, or one file.',
+    run: (ctx, args) => A.diagram(ctx.repo, { target: args.join(' ') }),
+  },
+  {
+    name: 'layers-diagram', aliases: [], group: 'analyze',
+    usage: 'layers-diagram', summary: 'Mermaid source for the layer stack.',
+    run: (ctx) => A.layerDiagram(ctx.repo),
+  },
+  {
+    name: 'risks', aliases: ['problems', 'smells'], group: 'analyze',
+    usage: 'risks', summary: 'Cycles, orphans, dead exports, drift — in one list.',
+    run: (ctx) => A.risks(ctx.repo),
   },
   {
     name: 'about', aliases: ['version'], group: 'session',
@@ -161,27 +246,41 @@ export function commandNames() {
 }
 
 // `help <command>` answers about one command; bare `help` lists them, grouped so
-// the shape of the tool is visible rather than alphabetical.
+// the shape of the tool is visible rather than alphabetical. Every row is
+// fitted, because a long summary on a narrow terminal used to wrap into the
+// next row and make the list unreadable.
 export function helpText(ctx, topic = '') {
+  const w = termWidth();
   if (topic) {
     const cmd = lookup(topic);
-    if (!cmd) return `  No command called "${topic}". Try \`help\`.`;
+    if (!cmd) return fit(`  No command called "${topic}". Try \`help\`.`, Math.max(10, w - 2));
     const also = cmd.aliases.length ? `  (also: ${cmd.aliases.join(', ')})` : '';
-    return ['  ' + cmd.usage + also, '    ' + cmd.summary].join('\n');
+    return [
+      fit('  ' + cmd.usage + also, Math.max(10, w - 2)),
+      wrapText(cmd.summary, '    '),
+    ].join('\n');
   }
   const groups = new Map();
   for (const cmd of COMMANDS) {
     if (!groups.has(cmd.group)) groups.set(cmd.group, []);
     groups.get(cmd.group).push(cmd);
   }
-  const room = Math.max(...COMMANDS.map((c) => c.usage.length));
+  // Two cells of indent, two of gap, and the summary gets whatever is left. The
+  // usage column shrinks with the terminal rather than pushing the text off it.
+  const longest = Math.max(...COMMANDS.map((c) => c.usage.length));
+  const usageRoom = Math.max(8, Math.min(longest, Math.floor(w * 0.4)));
   const out = [];
   for (const [group, list] of groups) {
-    out.push('  ' + group.toUpperCase());
-    for (const c of list) out.push('    ' + c.usage.padEnd(room) + '  ' + c.summary);
+    out.push(fit('  ' + group.toUpperCase(), Math.max(10, w - 2)));
+    for (const c of list) {
+      const left = '    ' + fit(c.usage, usageRoom);
+      const room = w - left.length - 2;
+      out.push(room > 8 ? left + '  ' + fit(c.summary, room, { tail: false }) : left);
+    }
   }
   out.push('');
-  out.push('  ' + (ctx?.repo ? ctx.repo.name : 'onboarder') + ' · Ctrl-D or `exit` to leave · Ctrl-C twice to quit');
+  out.push(fit('  ' + (ctx?.repo ? ctx.repo.name : 'onboarder')
+    + ' · Ctrl-D or `exit` to leave · Ctrl-C twice to quit', Math.max(10, w - 2)));
   return out.join('\n');
 }
 
@@ -195,3 +294,71 @@ export function tokenize(line) {
   while ((m = re.exec(String(line || '')))) out.push(m[1] ?? m[2] ?? m[3]);
   return out;
 }
+
+// Tab completion, because a REPL where you retype `shared/analyzer/graph.js` one
+// letter at a time is not a REPL, it is a punishment.
+//
+// Two contexts, chosen by what is already typed. Before the first space, the line
+// is a command name, so it completes against the command table — including
+// aliases, because a person who types `ls` wants `tree` to finish. After a space,
+// it is an argument, so it completes against real file paths in the loaded repo,
+// which is the thing that is tedious to type and impossible to remember.
+//
+// `shellEscape` is the other half of a good REPL: `!git status` runs a shell
+// command and hands the output back, so nobody has to leave the session to run
+// one thing. It is deliberately the *only* way out to a shell, so the set of
+// things that can happen in a session stays legible.
+function completer(repo) {
+  return function complete(line) {
+    const trailingSpace = /\s$/.test(line);
+    const parts = line.split(/\s+/);
+    // Completing a command (no space yet, or trailing space after one word).
+    if (parts.length <= 1 || (parts.length === 2 && trailingSpace)) {
+      const hits = [...BY_NAME.keys()].filter((n) => n.startsWith(parts[0] || '')).sort();
+      return [hits.length ? hits : parts, parts[0] || ''];
+    }
+    // Completing a path argument against the loaded repo. Matches at any depth,
+    // not just from the root: `show rend` should find `src/render.js`, which is
+    // the case the resolver's forgiving path lookup already handles — the
+    // completer has to agree with it or Tab contradicts what the command does.
+    const frag = parts[parts.length - 1] || '';
+    const slash = frag.lastIndexOf('/');
+    const dir = slash === -1 ? '' : frag.slice(0, slash + 1);
+    const base = slash === -1 ? frag : frag.slice(slash + 1);
+    const seen = new Set();
+    const hits = [];
+    for (const f of repo.scan.allFiles || repo.scan.files) {
+      if (dir && !f.startsWith(dir)) continue;
+      // With no directory typed, match the *last* segment so `rend` finds
+      // `src/render.js`; with one typed, match the segment being completed.
+      const name = dir ? f.slice(dir.length) : f.slice(f.lastIndexOf('/') + 1);
+      if (!name.startsWith(base)) continue;
+      if (seen.has(name)) continue;
+      seen.add(name);
+      hits.push(name);
+      if (hits.length >= 200) break;
+    }
+    return [hits.length ? hits : [frag], frag];
+  };
+}
+
+// Run a shell command and capture its output. A non-zero exit is not a crash —
+// `grep` that finds nothing is a normal answer — so the code is reported, not
+// thrown. There is no `shell: true`: the whole line is the argument vector, so
+// nothing in a filename can be interpreted as a second command.
+async function shellEscape(line, cwd) {
+  const parts = tokenize(line);
+  if (!parts.length) return null;
+  try {
+    const { stdout, stderr } = await run(parts[0], parts.slice(1), { cwd, maxBuffer: 8 * 1024 * 1024 });
+    const out = String(stdout || '').trimEnd();
+    const err = String(stderr || '').trimEnd();
+    return [out, err].filter(Boolean).join('\n') || dim('  (no output)');
+  } catch (e) {
+    const code = e.code ?? e.status;
+    const err = String(e.stderr || '').trimEnd() || String(e.message || '').trimEnd();
+    return dim('  exit ' + (code ?? '?') + (err ? '\n  ' + err : ''));
+  }
+}
+
+export { completer, shellEscape };
