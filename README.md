@@ -22,8 +22,11 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 # Install from npm (Node 20+, zero runtime dependencies)
 npm install -g codebase-onboarder
 
-# First run: a short setup wizard, then the server
+# Explore the repo you are standing in, right in your terminal
 onboarder
+
+# …or start the web UI instead
+onboarder start
 ```
 
 Or from source:
@@ -36,9 +39,50 @@ npm start
 
 Open **http://localhost:4310** in your browser (the CLI opens it for you).
 
+- **Two front doors, one engine.** `onboarder` opens an interactive terminal session; `onboarder start` opens the web UI. Both run the *same* analyzer, so they can never disagree about a repository.
 - **Zero build steps**: Native ES modules.
 - **Zero runtime dependencies**: Powered by Node.js built-ins (`node:http`, `node:fs`, `node:crypto`).
 - **Offline ready**: Vendored Mermaid.js and Monaco Editor builds are included in `public/vendor/`.
+
+---
+
+## 🖥️ The terminal app
+
+Type `onboarder` in any repo and you get the website, in your terminal. No server, no browser, no network — it reads the folder directly.
+
+```bash
+onboarder                 # explore the current directory
+onboarder explore ~/work/some-repo
+onboarder --server        # force the web UI (what bare `onboarder` used to do)
+```
+
+It lands on a `map` of the repo, then waits:
+
+```
+  codebase > tour
+  codebase > find resolveImport
+  codebase > deps logger.js
+  codebase > show logger.js
+  codebase > exit
+```
+
+| | |
+|---|---|
+| **map · tour · explain** | What this is, the reading order for a new teammate, and a file or folder explained in prose |
+| **tree · find · show · deps** | Browse it, search it, read it, and trace what it connects to |
+| **health · hubs · layers · patterns** | The analysis, in the same words the site uses |
+| **stats · security · stack · entry · externals** | Numbers, findings, dependencies, and drift |
+| **cd · rescan · web** | Switch repo, reload from disk, or start the web UI without leaving |
+
+**It is the website's engine, not a reimplementation.** `onboarder explore` runs the same modules in the same order as `POST /api/scan` — `scanRepo` → `detectManifest` → `computeFacts` → `buildSearchIndex` — and the same projections the browser's views are projections of. A second implementation would drift, and a drifted map is worse than no map.
+
+Details worth knowing:
+
+- **Forgiving paths.** `show logger.js` finds `server/logger.js`. A genuinely ambiguous name (`index.js`) lists the candidates instead of guessing — silently picking the wrong file is how a map loses your trust.
+- **The site's search language.** `find ext:rs -test`, `find "exact phrase"`, `find /regex/` all work because it is the same query parser the web palette uses.
+- **Fits your terminal.** Every line is fitted to the current width and re-fits on resize; prose wraps instead of running off the edge. `NO_COLOR` and `COLUMNS` are honored.
+- **It refuses to hang.** Without a TTY, `onboarder explore` explains itself and exits rather than waiting for input that will never come. Scripts and CI keep working.
+- **Bridges to the web.** `web` starts the UI in the background and prints the URL, without ending your session.
 
 ---
 
@@ -312,6 +356,13 @@ Cloudflare quick tunnels and Tailscale remain supported. They terminate TLS and 
 codebase-onboarder/
 ├── bin/             # npm entry point (shebang trampoline) & postinstall note
 ├── cli/             # Onboarding wizard, config commands, doctor, tunnels
+│   ├── main.js      # argv → command; bare `onboarder` picks explorer vs server
+│   ├── ui.js        # Terminal paint; --no-color / NO_COLOR strip it in one place
+│   └── explorer/    # The terminal app
+│       ├── app.js     # The readline session, TTY guards, `web` bridge
+│       ├── session.js # Loads a repo exactly as POST /api/scan does
+│       ├── views.js   # The site's screens, drawn as text (pure functions)
+│       └── commands.js# One command table: dispatch, help, and tests share it
 ├── server/          # Zero-dependency Node.js HTTP server
 │   ├── index.js     # createServer / startServer / startup banner
 │   ├── config.js    # Settings schema, normalization, atomic 0600 writes
@@ -339,7 +390,7 @@ codebase-onboarder/
 │   ├── vendor/      # Vendored Mermaid & Monaco Editor (Offline)
 │   ├── index.html   # Main application interface
 │   └── login.html   # Self-hosted access-key sign-in
-└── tests/           # Comprehensive node:test suite (565 tests)
+└── tests/           # Comprehensive node:test suite
 ```
 
 ---

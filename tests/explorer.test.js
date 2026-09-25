@@ -1,0 +1,328 @@
+// The terminal explorer: the session it loads, the views it draws, the commands
+// it dispatches, and the guards that keep it out of a pipe.
+//
+// The fixture is a real directory on disk rather than the in-memory FileSource
+// the analyzer tests use, because `openRepo` goes through `nodeFileSource` —
+// testing it against a fake adapter would skip the one adapter the terminal
+// actually uses.
+
+import test, { after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+
+import { openRepo, resolveTarget, readRepoFile, searchRepo } from '../cli/explorer/session.js';
+import * as V from '../cli/explorer/views.js';
+import { COMMANDS, commandNames, helpText, lookup, tokenize } from '../cli/explorer/commands.js';
+import { runExplore } from '../cli/explorer/app.js';
+import { main } from '../cli/main.js';
+import { width } from '../server/layout.js';
+
+// A small repo with the shape the views care about: an entry point, a hub that
+// several files import, a test, a cycle, a nested folder, and an external
+// dependency, so every branch in the views has something real to render.
+async function fixture() {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'onboarder-explorer-'));
+  const write = (p, body) => fs.mkdir(path.join(dir, path.dirname(p)), { recursive: true })
+    .then(() => fs.writeFile(path.join(dir, p), body));
+
+  await write('package.json', JSON.stringify({
+    name: 'fixture-app',
+    main: 'src/index.js',
+    dependencies: { express: '^4.18.0' },
+  }, null, 2));
+  await write('src/index.js', [
+    "import { render } from './render.js';",
+    "import { helper } from './util/helper.js';",
+    "import express from 'express';",
+    "export function main() { return render(helper()); }",
+  ].join('\n'));
+  await write('src/render.js', "import { helper } from './util/helper.js';\nexport function render(x) { return helper(x); }\n");
+  // util/helper.js imports render.js: a two-file cycle, so `inCycle` is real.
+  await write('src/util/helper.js', "import { render } from '../render.js';\nexport function helper(x) { return render(x) + 1; }\n");
+  await write('test/index.test.js', "import { main } from '../src/index.js';\nexport const t = main;\n");
+  await write('README.md', '# fixture-app\n\nA fixture.\n');
+  return dir;
+}
+
+// One fixture for the whole file, built once. Per-test `t.after` cleanup would
+// delete the directory the remaining tests are still reading from, so the
+// teardown hangs off the file's own `after` instead.
+let repo;
+let dir;
+let pending;
+
+function ensureRepo() {
+  pending ||= (async () => {
+    dir = await fixture();
+    repo = await openRepo(dir);
+    return repo;
+  })();
+  return pending;
+}
+
+after(async () => {
+  if (dir) await fs.rm(dir, { recursive: true, force: true });
+});
+
+test('openRepo loads a repo through the same pipeline the site uses', async () => {
+  await ensureRepo();
+
+  // The repo is named after the folder, which is the honest answer for a local
+  // path — the package name lives in the manifest and is shown separately.
+  assert.equal(repo.name, path.basename(dir));
+  assert.ok(repo.scan.files.length >= 4, 'files were parsed');
+  assert.ok(repo.facts.entries.includes('src/index.js'), 'the manifest main is an entry point');
+  assert.ok(repo.facts.hubs.length > 0, 'a hub was found');
+  assert.ok(repo.facts.inCycle.includes('src/render.js'), 'the cycle was detected');
+  assert.equal(repo.manifest.packageName, 'fixture-app');
+  assert.ok(repo.searchIndex.totalDocs > 0, 'the search index was built');
+  assert.ok(repo.health.grade, 'health was computed');
+  assert.ok(repo.layers.layers.length > 0, 'layers were computed');
+  assert.ok(repo.tour.length > 0, 'the tour was built');
+  assert.ok(repo.languages.some((l) => l.label === 'JavaScript'), 'languages are labelled');
+});
+
+test('openRepo refuses a path that is not there, with a message a person can act on', async () => {
+  await assert.rejects(() => openRepo('/definitely/not/here'), /No such folder/);
+});
+
+test('resolveTarget finds files by exact path, suffix, and bare name', () => {
+  assert.equal(resolveTarget(repo, 'src/render.js').file.path, 'src/render.js');
+  // The forgiving case: nobody types the full path from memory.
+  assert.equal(resolveTarget(repo, 'render.js').file.path, 'src/render.js');
+  assert.equal(resolveTarget(repo, './render.js').file.path, 'src/render.js');
+  assert.equal(resolveTarget(repo, 'src/util').folder.path, 'src/util');
+});
+
+test('resolveTarget offers candidates rather than guessing', () => {
+  const miss = resolveTarget(repo, 'nothing-like-this');
+  assert.match(miss.error, /Nothing in this repo matches/);
+
+  // A loose substring still produces something actionable.
+  const loose = resolveTarget(repo, 'helper');
+  assert.ok(loose.file || loose.candidates?.length, 'a loose match resolves or suggests');
+});
+
+test('searchRepo answers with the same query language the site uses', () => {
+  const hit = searchRepo(repo, 'render');
+  assert.ok(hit.results.some((r) => r.path === 'src/render.js'));
+
+  const filtered = searchRepo(repo, 'ext:js -test');
+  assert.ok(filtered.advanced, 'a filter is an advanced query');
+  assert.ok(filtered.results.every((r) => !r.path.includes('test')), 'the exclusion held');
+});
+
+// Every view, run once against the fixture. The point is not the exact wording
+// — it is that no view throws on a repo with a cycle, an external dependency
+// and a nested folder, and that each says something identifying.
+test('every view renders without throwing or leaking placeholders', async () => {
+  await ensureRepo();
+
+  const views = {
+    overview: () => V.overview(repo),
+    tree: () => V.tree(repo, {}),
+    'tree scoped': () => V.tree(repo, { sub: 'src', depth: 3 }),
+    find: () => V.find(repo, { query: 'render' }),
+    'find empty': () => V.find(repo, { query: '' }),
+    'find no match': () => V.find(repo, { query: 'zzzznothing' }),
+    show: () => V.show(repo, { target: 'render.js' }),
+    'show windowed': () => V.show(repo, { target: 'index.js', from: 2, count: 2 }),
+    'show missing': () => V.show(repo, { target: 'nope.js' }),
+    deps: () => V.deps(repo, { target: 'helper.js' }),
+    'deps folder': () => V.deps(repo, { target: 'src' }),
+    explain: () => V.explain(repo, {}),
+    'explain file': () => V.explain(repo, { target: 'render.js' }),
+    'explain folder': () => V.explain(repo, { target: 'src' }),
+    'explain missing': () => V.explain(repo, { target: 'nope' }),
+    tour: () => V.tour(repo),
+    health: () => V.health(repo),
+    hubs: () => V.hubs(repo),
+    layers: () => V.layers(repo),
+    patterns: () => V.patterns(repo),
+    stats: () => V.stats(repo),
+    security: () => V.security(repo),
+    stack: () => V.stack(repo),
+    entry: () => V.entry(repo),
+    externals: () => V.externals(repo),
+    about: () => V.about(repo, '9.9.9'),
+  };
+
+  for (const [name, fn] of Object.entries(views)) {
+    const out = String(await fn());
+    assert.ok(out.length > 0, `${name} produced output`);
+    assert.ok(!/undefined|\[object Object\]|NaN/.test(out), `${name} has no placeholder values`);
+  }
+});
+
+test('show windows the file and labels the window it showed', async () => {
+  await ensureRepo();
+  const out = await V.show(repo, { target: 'index.js', from: 2, count: 2 });
+  assert.match(out, /2–3 of 4/, 'it says which lines are on screen');
+  // Lines 2 and 3 are the second and third imports — the window is real, not
+  // the whole file reprinted with a range label on top.
+  assert.match(out, /helper\.js/);
+  assert.match(out, /express/);
+  assert.ok(!/export function main/.test(out), 'line 4 is outside the window');
+});
+
+test('a health grade is printed once, not twice', async () => {
+  await ensureRepo();
+  const grades = V.health(repo).match(new RegExp(repo.health.grade, 'g')) || [];
+  assert.equal(grades.length, 1, 'the grade is stated exactly once');
+});
+
+test('readRepoFile will not read outside the repository', async () => {
+  await ensureRepo();
+  await assert.rejects(() => readRepoFile(repo, '../escape.js'), /outside the repository/);
+  assert.match(await readRepoFile(repo, 'src/render.js'), /export function render/);
+});
+
+// The command table is the single definition of the surface, so its invariants
+// are worth asserting: no duplicate names, no alias that shadows another
+// command, every command runnable and described.
+test('a lone number to `tree` is a depth, not a folder name', async () => {
+  await ensureRepo();
+  const asDepth = String(await lookup('tree').run({ repo }, ['3']));
+  const asFolder = String(await lookup('tree').run({ repo }, ['src', '3']));
+
+  assert.match(asDepth, /tree · \./, 'a bare number still means the root');
+  assert.match(asDepth, /depth 3/);
+  assert.match(asFolder, /tree · src/, 'a real folder name is still honored');
+  assert.match(asFolder, /index\.js/, 'and its contents are listed');
+});
+
+test('the command table is well formed', () => {
+  const names = new Set();
+  const spellings = new Map();
+  for (const cmd of COMMANDS) {
+    assert.ok(cmd.name && cmd.summary && typeof cmd.run === 'function', `${cmd.name} is complete`);
+    assert.ok(!names.has(cmd.name), `${cmd.name} is not a duplicate name`);
+    names.add(cmd.name);
+
+    for (const word of [cmd.name, ...cmd.aliases]) {
+      const prior = spellings.get(word);
+      assert.ok(!prior || prior === cmd.name, `"${word}" resolves to one command (was ${prior}, now ${cmd.name})`);
+      spellings.set(word, cmd.name);
+    }
+  }
+  assert.equal(new Set(commandNames()).size, COMMANDS.length);
+});
+
+test('every command in the table produces output from the fixture', async () => {
+  await ensureRepo();
+  // The session-bound commands need a context carrying the app's own callbacks.
+  const ctx = {
+    repo,
+    version: '9.9.9',
+    help: (topic) => helpText(ctx, topic),
+    rescan: async () => 'rescanned',
+    loadRepo: async () => 'loaded',
+    web: async () => 'started',
+  };
+  const argsFor = {
+    explain: ['render.js'], tree: ['src', '2'], find: ['render'], show: ['render.js'],
+    deps: ['render.js'], help: ['map'], cd: ['.'],
+  };
+
+  for (const cmd of COMMANDS) {
+    if (cmd.name === 'exit' || cmd.name === 'clear') continue;
+    const out = String(await cmd.run(ctx, argsFor[cmd.name] || []));
+    assert.ok(out.length > 0, `${cmd.name} produced output`);
+  }
+});
+
+test('aliases and case both resolve to the same command', () => {
+  assert.equal(lookup('ls').name, 'tree');
+  assert.equal(lookup('SHOW').name, 'show');
+  assert.equal(lookup('q').name, 'exit');
+  assert.equal(lookup('nonsense'), undefined);
+});
+
+test('tokenize keeps quoted phrases as one argument', () => {
+  assert.deepEqual(tokenize('find "exact phrase" ext:js'), ['find', 'exact phrase', 'ext:js']);
+  assert.deepEqual(tokenize("show 'my file.js'"), ['show', 'my file.js']);
+  assert.deepEqual(tokenize('   '), []);
+});
+
+test('help lists every command, and can answer about one of them', async () => {
+  await ensureRepo();
+  const text = helpText({ repo });
+  for (const name of commandNames()) {
+    assert.match(text, new RegExp('\\b' + name + '\\b'), `help mentions ${name}`);
+  }
+  assert.match(helpText({ repo }, 'tree'), /also:/);
+  assert.match(helpText({ repo }, 'zzz'), /No command called/);
+});
+
+test('views fit the terminal instead of spilling past it', async () => {
+  await ensureRepo();
+  const before = process.env.COLUMNS;
+  process.env.COLUMNS = '50';
+  try {
+    const views = [() => V.overview(repo), () => V.health(repo), () => V.hubs(repo), () => V.stats(repo), () => V.find(repo, { query: 'render' })];
+    for (const fn of views) {
+      for (const line of String(fn()).split('\n')) {
+        assert.ok(width(line) <= 50, `fits 50 columns: ${JSON.stringify(line)} (${width(line)})`);
+      }
+    }
+  } finally {
+    if (before === undefined) delete process.env.COLUMNS;
+    else process.env.COLUMNS = before;
+  }
+});
+
+// The TTY guards. These matter more than they look: without them, `onboarder` in
+// a CI job or an `onboarder | tee` would sit waiting for input that never comes.
+// Both paths are asserted through the public entry points, not by poking at
+// internals, because the guard is the behavior.
+test('the explorer refuses to start without a terminal, and says what to use instead', async () => {
+  const out = [];
+  const code = await runExplore({ target: '.', out: (l) => out.push(String(l)), err: () => {} });
+  assert.equal(code, 0);
+  const text = out.join('\n');
+  assert.match(text, /needs an interactive terminal/);
+  assert.match(text, /onboarder start/, 'it points at the server commands');
+});
+
+test('explore in a non-TTY exits instead of hanging', async () => {
+  // The guard writes through `console.log` by default, so capture it rather
+  // than spraying the test runner's output.
+  const original = console.log;
+  console.log = () => {};
+  try {
+    assert.equal(await main(['explore']), 0);
+    assert.equal(await main(['tui']), 0);
+    assert.equal(await main(['explore', '/definitely/not/here']), 0);
+  } finally {
+    console.log = original;
+  }
+});
+
+// `NO_COLOR` is a promise this project already makes in the CLI; the explorer's
+// views have to keep it. `ui.js` decides color at import time from a TTY check,
+// so this only means anything in a real child process with a forced flag.
+test('views emit no ANSI when color is off', () => {
+  const script = `
+    const V = await import('${path.join(process.cwd(), 'cli/explorer/views.js')}');
+    const S = await import('${path.join(process.cwd(), 'cli/explorer/session.js')}');
+    const repo = await S.openRepo(process.cwd());
+    const text = [V.overview(repo), V.health(repo), V.hubs(repo), V.tour(repo)].join('\\n');
+    process.stdout.write(/\\x1b\\[/.test(text) ? 'ANSI' : 'clean');
+  `;
+  const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    encoding: 'utf8',
+    env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '' },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.stdout, 'clean', 'no escape sequences survive NO_COLOR');
+});
+
+test('the version shown in `about` is the one in package.json', async () => {
+  await ensureRepo();
+  const pkg = JSON.parse(await fs.readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.match(V.about(repo, pkg.version), new RegExp(pkg.version.replace(/\./g, '\\.')));
+});
+

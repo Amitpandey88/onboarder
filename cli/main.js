@@ -11,6 +11,7 @@ import {
   runSetup, runStart, runStartBackground, runStartup, runLogs, runStatus, runStop, runRestart,
   runConfig, runConfigKey, runConfigReset, runDoctor, runTunnel, runHttps,
 } from './commands.js';
+import { runExplore } from './explorer/app.js';
 
 const PACKAGE = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -18,19 +19,28 @@ const HELP = `
   🧭 Onboarder — drop a path, get a map.
 
   Usage
-    onboarder                     Start the server (runs setup first if needed)
-    onboarder setup | onboard     Configure interactively (the wizard)
-    onboarder start               Start in the foreground (Ctrl-C stops it)
+    onboarder                     Explore a codebase here, interactively
+    onboarder explore [folder]    The same, pointed somewhere else (alias: tui)
+    onboarder start               Start the web UI in the foreground (Ctrl-C stops it)
     onboarder start background    Start detached — keeps running after you close the terminal
     onboarder start startup       Run automatically at login [install|remove|status]
+    onboarder web                 Alias for \`onboarder start\`
     onboarder logs                Show recent log lines  (-n <count>, -f to follow)
-    onboarder status              Show whether the server is running
-    onboarder stop                Stop the running server
+    onboarder status              Show whether the web UI is running
+    onboarder stop                Stop the running web UI
     onboarder restart             Stop and start again
     onboarder config [<…>]         show | get <key> | set <key> <value> | path | reset | key <rotate|show|set>
     onboarder tunnel <name>       cloudflare | tailscale
     onboarder https <action>      check | setup | start | stop | status
     onboarder doctor              Check the machine and the config
+
+  In the explorer
+    map tour explain             what this is, where to start, and why
+    tree find show deps          browse it, search it, read it, trace it
+    health hubs layers patterns  the analysis, in the same words the site uses
+    stats security stack entry   numbers, findings, dependencies
+    cd rescan web                switch repo, reload, open the web UI
+    help exit                    everything, and the way out
 
   Setup flags (interactive wizard skips what they answer)
     --mode local|self-hosted   --host <addr>   --port <n>   --domain <name>
@@ -41,6 +51,7 @@ const HELP = `
 
   General flags
     --config <file>     Use this config file (or ONBOARDER_CONFIG)
+    --server            With bare \`onboarder\`, start the web UI instead of exploring
     --non-interactive   Never prompt; flags + defaults are the answers
     -y, --yes           Answer yes to confirmations
     --json              Machine-readable output
@@ -55,11 +66,11 @@ const HELP = `
     fg | foreground     alias for start
 
   Examples
-    onboarder setup
-    onboarder start background          # leave it running, close the terminal
+    onboarder                           # explore the repo you are standing in
+    onboarder explore ~/code/my-app     # explore somewhere else
+    onboarder start background          # leave the web UI running, close the terminal
     onboarder logs -f                   # watch what it is doing
     onboarder start startup install     # also start it every time you log in
-    onboarder start background && open http://localhost:4310
     onboarder setup --non-interactive --mode local --port 4310
     onboarder setup --non-interactive --mode self-hosted --domain map.example.com --https --start
     onboarder config set tunnel.cloudflare true && onboarder tunnel cloudflare
@@ -93,6 +104,7 @@ const OPTIONS = {
   lines: { type: 'string', short: 'n' },
   follow: { type: 'boolean', short: 'f' },
   timeout: { type: 'string' },
+  server: { type: 'boolean' },
 };
 
 // parseArgs speaks kebab-case; the wizard's flags speak camelCase.
@@ -126,6 +138,22 @@ export async function main(argv = process.argv.slice(2)) {
         console.log(HELP);
         return 0;
       case undefined:
+        // The entry point. On a terminal, bare `onboarder` explores the repo you
+        // are standing in — the thing people actually want from this tool, and
+        // what the name promises. Everywhere else (a pipe, CI, a script) it
+        // still starts the server, because an interactive session with no input
+        // source is a hang, and nothing about a background job wants a prompt.
+        // `--server` forces the old behavior even on a terminal.
+        if (!flags.server && process.stdin.isTTY && process.stdout.isTTY) {
+          return codeOf(await runExplore({ flags, target: '.' }));
+        }
+        return codeOf(await runStart({ flags }));
+      case 'explore':
+      case 'tui':
+      case 'shell':
+        return codeOf(await runExplore({ flags, target: sub || '.' }));
+      case 'web':
+      case 'site':
         return codeOf(await runStart({ flags }));
       case 'start':
         // `onboarder start [background|fg|startup [action]]`. The sub-verb is a
