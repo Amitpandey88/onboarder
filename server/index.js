@@ -25,6 +25,7 @@ import { browserUrl, configPath, isLoopbackHost, readSettings, serverUrls } from
 import { tunnelStatus } from './tunnel.js';
 import { pidIsAlive, readPidFile, removePidFile, writePidFile, writeRunInfo, runInfoPath } from './pidfile.js';
 import { logPath } from './daemon.js';
+import { panel, row } from './layout.js';
 
 const logger = createLogger();
 
@@ -64,42 +65,45 @@ export function createServer(config = CONFIG) {
 
 // What the terminal shows once the socket is listening. A pure string builder
 // so the CLI prints exactly this too, and so a test can read it.
-export function startupBanner(settings, { configFile } = {}) {
+//
+// The shape is label/value rows, not prose, because every fact here has to be
+// readable at a glance and copy-pasteable. The one long sentence it used to
+// print — "self-hosted — the network can reach this; every API call needs the
+// access key" — wrapped unpredictably at any terminal width and buried the URL
+// people actually need. Now the detail lives on its own row.
+export function startupBanner(settings, { configFile, columns } = {}) {
   const urls = serverUrls(settings);
-  const lines = ['', '  Onboarder is up.'];
-  lines.push(settings.mode === 'self-hosted'
-    ? (isLoopbackHost(settings.host)
-      ? '  Mode    self-hosted — loopback bind; use a tunnel or change the host for direct network access'
-      : '  Mode    self-hosted — the network can reach this; every API call needs the access key')
-    : '  Mode    local — only this machine can reach it');
-  lines.push('  Local   ' + urls.local);
-  if (urls.network) lines.push('  Network ' + urls.network);
-  if (urls.domain) {
-    lines.push('  Domain  ' + urls.domain);
-    if (settings.domain && !settings.https) {
-      lines.push('  HTTPS   disabled — `onboarder setup` or `onboarder https setup` enables trusted TLS');
-    } else if (settings.https) {
-      lines.push('  HTTPS   Caddy obtains, renews, and terminates TLS for this domain');
-    }
+  const rows = [];
+  const add = (label, value) => rows.push([label, value]);
+
+  add('URL', urls.local);
+  if (urls.network) add('Network', urls.network);
+  if (urls.domain) add('Public', urls.domain);
+  add('Bind', `${settings.host}:${settings.port}`);
+  add('Mode', settings.mode === 'self-hosted'
+    ? (isLoopbackHost(settings.host) ? 'self-hosted (loopback — use a tunnel)' : 'self-hosted (network reachable)')
+    : 'local (this machine only)');
+
+  if (settings.mode === 'self-hosted') {
+    add('Auth', settings.accessKey
+      ? 'access key required for remote browsers'
+      : 'NO ACCESS KEY — every API call is refused');
   }
-  if (settings.mode === 'self-hosted' && settings.accessKey) {
-    lines.push('  Remote browsers show an access-key sign-in page; the key is never put in the URL.');
-  }
-  if (settings.mode === 'self-hosted' && !settings.accessKey) {
-    lines.push('  WARNING self-hosted with no access key — every API call is refused until one is set.');
-    lines.push('          Run `onboarder setup` or `onboarder config key rotate`.');
+  if (settings.domain) {
+    add('HTTPS', settings.https ? 'Caddy terminates TLS for this domain' : 'off — `onboarder https setup` enables it');
   }
   const tunnels = tunnelStatus(settings);
   for (const name of ['cloudflare', 'tailscale']) {
     const t = tunnels[name];
     if (!t.enabled) continue;
-    lines.push(t.installed
-      ? `  Tunnel  ${name}: ${t.command}`
-      : `  Tunnel  ${name} is enabled but its CLI is not installed — ${t.install}`);
+    add('Tunnel', t.installed ? `${name}: ${t.command}` : `${name} enabled, CLI missing — ${t.install}`);
   }
-  if (configFile) lines.push('  Config  ' + configFile);
-  lines.push('');
-  return lines.join('\n');
+  if (configFile) add('Config', configFile);
+
+  // Rendered through the same panel helper the CLI uses, so `node server/index.js`
+  // and `onboarder start` cannot drift apart — and so both adapt to the terminal
+  // width instead of assuming 80 columns.
+  return '\n' + panel('Onboarder is up', rows.map(([label, value]) => row(label, value)), { columns }) + '\n';
 }
 
 // Ask the OS to open the app. Best-effort and detached: a missing opener on a

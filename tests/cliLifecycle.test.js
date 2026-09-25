@@ -92,11 +92,45 @@ test('a self-hosted loopback summary warns that it is not directly reachable', (
     autoOpen: false, tunnel: { cloudflare: false, tailscale: false },
   });
   assert.match(banner, /self-hosted/);
+  assert.match(banner, /loopback/, 'a loopback bind says so rather than implying network access');
   const summary = startupBanner({
     mode: 'self-hosted', host: '127.0.0.1', port: 4310, domain: '', accessKey: '',
     autoOpen: false, tunnel: { cloudflare: false, tailscale: false },
   });
-  assert.match(summary, /no access key/);
+  assert.match(summary, /NO ACCESS KEY/i, 'a self-hosted server with no key says it is unusable');
+  assert.match(summary, /refused/i);
+});
+
+test('the startup banner is a label/value panel, and its facts are on their own rows', () => {
+  const banner = startupBanner({
+    mode: 'self-hosted', host: '0.0.0.0', port: 4310, domain: '', accessKey: 'x'.repeat(20),
+    autoOpen: false, tunnel: { cloudflare: false, tailscale: false },
+  }, { configFile: '/tmp/config.json' });
+  // The long sentence this used to print — which wrapped unpredictably and buried
+  // the URL — is gone; each fact has a row and a label.
+  assert.match(banner, /URL\s+http:\/\/localhost:4310/);
+  assert.match(banner, /Bind\s+0\.0\.0\.0:4310/);
+  assert.match(banner, /Network\s+http:\/\//);
+  assert.match(banner, /Auth\s+access key required/);
+  assert.match(banner, /Config\s+\/tmp\/config\.json/);
+  // And it is a panel, so it has a frame.
+  assert.match(banner, /┌─ Onboarder is up/);
+  assert.match(banner, /└─+/);
+});
+
+test('the startup banner never exceeds the terminal width it is given', () => {
+  const settings = {
+    mode: 'self-hosted', host: '0.0.0.0', port: 4310, domain: '',
+    accessKey: 'x'.repeat(64), autoOpen: false, tunnel: { cloudflare: false, tailscale: false },
+  };
+  for (const columns of [40, 60, 80, 120, 200]) {
+    // `columns` is part of the options object, alongside `configFile`.
+    const banner = startupBanner(settings, { configFile: '/a/very/long/path/to/a/config/file.json', columns });
+    for (const line of banner.split('\n')) {
+      // A border past the edge is exactly the "messes up the terminal" failure.
+      assert.ok(line.length <= columns, `line of ${line.length} exceeds ${columns} columns: ${line}`);
+    }
+  }
 });
 
 // --------------------------------------------------------- background start ---
@@ -146,9 +180,16 @@ test('start background leaves a serving, recorded process behind', async (t) => 
   assert.equal(info.port, port);
   assert.match(info.log, /onboarder\.log$/);
 
-  // And the log file exists, with the request we just made in it.
+  // And the log file exists. The health probe is a *poll*, so it is deliberately
+  // not logged — the log must not fill with uptime checks. An API call is.
   const log = await fs.readFile(info.log, 'utf8');
-  assert.match(log, /GET \/api\/health 200/);
+  assert.ok(!/GET \/api\/health/.test(log), 'uptime polls are not log noise');
+  await new Promise((resolve) => {
+    http.get(`http://127.0.0.1:${port}/api/mcp`, (res) => { res.resume(); res.on('end', resolve); }).on('error', resolve);
+  });
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  const after = await fs.readFile(info.log, 'utf8');
+  assert.match(after, /GET \/api\/mcp 200/, 'real API traffic is logged');
 });
 
 test('a second background start refuses while one is recorded', async () => {

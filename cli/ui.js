@@ -54,36 +54,20 @@ export const tick = ok('  ✓ ');
 export const cross = bad('  ✗ ');
 export const dash = dim('  – ');
 
-// Visible width, ANSI codes excluded. Padding has to be computed on what the
-// terminal *shows*, not on the bytes we wrote, or every colored row grows a
-// few columns and the column stops being a column.
-export function width(text) {
-  return String(text).replace(/\x1b\[[0-9;]*m/g, '').length;
-}
+// The layout math (width, fit, panel) lives in `server/layout.js` so the server's
+// own startup banner can use the identical geometry without importing this file
+// and inverting the dependency. This module is only the *color* on top of it.
+import { width, fit, termWidth, panel as layoutPanel, hint, row } from '../server/layout.js';
 
-// A titled block of rows. The box is drawn from the widest row rather than a
-// fixed 80 columns, so it stays aligned in a narrow terminal and does not stretch
-// across a wide one.
-export function panel(title, rows, { indent = '  ' } = {}) {
-  const labelWidth = Math.max(...rows.map((r) => width(r.label ?? '')), 0);
-  // Every row starts two columns in; the label column is then as wide as the
-  // longest label, so all the values line up regardless of label length.
-  const body = rows.map((r) => r.hint
-    ? '  ' + ' '.repeat(labelWidth + 4) + dim(r.hint)
-    : '  ' + paint((r.label ?? '').padEnd(labelWidth), 'gray') + '  ' + (r.value ?? ''));
-  // The frame is sized from its contents: a long path widens the box instead of
-  // spilling out of it, and a short one does not stretch to 80 columns.
-  const inner = Math.max(title.length + 4, ...body.map(width), 24);
-  const top = '┌─ ' + bold(title) + ' ' + '─'.repeat(Math.max(1, inner - title.length - 3)) + '┐';
-  const bottom = '└' + '─'.repeat(inner) + '┘';
-  return [top, ...body, bottom].map((line) => indent + (line === top || line === bottom ? paint(line, 'gray') : line)).join('\n');
-}
+export { width, fit, termWidth, hint, row };
 
-// A one-line hint under a row, wrapped in the panel's dim voice.
-export const hint = (text) => ({ hint: text });
-
-// Multi-line values (a command, a path list) still align on the first line.
-export function row(label, value) {
-  return { label, value: String(value) };
+// A titled block of rows that fits the terminal it is printed into. Same shape
+// the server banner uses; the difference is only that this one paints.
+export function panel(title, rows, options = {}) {
+  const styles = { label: 'gray', frame: 'gray', hint: 'gray', title: 'bold' };
+  return layoutPanel(title, rows, {
+    ...options,
+    paint: (text, style) => paint(text, styles[style] || 'gray'),
+  });
 }
 

@@ -182,6 +182,34 @@ function printServerDetails(out, started, options) {
   out('');
 }
 
+// Keep a foreground panel at the terminal's current width.
+//
+// Resizing a window after the server started used to leave a panel whose right
+// border was off-screen — the information was correct but unreadable, which is
+// the same complaint as "it messes up the terminal". On SIGWINCH we redraw the
+// block in place: move the cursor up over the lines we own, clear them, and
+// reprint at the new width. Only the panel is redrawn, not the log scrollback
+// above it, so nothing the user has already read is disturbed.
+//
+// A non-TTY (a pipe, a log file) never redraws: there is no cursor to move and
+// re-printing would just duplicate the block.
+export function watchResize(render, stream = process.stdout) {
+  if (!stream.isTTY || typeof process.stdout.on !== 'function') return () => {};
+  let previous = '';
+  const onResize = () => {
+    const next = render();
+    if (next === previous) return;
+    const lines = previous ? previous.split('\n').length : 0;
+    // Up over the old block, clear it, print the new one. `\x1b[J` clears from
+    // the cursor to the end of the screen, which is exactly the old block.
+    stream.write(lines ? `\x1b[${lines}A\x1b[J` : '');
+    stream.write(next);
+    previous = next;
+  };
+  process.stdout.on('SIGWINCH', onResize);
+  return () => process.stdout.removeListener('SIGWINCH', onResize);
+}
+
 export async function runStart({ flags = {}, out = console.log, err = console.error } = {}) {
   const file = flags.config || configPath();
   if (!await configExists(file)) {
@@ -220,6 +248,9 @@ export async function runStart({ flags = {}, out = console.log, err = console.er
   // and ONBOARDER_BACKGROUND is what tells the two apart: one is attached to a
   // terminal you are about to close, the other is already detached from it.
   printServerDetails(out, started, { configFile: file, mode: 'foreground' });
+  // Redraw the panel when the terminal is resized, so the border stays on screen
+  // and long paths re-elide to the new width instead of hanging off the edge.
+  watchResize(() => '\n' + panel('Onboarder is running', serverDetails(started, { configFile: file }).rows) + '\n');
   if (process.env.ONBOARDER_LAUNCH) {
     // Started by launchd/systemd/the Startup folder: these lines are going into
     // a log file nobody is watching, so they say what the supervisor is doing

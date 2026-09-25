@@ -242,12 +242,34 @@ onboarder stop               # stop it
 Log lines are column-aligned — a fixed-width local timestamp, a fixed-width level, then the message — so a wall of requests stays scannable:
 
 ```
-16:09:38.985  INFO   GET /api/health 200 (1ms)
-16:09:46.460  INFO   GET /nope 404 (1ms)
-16:10:21.925  WARN   config port=4310 reason="already in use"
+16:09:38  INFO   GET /api/scan 200 (1.2s)
+16:09:46  INFO   POST /api/auth/login 200 (2ms)
+16:10:03  WARN   could not write the run record error=EACCES
 ```
 
-Set `ONBOARDER_LOG=json` for one JSON object per line instead (the log file is plain text by default so it stays readable; `--json` on `status`/`logs` is the machine-readable surface).
+### What gets logged (and what does not)
+
+A single page load pulls ~90 ES modules, a stylesheet, and two vendored libraries. Logging each one buries every real event — a scan, a login, a 500 — under a hundred lines that describe nobody doing anything, repeated on every reload. So requests are classified:
+
+| Request | Logged? |
+|---|---|
+| `GET /api/…` (a scan, a login, a settings save) | **yes** — this is a person doing something |
+| Any `POST`/`PUT`/`DELETE` | **yes**, whatever the path |
+| Any `4xx` or `5xx` | **yes** — a missing asset is a broken build, a 500 is a bug |
+| `GET /api/health` (uptime poll) | no — it is not an event |
+| `GET /app.js`, `/js/tree.js`, `/styles.css`, `/vendor/…` | **counted, not printed** |
+
+Suppressed assets are not thrown away. Every 40 of them, one dim footnote is printed, so an idle terminal still says what it served rather than looking dead:
+
+```
+16:09:38           served 40 static files in 1.9s
+```
+
+`LOG_LEVEL=debug` (or `ONBOARDER_LOG_VERBOSE=1`) turns every request back on for when you are debugging the server rather than watching it. `ONBOARDER_LOG=json` switches the format to one JSON object per line for anything parsing the log.
+
+### Terminal width
+
+Every panel and log line is fitted to the terminal it is printed into, and a foreground `onboarder start` redraws its panel on `SIGWINCH` — resize the window and the border stays on screen instead of hanging off the edge. Long values are elided in the middle (the tail of a path is the part that identifies it), and below 52 columns the level column is dropped to make room for the message.
 
 ### Starting at login
 
@@ -297,6 +319,7 @@ codebase-onboarder/
 │   ├── daemon.js    # Detached background start, log file, readiness probe
 │   ├── startup.js   # Login items: launchd plist / systemd --user unit / Startup folder
 │   ├── logger.js    # Aligned-text or JSON log lines from one entry shape
+│   ├── layout.js    # Shared terminal geometry: width, fit, panel, resize
 │   ├── router.js    # Route table, live per-request settings, auth & CSRF gates
 │   ├── auth.js      # Signed HttpOnly browser sessions
 │   ├── apiAuth.js   # Login/status/logout endpoints
