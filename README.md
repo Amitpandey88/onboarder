@@ -64,6 +64,7 @@ It lands on a `map` of the repo, then waits:
   codebase > find resolveImport
   codebase > deps logger.js
   codebase > blast pathUtil.js      # what breaks if this breaks
+  codebase > github                # what GitHub says about this repo
   codebase > !git log --oneline -3  # shell, without leaving
   codebase > exit
 ```
@@ -78,7 +79,19 @@ It lands on a `map` of the repo, then waits:
 | **log · hotspots · blame** | Git history, the files that are complex *and* often changed, and who wrote a line |
 | **diagram · docs** | Real Mermaid source, and prose you can print or write to `ONBOARDER.md` |
 | **cd · rescan · web** | Switch repo, reload from disk, or start the web UI without leaving |
+| **github** | Stars, forks, watchers, license and topics from GitHub, for the repo you have loaded |
 | **Tab · `!cmd`** | Completes commands then file paths; runs a shell command inline |
+
+**It also takes a GitHub URL, the way the site does.** Point it at one and it clones, scans and opens that repo:
+
+```
+  onboarder explore https://github.com/expressjs/express
+  codebase > cd https://github.com/sindresorhus/is.git
+```
+
+The clone is blobless and single-branch — the full history, none of the file contents — because history is half of what this tool has to say (churn × complexity) and the blobs are not. It lands in the OS temp dir and is removed when you `cd` away or leave, so nothing is left behind and nothing you already had open gets deleted. A folder you `cd` to is never touched, whatever it happens to be called.
+
+`github` asks GitHub about whatever is loaded: the URL if this session cloned it, otherwise `git remote get-url origin`, so it works in a checkout you were already standing in. It sends `GITHUB_TOKEN` or `GH_TOKEN` when you have one, which turns GitHub's 60-requests-an-hour guest allowance into 5,000 — a browser has nowhere to keep a secret, so this is the one thing the terminal does strictly better than the site. It also separates "GitHub said no" into rate-limited, private-or-gone, and throttled, because those need three different responses.
 
 **It is the website's engine, not a reimplementation.** `onboarder explore` runs the same modules in the same order as `POST /api/scan` — `scanRepo` → `detectManifest` → `computeFacts` → `buildSearchIndex` — and the same projections the browser's views are projections of. A second implementation would drift, and a drifted map is worse than no map.
 

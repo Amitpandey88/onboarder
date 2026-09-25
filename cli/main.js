@@ -21,7 +21,7 @@ const HELP = `
 
   Usage
     onboarder                     Explore a codebase here, interactively
-    onboarder explore [folder]    The same, pointed somewhere else (alias: tui)
+    onboarder explore [folder|url]  The same, pointed somewhere else (alias: tui)
     onboarder start               Start the web UI in the foreground (Ctrl-C stops it)
     onboarder start background    Start detached — keeps running after you close the terminal
     onboarder start startup       Run automatically at login [install|remove|status]
@@ -43,7 +43,8 @@ const HELP = `
     coupling clusters risks      the heat grid, the module groups, what is wrong
     log hotspots blame           git history, hot files, who wrote a line
     diagram docs                 Mermaid source, and prose you can write out
-    cd rescan web                switch repo, reload, open the web UI
+    cd rescan web                switch repo (or clone a URL), reload, open the web UI
+    github                       what GitHub says about this repo — stars, issues, license
     !<command>                   run a shell command without leaving
     help exit                    everything, and the way out
     Tab                          completes commands, then file paths
@@ -74,6 +75,7 @@ const HELP = `
   Examples
     onboarder                           # explore the repo you are standing in
     onboarder explore ~/code/my-app     # explore somewhere else
+    onboarder explore https://github.com/expressjs/express   # clone one and read it
     onboarder start background          # leave the web UI running, close the terminal
     onboarder logs -f                   # watch what it is doing
     onboarder start startup install     # also start it every time you log in

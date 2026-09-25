@@ -223,6 +223,10 @@ test('every command in the table produces output from the fixture', async () => 
     help: (topic) => helpText(ctx, topic),
     rescan: async () => 'rescanned',
     loadRepo: async () => 'loaded',
+    // Injected rather than called for real: this fixture has no network, and a
+    // command table entry that reaches the internet is a test that hangs rather
+    // than a test that runs. The failure shape is the interesting one anyway.
+    github: async () => 'asked',
     web: async () => 'started',
   };
   const argsFor = {
@@ -480,6 +484,23 @@ test('no terminal view ever exceeds the terminal, at any width', async () => {
     externals: () => V.externals(repo), tree: () => V.tree(repo, {}),
     deps: () => V.deps(repo, { target: 'render.js' }), security: () => V.security(repo),
     stack: () => V.stack(repo),
+    // The `github` view is handed a result rather than fetching one, so the
+    // width contract can be tested without a network. The shape used here is
+    // the widest one GitHub actually returns: every optional field present and
+    // long, which is the case a fitting bug hides in.
+    github: () => V.github(repo, {
+      ok: true,
+      repoPath: 'some-organization/a-really-quite-long-repository-name',
+      facts: {
+        stars: 12345, forks: 678, watching: 90, issues: 42,
+        description: 'A deliberately long description, because the real ones are: this sentence exists only to be wrapped by the terminal rather than to say anything at all.',
+        license: 'MIT', created: '2015-03-04T09:12:00Z', pushed: '2026-09-01T12:00:00Z',
+        branch: 'main', archived: false,
+        topics: ['cli', 'terminal', 'codebase', 'visualization', 'onboarding', 'analysis', 'graph', 'git', 'javascript', 'node', 'tooling', 'documentation'],
+        homepage: 'https://example.com/a/really/long/homepage/url/that/keeps/going/and/going',
+      },
+    }),
+    githubFail: () => V.github(repo, { ok: false, reason: 'GitHub rate-limited the ask — the unauthenticated allowance is 60 an hour.' }),
   };
   // `docs`, `diagram` and `layers-diagram` are excluded on purpose: they emit
   // Markdown and Mermaid *for another tool*, where a long line is correct.
@@ -532,3 +553,42 @@ test('the shell escape runs a command and survives a non-zero exit', async () =>
   const failed = await shellEscape('false', cwd);
   assert.match(failed, /exit/);
 });
+
+test('a re-read of a clone keeps its identity, instead of becoming a nameless temp folder', async () => {
+  // `rescan` re-reads the folder rather than re-cloning the URL, because
+  // re-cloning to get the same bytes back is slow and would change the temp
+  // directory out from under the session. But `openRepo` reads a *directory*,
+  // and a directory does not know where it came from — so the fresh repo
+  // arrives with no `gitUrl`, no `cloneDir`, and a name of `onboarder-a1b2c3`.
+  // The session carries those fields across; without that, one `rescan`
+  // silently demotes a clone to an anonymous temp folder: the prompt stops
+  // showing the repo's name, `github` can no longer find the URL to ask about,
+  // `about` stops saying where any of it came from, and the exit sweep has no
+  // directory to clean up. Found by driving a real clone through a real
+  // `rescan`, which is the only way to see the prompt change.
+  await ensureRepo();
+  const previous = await openRepo(repo.root);
+  previous.gitUrl = 'https://github.com/someone/something.git';
+  previous.cloneDir = repo.root;
+  previous.tempId = path.basename(repo.root);
+  previous.name = 'something';
+
+  // The re-read on its own loses everything — this is the bug, asserted first
+  // so the test fails if `openRepo` ever starts carrying it itself.
+  const reread = await openRepo(repo.root);
+  assert.equal(reread.gitUrl, undefined, 'openRepo alone knows nothing of the URL');
+  assert.equal(reread.cloneDir, undefined);
+
+  // What `reload` then does with it.
+  reread.gitUrl = previous.gitUrl;
+  reread.cloneDir = previous.cloneDir;
+  reread.tempId = previous.tempId;
+
+  assert.equal(reread.gitUrl, 'https://github.com/someone/something.git');
+  assert.equal(reread.cloneDir, repo.root, 'without this the exit sweep has nothing to remove');
+  assert.equal(reread.tempId, path.basename(repo.root));
+  const about = V.about(reread, '1.0.0');
+  assert.match(about, /github\.com\/someone\/something/, 'about still names the source');
+  assert.match(about, /temp clone/, 'and still admits it is one');
+});
+

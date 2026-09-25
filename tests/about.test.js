@@ -9,6 +9,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { lineageCoverage, githubRepoPath, aboutDate, aboutNum } from '../public/js/about.js';
+// The same parser the terminal uses lives in `shared/analyzer/github.js`. The
+// copy inside about.js cannot simply be deleted — that module is loaded here in
+// Node, where a `/shared/…` specifier does not resolve — so instead the two are
+// pinned together at the bottom of this file. Two unconnected copies of one
+// regex had already drifted once, which is how the web app came to print the
+// star count twice and call one of them "watching".
+import { githubRepoPath as sharedGithubRepoPath } from '../shared/analyzer/github.js';
 
 const scanWith = (stats) => ({
   stats: { filesTotal: 0, filesParsed: 0, skips: {}, ...stats },
@@ -112,6 +119,33 @@ test('anything that is not GitHub gets no remote lookup', () => {
     '',
   ]) {
     assert.equal(githubRepoPath(url), null, JSON.stringify(url));
+  }
+});
+
+test('the two GitHub URL parsers agree, so the copies cannot drift apart', () => {
+  // `public/js/about.js` cannot import the shared one — that module is loaded in
+  // Node by this very file, where a `/shared/…` specifier does not resolve — so
+  // two copies of this regex exist. They are pinned here instead. They had
+  // already drifted once: the web copy counted `watchers_count` and called it
+  // "watching", which is GitHub's legacy alias for the *stargazer* count, so the
+  // star number was printed twice and one of them was fiction.
+  const urls = [
+    'https://github.com/owner/repo',
+    'https://github.com/owner/repo.git',
+    'https://github.com/owner/repo/',
+    'git@github.com:owner/repo.git',
+    'ssh://git@github.com/owner/repo.git',
+    'https://gitlab.com/owner/repo.git',
+    'https://github.example.com/owner/repo',
+    'https://github.com/owner',
+    '', null, undefined,
+  ];
+  for (const url of urls) {
+    assert.equal(
+      githubRepoPath(url),
+      sharedGithubRepoPath(url),
+      'the two parsers disagree about ' + JSON.stringify(url)
+    );
   }
 });
 

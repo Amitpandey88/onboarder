@@ -19,12 +19,14 @@ import readline from 'node:readline';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { openRepo } from './session.js';
+import { openRepo, openRepoOrClone, isGitUrl, remoteUrlFor, closeRemote } from './session.js';
+import { fetchRepoFacts } from './github.js';
 import { CLEAR, EXIT, commandNames, completer, helpText, lookup, shellEscape, tokenize } from './commands.js';
-import { overview } from './views.js';
+import { overview, github as githubView } from './views.js';
 import { bold, cyan, dim, ok, bad, paint } from '../ui.js';
 import { configPath, readSettings, serverUrls } from '../../server/config.js';
 import { readPidFile, pidIsAlive } from '../../server/pidfile.js';
+import { expandHome } from '../../server/paths.js';
 
 const VERSION = JSON.parse(
   fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
@@ -52,10 +54,16 @@ export async function runExplore({ target = '.', flags = {}, out = console.log, 
 
   let repo;
   try {
-    repo = await openRepo(target, { onProgress: progressReporter(out) });
+    // The launch argument accepts a URL for the same reason `cd` does: someone
+    // who has never seen this repo should be able to name it and read it. A
+    // silent ten-second clone looks like a hang, so the URL case says what it
+    // is doing before it starts.
+    if (isGitUrl(target)) out(dim(`  cloning ${target}…`));
+    repo = await openRepoOrClone(target, { onProgress: progressReporter(out) });
   } catch (e) {
     err('  ' + bad((e.message || String(e))));
     err(dim('    Point it at a folder: onboarder explore /path/to/repo'));
+    err(dim('    …or a git URL:      onboarder explore https://github.com/org/repo'));
     return 1;
   }
 
@@ -112,6 +120,7 @@ function session({ repo, flags, out, err, version }) {
     help: (topic) => helpText(ctx, topic),
     rescan: () => reload(ctx, ctx.repo.root),
     loadRepo: (where) => reload(ctx, where),
+    github: () => askGithub(ctx),
     web: () => startWeb(ctx),
   };
 
@@ -198,6 +207,11 @@ function session({ repo, flags, out, err, version }) {
       queue.then(() => {
         out('');
         out(dim('  bye.'));
+        // A clone this session made is a temp directory, and the session is the
+        // only thing that knows about it. Removing it last — after the last
+        // command has finished reading files out of it — is the only ordering
+        // that cannot pull the ground out from under a command still running.
+        closeRemote(ctx.repo).catch(() => {});
         resolve(0);
       });
     }, 20);
@@ -263,10 +277,49 @@ async function handleLine(ctx, line, rl, out, err) {
 // so the new name reaches the prompt only after it succeeds.
 async function reload(ctx, where) {
   const target = String(where || '').trim();
-  if (!target) return '  cd needs a folder — `cd ../other-repo`.';
-  const next = await openRepo(target, { onProgress: () => {} });
+  if (!target) {
+    return '  cd needs a folder or a URL — `cd ../other-repo`, `cd https://github.com/org/repo`.';
+  }
+
+  // `rescan` re-reads the folder the session is already in. Re-cloning the URL
+  // to get the same bytes back would be slow and would change the temp
+  // directory out from under the session, so a target that resolves to the
+  // current root takes the local path even when the repo remembers a URL.
+  const reloadingCurrent = !isGitUrl(target) && path.resolve(expandHome(target)) === path.resolve(ctx.repo.root);
+  const previous = ctx.repo;
+  const next = reloadingCurrent
+    ? await openRepo(previous.root)
+    : await openRepoOrClone(target, { onProgress: () => {} });
+
+  // A reload of the current folder produces a repo that has never heard of the
+  // URL it was cloned from: `openRepo` reads a directory, and a directory does
+  // not know where it came from. Carrying the three fields across is what keeps
+  // `rescan` from silently demoting a clone to a nameless temp folder — the
+  // prompt, `about` and `github` all read them.
+  if (reloadingCurrent) {
+    next.gitUrl = previous.gitUrl;
+    next.cloneDir = previous.cloneDir;
+    next.tempId = previous.tempId;
+    if (previous.name !== next.name && !previous.cloneDir) next.name = previous.name;
+  }
+
+  // The old clone is only dropped once the new one has loaded. Doing it the
+  // other way round means a typo in a URL leaves you with nothing loaded *and*
+  // the repo you were reading deleted from under you.
+  if (!reloadingCurrent) await closeRemote(previous);
   ctx.repo = next;
   return '\n' + overview(next);
+}
+
+// Ask GitHub about the loaded repo and print the answer. Network failures are
+// the expected case, not the exception — this is a command someone types on a
+// plane — so every one of them comes back as a line of text.
+async function askGithub(ctx) {
+  const url = await remoteUrlFor(ctx.repo);
+  if (!url) {
+    return githubView(ctx.repo, { ok: false, reason: 'This folder has no GitHub remote — there is nothing to ask about.' });
+  }
+  return githubView(ctx.repo, await fetchRepoFacts(url));
 }
 
 // The bridge between the two surfaces. If the server is already up this just

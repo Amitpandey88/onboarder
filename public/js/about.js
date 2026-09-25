@@ -239,11 +239,18 @@ export function lineageCoverage(scan) {
   return out.join('\n');
 }
 
-// Both URL shapes git accepts: https://github.com/owner/repo(.git) and
-// git@github.com:owner/repo(.git). Anything else is not GitHub and gets no
-// remote lookup.
+// The GitHub URL parsing and the reading of the API payload also exist in
+// `/shared/analyzer/github.js`, where the terminal reads them. This copy is not
+// an oversight and cannot simply be deleted: this module is loaded by Node tests
+// (`tests/about.test.js`), and a `/shared/…` specifier does not resolve in Node,
+// so importing the shared version here would make this whole file unloadable
+// outside a browser. The duplication is therefore pinned by a test —
+// "the two GitHub URL parsers agree" — rather than left to drift, which is what
+// two unconnected copies of this regex had already done: the browser counted
+// `watchers_count` (a legacy alias for the *stargazer* count) and called it
+// "watching", printing the star number twice.
 export function githubRepoPath(url) {
-  const m = String(url).match(/github\.com[:/]([^/\s]+\/[^/\s]+?)(?:\.git)?\/?$/);
+  const m = String(url ?? '').match(/github\.com[:/]([^/\s]+\/[^/\s]+?)(?:\.git)?\/?$/);
   return m ? m[1] : null;
 }
 
@@ -262,21 +269,27 @@ async function loadRemoteInfo(repoPath) {
         : `GitHub answered ${res.status}.`);
     }
     const r = await res.json();
+    // `subscribers_count`, not `watchers_count`. The API carries both and
+    // `watchers_count` is a legacy alias for the *stargazer* count, so reading
+    // it printed the star number a second time and called it "watching". The
+    // real watcher count is the subscribers number.
+    const watching = Number.isFinite(r.subscribers_count) ? r.subscribers_count : 0;
+    const license = r.license?.spdx_id && r.license.spdx_id !== 'NOASSERTION' ? r.license.spdx_id : '';
     box.innerHTML = `
       <div class="about-numbers">
         ${aboutNum(r.stargazers_count ?? 0, 'stars')}
         ${aboutNum(r.forks_count ?? 0, 'forks')}
-        ${aboutNum(r.watchers_count ?? 0, 'watching')}
+        ${aboutNum(watching, 'watching')}
         ${aboutNum(r.open_issues_count ?? 0, 'open issues')}
       </div>
       ${r.description ? `<p class="about-desc">${escapeHtml(r.description)}</p>` : ''}
       <ul class="about-lineage">
-        ${r.license?.spdx_id ? `<li>License: ${escapeHtml(r.license.spdx_id)}</li>` : ''}
+        ${license ? `<li>License: ${escapeHtml(license)}</li>` : ''}
         <li>Created ${aboutDate(r.created_at)} · last push ${aboutDate(r.pushed_at)}.</li>
         ${r.default_branch ? `<li>Default branch: <code>${escapeHtml(r.default_branch)}</code></li>` : ''}
         ${r.topics?.length ? `<li>Topics: ${r.topics.map((t) => `<span class="stat-chip">${escapeHtml(t)}</span>`).join(' ')}</li>` : ''}
         ${r.homepage ? `<li><a href="${escapeHtml(r.homepage)}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.homepage)}</a></li>` : ''}
-        <li class="doc-readme-none">GitHub keeps view counts private to the repo's owner — “watching” is the closest public number.</li>
+        <li class="doc-readme-none">These are GitHub's numbers, not this repository's — <code>health</code> and <code>risks</code> are about the code.</li>
       </ul>`;
   } catch (err) {
     box.innerHTML = `<span class="doc-readme-none">${escapeHtml(err.message)}</span>`;

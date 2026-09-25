@@ -17,6 +17,8 @@ import { nodeFileSource } from '../../server/fileSourceNode.js';
 import { buildSearchIndex } from '../../server/searchIndex.js';
 import { searchDocuments } from '../../server/apiSearch.js';
 import { expandHome, resolveInside } from '../../server/paths.js';
+import { assertGitUrl, cloneRepo, removeClone, repoNameFromUrl } from '../../server/gitClone.js';
+import { gitRemoteOrigin } from '../../server/gitRemote.js';
 import { scanRepo } from '../../shared/analyzer/scan.js';
 import { detectManifest } from '../../shared/analyzer/services.js';
 import { computeFacts, roleOf } from '../../shared/analyzer/graph.js';
@@ -27,6 +29,69 @@ import { analyzeStack } from '../../shared/analyzer/stack.js';
 import { buildTourStops } from '../../shared/analyzer/tour.js';
 import { explainFile, explainFolder, explainOverview } from '../../shared/analyzer/explainLocal.js';
 import { languageLabel } from '../../shared/analyzer/languages/index.js';
+
+// Does this argument name a repository to fetch, rather than a folder on this
+// machine? The check is deliberately narrow: only the URL shapes git itself
+// accepts, so a folder that happens to be called `ssh://stuff` cannot exist on a
+// filesystem anyway, while `owner/repo` is NOT accepted — too many real folders
+// are named like that (`src/server`, `app/models`) and silently cloning
+// `github.com/src/server` because someone typed `cd src/server` would be a
+// genuinely bad failure. The shorthand, if it is wanted, has to be asked for.
+export function isGitUrl(target) {
+  return /^(https?:\/\/|git@|ssh:\/\/)/.test(String(target || '').trim());
+}
+
+// Open a local folder or clone a remote one — the same three ways in the web
+// app's landing page offers, narrowed to the two that make sense for a command
+// line. A clone is left in place when the session ends; `closeRemote` removes it,
+// and the session calls that on `cd` and on exit, so nothing is orphaned in the
+// temp dir.
+export async function openRepoOrClone(target, { onProgress } = {}) {
+  const raw = String(target || '').trim();
+  if (!isGitUrl(raw)) return openRepo(raw, { onProgress });
+
+  const url = assertGitUrl(raw);
+  if (onProgress) onProgress({ phase: 'clone', url });
+  const clone = await cloneRepo(url);
+  try {
+    const repo = await openRepo(clone.dir, { onProgress });
+    // The repo's own name is what a person recognizes; the temp path is kept so
+    // `about` can still print a path someone could go and look at.
+    return {
+      ...repo,
+      name: repoNameFromUrl(url) || repo.name,
+      gitUrl: url,
+      tempId: path.basename(clone.dir),
+      cloneDir: clone.dir,
+    };
+  } catch (err) {
+    // A clone that was never loaded has no session to clean it up later, so it
+    // has to go now or it is a temp directory nobody owns.
+    await removeClone(clone.dir);
+    throw err;
+  }
+}
+
+// The URL this repo should be asked about on GitHub, or null.
+//
+// A repo this session cloned knows its own URL. A repo someone was standing in
+// does not, and git does. Asking git here rather than in the `github` command
+// keeps the answer on the repo object, so every consumer gets it the same way.
+export async function remoteUrlFor(repo) {
+  if (repo.gitUrl) return repo.gitUrl;
+  if (repo.remoteChecked) return null;
+  repo.remoteChecked = true;
+  const found = await gitRemoteOrigin(repo.root);
+  if (found.ok) repo.gitUrl = found.url;
+  return repo.gitUrl || null;
+}
+
+// Drop a temp clone, if this repo is one. Safe to call on a local repo: it
+// checks the shape of the directory rather than trusting a flag, so a bug
+// elsewhere cannot turn "clean up" into "delete the folder the user is in".
+export async function closeRemote(repo) {
+  if (repo?.cloneDir) await removeClone(repo.cloneDir);
+}
 
 // Scan a directory and return the loaded repo, or throw an Error whose message
 // is safe to print straight to the user. `target` may be `~`, a relative path,

@@ -206,8 +206,13 @@ export const COMMANDS = [
     run: (ctx) => ctx.rescan(),
   },
   {
+    name: 'github', aliases: ['remote', 'repo'], group: 'session',
+    usage: 'github', summary: "What GitHub says about this repo — stars, issues, license.",
+    run: (ctx) => ctx.github(),
+  },
+  {
     name: 'cd', aliases: ['open-repo', 'use'], group: 'session',
-    usage: 'cd <folder>', summary: 'Load a different repository.',
+    usage: 'cd <folder|url>', summary: 'Load another repository, or clone one by URL.',
     run: (ctx, args) => ctx.loadRepo(args.join(' ')),
   },
   {

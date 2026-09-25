@@ -582,10 +582,69 @@ export function externals(repo) {
 // Which binary is answering. When the terminal and the website disagree, this
 // is the first thing to ask.
 export function about(repo, version = '') {
-  return panel('onboarder', [
+  const rows = [
     { label: 'version', value: version },
     { label: 'repo', value: repo.root },
     { label: 'indexed', value: `${repo.searchIndex?.totalDocs ?? 0} files for find` },
-    { label: 'scanned', value: repo.scan.scannedAt },
-  ]);
+    { label: 'scanned', value: `${repo.scan.scannedAt}` },
+  ];
+  if (repo.gitUrl) rows.push({ label: 'from', value: repo.gitUrl });
+  if (repo.cloneDir) rows.push({ label: 'clone', value: 'a temp clone — removed when you leave' });
+  return panel('onboarder', rows);
+}
+
+// `github` — the terminal's answer to the site's "From the remote" section:
+// what GitHub says about this repository, as opposed to what reading the code
+// says about it. The distinction is the point. Stars and issues are about the
+// project's standing; `health` and `risks` are about the code in front of you,
+// and neither can tell you the other.
+//
+// The result is passed in rather than fetched here, because every function in
+// this file is pure and testable with no network. `ctx.github()` does the asking.
+export function github(repo, result) {
+  if (!result) {
+    return dim(wrapText('Not a GitHub repository, so there is nothing to ask GitHub about.', '  '));
+  }
+  if (!result.ok) {
+    return [bad(fit('  ' + result.reason, Math.max(1, termWidth() - 2))), dim(wrapText(githubHintText(repo), '  '))].join('\n');
+  }
+
+  const f = result.facts;
+  const rows = [
+    row('repo', result.repoPath),
+    row('stars', String(f.stars)),
+    row('forks', String(f.forks)),
+    row('watching', String(f.watching)),
+    row('open issues', String(f.issues)),
+  ];
+  if (f.license) rows.push(row('license', f.license));
+  if (f.branch) rows.push(row('branch', f.branch));
+  if (f.created) rows.push(row('created', shortDate(f.created)));
+  if (f.pushed) rows.push(row('last push', shortDate(f.pushed)));
+  if (f.archived) rows.push(row('note', 'this repository is archived'));
+
+  const out = [panel(result.repoPath, rows)];
+  if (f.description) out.push(dim(wrapText(f.description)));
+  if (f.topics.length) out.push(dim(fit('  topics   ' + f.topics.join(' '), Math.max(1, termWidth() - 2))));
+  if (f.homepage) out.push(dim(fit('  site     ' + f.homepage, Math.max(1, termWidth() - 2))));
+  // Double quotes rather than an escaped apostrophe: the previous spelling of
+  // this line was a `\\'` inside a single-quoted string, which is a syntax error
+  // waiting for the next person to touch the file.
+  out.push(dim(wrapText("These are GitHub's numbers, not this repo's. `health` and `risks` are about the code.", '  ')));
+  return out.join('\n');
+}
+
+// Returned as plain text and wrapped by the caller: a hint line is exactly the
+// kind of prose that overflows, because it is written once and never measured.
+function githubHintText(repo) {
+  if (repo.gitUrl) return 'It is a clone, so the URL is known — the ask itself failed.';
+  return 'No origin remote here, so there is no URL to ask about.';
+}
+
+// `2024-01-05T…` → `Jan 2024`. A day is noise next to a five-year-old project, and
+// a full timestamp is four columns wider than the label it sits beside.
+function shortDate(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
 }
