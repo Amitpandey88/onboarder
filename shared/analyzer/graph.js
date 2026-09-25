@@ -52,9 +52,14 @@ export function computeFacts(scan, manifest = {}) {
     .map((f) => f.path)
     .sort();
 
+  // A hub is a file other files depend on. The threshold is 2, not 3: in a
+  // repo with 20 files, "imported by two others" *is* the most-depended-upon
+  // file, and a threshold of 3 reported no hubs at all for a whole small project
+  // — the map of a small repo is exactly where a hub is most useful. Two is the
+  // lowest value that still means "more than one other file reaches for this".
   const hubs = files
     .map((f) => ({ path: f.path, fanIn: fanIn.get(f.path) || 0, fanOut: fanOut.get(f.path) || 0 }))
-    .filter((h) => h.fanIn >= 3)
+    .filter((h) => h.fanIn >= 2)
     .sort((a, b) => b.fanIn - a.fanIn);
 
   const orphans = files
