@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, fileMessages, questionMessages, stackSummaryMessages 
 import { extractRequestId } from '../server/llmProxy.js';
 
 test('default settings ship without a bundled credential', () => {
-  assert.deepEqual(DEFAULT_SETTINGS, { baseUrl: '', apiKey: '', model: '' });
+  assert.deepEqual(DEFAULT_SETTINGS, { connection: 'api', baseUrl: '', apiKey: '', model: '', hermesModel: '' });
 });
 
 test('questionMessages: repo-only question carries overview, no file block', () => {

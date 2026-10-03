@@ -8,12 +8,15 @@ import fs from 'node:fs';
 import { parseArgs } from 'node:util';
 import { runSetup, runStart, runStartBackground, runStartup, runLogs, runStatus, runStop, runRestart, runConfig, runConfigKey, runConfigReset, runDoctor, runTunnel, runHttps, } from './commands.js';
 import { runExplore } from './explorer/app.js';
+import { runChat, CHAT_HELP } from './chat/app.js';
+import { isRemoteSource } from './chat/source.js';
 import { openRepoOrClone, closeRemote } from './explorer/session.js';
 import { createReport, formatReport } from './explorer/report.js';
 import { setColorEnabled } from './ui.js';
 import { runReview } from '../server/review.js';
 import { reviewMarkdown, reviewProfile, SEVERITY_RANK } from '../shared/review/review.js';
 import { expandHome } from '../server/paths.js';
+import { agentCommand, AGENT_OPTIONS } from './agent/command.js';
 const PACKAGE = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const HELP = `
   🧭 Onboarder — drop a path, get a map.
@@ -24,14 +27,17 @@ const HELP = `
     --read-concurrency <n>     Concurrent reads, 1–32 (default: 8)
 
   Usage
-    onboarder                     Explore a codebase here, interactively
-    onboarder explore [folder|url]  Choose a source, or open one directly (alias: tui)
+    onboarder                      Open the Hermes chat harness here
+    onboarder chat [folder|url]     Clone/open a repo and chat (alias: tui)
+    onboarder explore [folder|url]  Open the offline repository explorer
     onboarder report [folder|url]   One-shot summary for terminals and scripts (--json)
     onboarder review [folder]       Review local changes (--json for scripts)
       --base <ref> --head <ref>     Compare branches from their merge base
       --staged                    Review only staged changes
       --profile focused|balanced|thorough
       --fail-on high|medium|low|critical|info  Exit 1 for findings at this level or above
+    onboarder agent <workflow>      Hermes: ask, review, triage, implement, pr, github
+      onboarder agent --help        Agent setup, permissions, and examples
     onboarder start               Start the web UI in the foreground (Ctrl-C stops it)
     onboarder start background    Start detached — keeps running after you close the terminal
     onboarder start startup       Run automatically at login [install|remove|status]
@@ -71,7 +77,7 @@ const HELP = `
 
   General flags
     --config <file>     Use this config file (or ONBOARDER_CONFIG)
-    --server            With bare \`onboarder\`, start the web UI instead of exploring
+    --server            With bare \`onboarder\`, start the web UI instead of chatting
     --non-interactive   Never prompt; flags + defaults are the answers
     -y, --yes           Answer yes to confirmations
     --json              Machine-readable output
@@ -86,7 +92,8 @@ const HELP = `
     fg | foreground     alias for start
 
   Examples
-    onboarder                           # explore the repo you are standing in
+    onboarder                           # chat about the repo you are standing in
+    onboarder chat --mode review         # begin in review mode
     onboarder explore ~/code/my-app     # explore somewhere else
     onboarder explore                  # choose a local folder or paste a Git URL
     onboarder explore https://github.com/expressjs/express   # clone one and read it
@@ -99,6 +106,7 @@ const HELP = `
     onboarder config set tunnel.cloudflare true && onboarder tunnel cloudflare
 `;
 const OPTIONS = {
+    ...AGENT_OPTIONS,
     help: { type: 'boolean', short: 'h' },
     version: { type: 'boolean', short: 'v' },
     json: { type: 'boolean' },
@@ -193,7 +201,11 @@ export async function main(argv = process.argv.slice(2)) {
         // captured log, so it has to actually turn color on.
         setColorEnabled(true);
     }
-    if (flags.help) {
+    if (flags.help && ['chat', 'tui'].includes(positionals[0])) {
+        console.log(CHAT_HELP);
+        return 0;
+    }
+    if (flags.help && positionals[0] !== 'agent') {
         console.log(HELP);
         return 0;
     }
@@ -204,24 +216,41 @@ export async function main(argv = process.argv.slice(2)) {
     const [cmd, sub, ...rest] = positionals;
     try {
         switch (cmd) {
+            case 'agent': {
+                if (sub === 'chat') {
+                    if (rest.length > 1)
+                        throw new Error('Use one repository folder: onboarder agent chat [folder].');
+                    return runChat({ target: rest[0], flags, version: PACKAGE.version });
+                }
+                const abort = new AbortController();
+                const cancel = () => abort.abort();
+                process.once('SIGINT', cancel);
+                process.once('SIGTERM', cancel);
+                try {
+                    return await agentCommand(sub, rest, flags, { signal: abort.signal });
+                }
+                finally {
+                    process.off('SIGINT', cancel);
+                    process.off('SIGTERM', cancel);
+                }
+            }
             case 'help':
                 console.log(HELP);
                 return 0;
             case undefined:
-                // The entry point. On a terminal, bare `onboarder` explores the repo you
-                // are standing in — the thing people actually want from this tool, and
-                // what the name promises. Everywhere else (a pipe, CI, a script) it
-                // still starts the server, because an interactive session with no input
-                // source is a hang, and nothing about a background job wants a prompt.
-                // `--server` forces the old behavior even on a terminal.
+                // Chat on a terminal; retain server behavior for existing scripts.
                 if (!flags.server && process.stdin.isTTY && process.stdout.isTTY) {
-                    return codeOf(await runExplore({ flags }));
+                    return codeOf(await runChat({ flags, version: PACKAGE.version }));
                 }
                 return codeOf(await runStart({ flags }));
             case 'explore':
-            case 'tui':
             case 'shell':
                 return codeOf(await runExplore({ flags, target: sub }));
+            case 'chat':
+            case 'tui':
+                if (rest.length)
+                    throw new Error('Use one repository folder: onboarder chat [folder].');
+                return codeOf(await runChat({ flags, target: sub, version: PACKAGE.version }));
             case 'report': {
                 const repo = await openRepoOrClone(sub || '.', scanOptionsFromFlags(flags));
                 try {
@@ -298,6 +327,11 @@ export async function main(argv = process.argv.slice(2)) {
             case 'doctor':
                 return codeOf(await runDoctor({ flags }));
             default:
+                if (isRemoteSource(cmd)) {
+                    if (sub)
+                        throw new Error('Use onboarder chat <GitHub URL>, then type your question.');
+                    return codeOf(await runChat({ target: cmd, flags, version: PACKAGE.version }));
+                }
                 console.error('  Unknown command: ' + cmd + '\n' + HELP);
                 return 2;
         }

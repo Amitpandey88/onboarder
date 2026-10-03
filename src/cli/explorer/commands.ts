@@ -26,6 +26,11 @@ export const CLEAR = Symbol('clear');
 
 export const COMMANDS = [
   {
+    name: 'agent', aliases: [], group: 'basics',
+    usage: 'agent <workflow> --task "..."', summary: 'Hermes: repository Q&A, review, triage, implementation, and GitHub tasks.',
+    run: (ctx, args) => ctx.agent(args),
+  },
+  {
     name: 'help', aliases: ['?'], group: 'basics',
     usage: 'help [command]', summary: 'This list, or everything about one command.',
     // The topic is forwarded. `help find` used to ignore its argument and print

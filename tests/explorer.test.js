@@ -230,6 +230,7 @@ test('every command in the table produces output from the fixture', async () => 
     // command table entry that reaches the internet is a test that hangs rather
     // than a test that runs. The failure shape is the interesting one anyway.
     github: async () => 'asked',
+    agent: async () => 'agent result',
     web: async () => 'started',
     selectSource: async () => 'choose a source',
     diff: async () => 'changed files',

@@ -34,6 +34,11 @@ export async function renderInto(contentEl, source) {
   return el;
 }
 
+export async function validateDiagram(source: string): Promise<void> {
+  ensureMermaid();
+  if (!await window.mermaid.parse(source)) throw new Error('The diagram could not be parsed.');
+}
+
 // Mermaid gives every node a DOM id like "flowchart-f3-87"; the middle part
 // is the id our diagram builders assigned, and `nodes` maps it back to a
 // file or folder payload.

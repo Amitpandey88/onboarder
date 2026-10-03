@@ -9,24 +9,26 @@
 // Nothing here is required for the app to work; with no endpoint configured the
 // button opens the settings drawer and says so.
 
-import { extractAIDiagram, matchNodeText } from '/shared/diagram/aiMermaid.js';
+import { extractAIDiagram, matchNodeText } from '../../shared/diagram/aiMermaid.js';
 import { streamExplain } from './api.js';
 import { state, aiViewKey } from './state.js';
 import { gatherFileContext } from './repoFiles.js';
 import {
   diagramTarget, externalsFor, overviewFacts, layersFacts, servicesFacts,
   fileFacts, tourStopFacts, folderFacts,
-} from '/shared/diagram/aiFacts.js';
+} from '../../shared/diagram/aiFacts.js';
 import * as llm from './llm.js';
 
 const MAX_TOKENS = 4000;
-const PROGRESS_MS = 250;
+const PROGRESS_MS = 1000;
 
 let btn = null;
 let statusEl = null;
 let nodeHost = null;
+let pending: { key: string; scan: typeof state.scan; controller: AbortController } | null = null;
 let hooks = {
   onRender: (..._args: unknown[]) => {},
+  onValidate: async (_source: string) => {},
   onOpenFile: (..._args: unknown[]) => {},
   onOpenSettings: (..._args: unknown[]) => {},
   onToast: (..._args: unknown[]) => {},
@@ -39,33 +41,49 @@ export function initAiDraft(options) {
   hooks = { ...hooks, ...options };
 
   btn.addEventListener('click', () => {
+    if (pending) { stopAiDraft(); updateAiBtn(); hooks.onToast('Sketch cancelled.'); return; }
     const key = aiViewKey();
     if (state.aiActiveKey === key) {
       state.aiActiveKey = null; // back to static
+      updateAiBtn(key);
       hooks.onRender();
       return;
     }
     if (state.aiDiagrams[key]) {
       state.aiActiveKey = key; // cached draft, instant
+      updateAiBtn(key);
       hooks.onRender();
       return;
     }
-    drawWithAI(key);
+    return drawWithAI(key);
   });
 }
 
 // Which of the three things the button currently offers. Called on every canvas
 // render, because the answer depends on the view.
 export function updateAiBtn(key = aiViewKey()) {
+  if (pending && (pending.scan !== state.scan || pending.key !== key)) stopAiDraft();
   btn.hidden = state.view === 'docs' || state.view === 'about'
     || (state.view === 'atlas' && !state.atlasOpen);
-  if (state.aiActiveKey === key) {
+  if (pending) {
+    btn.textContent = 'Cancel sketch';
+    btn.title = 'Stop generating this sketch';
+    btn.setAttribute('aria-busy', 'true');
+  } else if (state.aiActiveKey === key) {
     btn.textContent = 'Static';
     btn.title = 'Back to the static diagram';
   } else {
-    btn.textContent = state.aiDiagrams[key] ? 'AI draft ✓' : 'AI draft';
+    btn.textContent = state.aiDiagrams[key] ? 'AI sketch ✓' : 'AI sketch';
     btn.title = 'Ask the AI to draw this view';
   }
+  if (!pending) btn.removeAttribute('aria-busy');
+}
+
+export function stopAiDraft() {
+  pending?.controller.abort();
+  pending = null;
+  if (statusEl) statusEl.hidden = true;
+  statusEl?.removeAttribute('aria-busy');
 }
 
 // AI nodes carry no stable ids — clicks are matched by label text instead.
@@ -84,13 +102,15 @@ export function wireAIClicks() {
 async function drawWithAI(key) {
   if (!llm.isConfigured()) {
     hooks.onOpenSettings();
-    hooks.onToast('Add an endpoint and model first.');
+    hooks.onToast('Choose Hermes or an endpoint in AI connection first.');
     return;
   }
+  if (!state.scan) return;
   const settings = llm.getSettings();
-  btn.disabled = true;
-  btn.textContent = 'drawing…';
+  const job = pending = { key, scan: state.scan, controller: new AbortController() };
+  updateAiBtn(key);
   statusEl.hidden = false;
+  statusEl.setAttribute('aria-busy', 'true');
 
   // Live progress: elapsed time plus how much the model has written so far. A
   // reasoning model can be quiet for half a minute, and a canvas that says
@@ -98,38 +118,47 @@ async function drawWithAI(key) {
   const startedAt = Date.now();
   let received = 0;
   const tick = () => {
+    if (pending !== job) return;
     const secs = Math.round((Date.now() - startedAt) / 1000);
     const kb = received >= 1000 ? (received / 1000).toFixed(1) + 'k' : String(received);
-    statusEl.textContent = `The AI is sketching this view… ${kb} chars · ${secs}s`;
+    statusEl.textContent = `${settings.connection === 'hermes' ? 'Hermes' : 'The AI'} is sketching this view… ${kb} chars · ${secs}s`;
   };
   tick();
   const progressTimer = setInterval(tick, PROGRESS_MS);
 
   try {
     const { kind, facts } = await factsForView();
-    const messages = llm.diagramMessages({ repoName: state.scan.name, kind, facts });
+    job.controller.signal.throwIfAborted();
+    const messages = llm.diagramMessages({ repoName: job.scan.name, kind, facts });
     let text = '';
     // Big budget, and no visible thinking where the dialect allows it:
     // reasoning models otherwise spend the whole allowance before a single
     // diagram line appears. Azure rejects that parameter outright.
     const providerOptions = llm.isAzureHost(settings.baseUrl) ? {} : { reasoning: { exclude: true } };
-    for await (const delta of streamExplain({ ...settings, messages, maxTokens: MAX_TOKENS, providerOptions })) {
+    for await (const delta of streamExplain({ ...settings, messages, maxTokens: MAX_TOKENS, providerOptions, purpose: 'diagram', signal: job.controller.signal })) {
       text += delta;
       received += delta.length;
+      if (text.length > 120000) throw new Error('The sketch was too large. Try a smaller folder or file.');
     }
+    job.controller.signal.throwIfAborted();
     const parsed = extractAIDiagram(text);
     if (!parsed) throw new Error('The model answered without a diagram. Try again.');
+    try { await hooks.onValidate(parsed.body); }
+    catch { throw new Error('The AI returned a diagram that could not be drawn. Try again.'); }
+    job.controller.signal.throwIfAborted();
+    if (pending !== job || state.scan !== job.scan || aiViewKey() !== key) return;
     state.aiDiagrams[key] = { body: parsed.body, caption: parsed.caption };
     state.aiActiveKey = key;
     statusEl.hidden = true;
-    hooks.onRender();
+    await hooks.onRender();
   } catch (err) {
-    statusEl.hidden = true;
-    hooks.onToast(err.message);
+    if (pending === job && !job.controller.signal.aborted) {
+      statusEl.hidden = true;
+      hooks.onToast(err.message);
+    }
   } finally {
     clearInterval(progressTimer);
-    btn.disabled = false;
-    updateAiBtn(key);
+    if (pending === job) { pending = null; statusEl.removeAttribute('aria-busy'); updateAiBtn(); }
   }
 }
 

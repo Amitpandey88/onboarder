@@ -123,6 +123,14 @@ export interface AppElements {
   'pickCard': HTMLElement;
   'repoChip': HTMLElement;
   'saveSettings': HTMLButtonElement;
+  'setConnection': HTMLSelectElement;
+  'apiConnection': HTMLElement;
+  'hermesConnection': HTMLElement;
+  'hermesConnectionStatus': HTMLElement;
+  'hermesModel': HTMLElement;
+  'hermesProvider': HTMLElement;
+  'refreshHermes': HTMLButtonElement;
+  'aiConnectionNote': HTMLElement;
   'sbomSearchInput': HTMLInputElement;
   'sbomTable': HTMLElement;
   'sbomTableBody': HTMLElement;

@@ -175,7 +175,7 @@ function parseLine(line) {
  * Run the server until stdin closes. `input` and `output` are parameters so tests
  * can drive a whole session through in-memory streams.
  */
-export function serveMcp({ input = process.stdin, output = process.stdout }: Record<string, any> = {}) {
+export function serveMcp({ input = process.stdin, output = process.stdout, dispatch = handle }: Record<string, any> = {}) {
   let buffer = '';
   // Messages are handled strictly in order, but not awaited inline: a long scan
   // must not block the event loop from reading the next line, or a client that
@@ -193,7 +193,7 @@ export function serveMcp({ input = process.stdin, output = process.stdout }: Rec
     chain = chain.then(async () => {
       const { msg, bad } = parseLine(line);
       if (bad) { send(bad); return; }
-      const response = await handle(msg);
+      const response = await dispatch(msg);
       if (response) send(response);
     }).catch((err) => {
       // `handle` already turns tool failures into results. Reaching here means

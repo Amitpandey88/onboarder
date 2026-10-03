@@ -26,9 +26,9 @@ import { overviewDiagram, folderDiagram, fileDetailDiagram, servicesDiagram, emp
 import { analyzeHealth } from '/shared/analyzer/health.js';
 import { summarizeSecurity } from '/shared/analyzer/security.js';
 import { escapeHtml } from '/js/html.js';
-import { scanOnServer, cleanupClone, streamExplain, fetchMcpStatus, startMcpServer, stopMcpServer, fetchMcpCommand, } from '/js/api.js';
+import { scanOnServer, cleanupClone, streamExplain, fetchMcpStatus, startMcpServer, stopMcpServer, fetchMcpCommand, fetchHermesStatus, } from '/js/api.js';
 import { canPickFolder, pickDirectory, browserFileSource } from '/js/fileSourceBrowser.js';
-import { renderInto, wireNodeClicks, makePanzoom, downloadSvg } from '/js/diagramPane.js';
+import { renderInto, validateDiagram, wireNodeClicks, makePanzoom, downloadSvg } from '/js/diagramPane.js';
 import { setViewerTheme } from '/js/codeViewer.js';
 import * as llm from '/js/llm.js';
 import { buildTree, renderTree, resetOpenState, expandedToDepth } from '/js/tree.js';
@@ -41,7 +41,7 @@ import { initDocs, renderDocs } from '/js/docsView.js';
 import { initCodeTab, renderCode, revealLineInCode } from '/js/codeTab.js';
 import { initAnalysisPanel, renderAnalysisPanel, subscribeAnalysis } from '/js/analysisPanel.js';
 import { initDeepAnalysis, renderDeepAnalysis } from '/js/deepAnalysisView.js';
-import { initAiDraft, updateAiBtn, wireAIClicks } from '/js/aiDraft.js';
+import { initAiDraft, updateAiBtn, wireAIClicks, stopAiDraft } from '/js/aiDraft.js';
 import { initAtlas, renderAtlasList, openCardDiagram } from '/js/atlas.js';
 import { initForceGraph } from '/js/forceGraph.js';
 import { initHeatmap } from '/js/heatmap.js';
@@ -67,6 +67,7 @@ const dom = {};
     'tourbar', 'tourTitle', 'tourCount', 'tourPrev', 'tourNext', 'tourExit',
     'drawerScrim', 'settingsDrawer', 'drawerClose', 'setBaseUrl', 'setApiKey', 'setModel',
     'saveSettings', 'testSettings', 'settingsStatus', 'toast', 'brandNote', 'askBtn', 'askInput',
+    'setConnection', 'apiConnection', 'hermesConnection', 'hermesConnectionStatus', 'hermesModel', 'hermesProvider', 'refreshHermes', 'aiConnectionNote',
     'graphView', 'graphCanvas', 'graphControls', 'graphReset', 'graphZoomIn', 'graphZoomOut', 'graphFit', 'graphSearchInput', 'graphTooltip',
     'heatmapView', 'heatmapCanvas', 'heatmapTooltip', 'blameGutter', 'codeTabContainer',
     'insightsView', 'diffView', 'reviewView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView',
@@ -237,6 +238,7 @@ if (!canPickFolder()) {
 }
 // -------------------------------------------------------------- explorer --
 function enterExplorer(payload, opts) {
+    stopAiDraft();
     loadRepo(payload, {
         browserSource: opts.browserSource || null,
         history: payload.history || null, // computed server-side; null for browser picks
@@ -291,6 +293,7 @@ function buildPatterns(scan, facts, manifest) {
     };
 }
 dom.newRepoBtn.addEventListener('click', () => {
+    stopAiDraft();
     stopReview();
     stopDiff();
     mobilePanels.close();
@@ -478,6 +481,7 @@ document.addEventListener('heatmap-node-click', (event) => {
         openFile(event.detail.path);
 });
 async function renderCanvas() {
+    updateAiBtn();
     const isDocs = state.view === 'docs';
     const isAbout = state.view === 'about';
     const isCode = state.view === 'code';
@@ -587,12 +591,14 @@ async function renderCanvas() {
     const key = aiViewKey();
     updateAiBtn(key);
     // Tree-map furniture only belongs to the Map; SVG export can't take cells.
-    dom.svgBtn.hidden = isPage || isAtlasList || state.view === 'map';
+    const showingSketch = state.aiActiveKey === key && Boolean(state.aiDiagrams[key]);
+    dom.svgBtn.hidden = isPage || isAtlasList || (state.view === 'map' && !showingSketch);
+    dom.mmToggleBtn.hidden = state.view !== 'map' || showingSketch;
     const filterable = ['map', 'files', 'patterns'].includes(state.view);
-    dom.nodeFilter.hidden = !filterable && state.view !== 'atlas';
-    dom.testsToggle.hidden = !filterable && state.view !== 'atlas';
-    dom.depthSelect.hidden = state.view !== 'map';
-    if (state.view === 'map') {
+    dom.nodeFilter.hidden = showingSketch || (!filterable && state.view !== 'atlas');
+    dom.testsToggle.hidden = showingSketch || (!filterable && state.view !== 'atlas');
+    dom.depthSelect.hidden = showingSketch || state.view !== 'map';
+    if (state.view === 'map' && !showingSketch) {
         // Copy Mermaid still hands over the classic folder overview.
         state.currentDiagram = { source: overviewDiagram(scan, facts).source, nodes: {} };
         renderMap(true);
@@ -733,7 +739,7 @@ function nothingToShow() {
 // not. The Map redraws in place, everything else goes through the canvas router.
 let filterTimer = null;
 function applyFilters() {
-    if (state.view === 'map')
+    if (state.view === 'map' && state.aiActiveKey !== aiViewKey())
         renderMap(false);
     else
         renderCanvas();
@@ -951,6 +957,7 @@ initAiDraft({
     statusEl: dom.canvasEmpty, // the placeholder doubles as the progress line
     nodeHost: dom.canvasContent,
     onRender: renderCanvas,
+    onValidate: source => validateDiagram(diagramThemeBlock() + '\n' + source),
     onOpenFile: openFile,
     onOpenSettings: openSettings,
     onToast: toast,
@@ -982,7 +989,7 @@ function repoOverview() {
 async function askAI() {
     if (!llm.isConfigured()) {
         openSettings();
-        toast('Add an endpoint and model first.');
+        toast('Choose Hermes or an endpoint in AI connection first.');
         return;
     }
     if (!state.selected)
@@ -1004,7 +1011,7 @@ async function askAI() {
         writer.finish(`Written by ${settings.model}, from the real source and the import graph.`);
     }
     catch (err) {
-        writer.fail(err.message + ' Check the API key drawer, top right.');
+        writer.fail(err.message + ' Check the AI connection drawer, top right.');
     }
 }
 // Free-form questions. The selected file's context rides along when there is
@@ -1017,7 +1024,7 @@ async function askCustom() {
         return;
     if (!llm.isConfigured()) {
         openSettings();
-        toast('Add an endpoint and model first.');
+        toast('Choose Hermes or an endpoint in AI connection first.');
         return;
     }
     const settings = llm.getSettings();
@@ -1038,7 +1045,7 @@ async function askCustom() {
         writer.finish(`Answered by ${settings.model}.`);
     }
     catch (err) {
-        writer.fail(err.message + ' Check the API key drawer, top right.');
+        writer.fail(err.message + ' Check the AI connection drawer, top right.');
     }
     finally {
         dom.askBtn.disabled = false;
@@ -1051,20 +1058,74 @@ dom.askInput.addEventListener('keydown', (event) => {
         askCustom();
 });
 // ---------------------------------------------------------- settings bits --
+let hermesInfo = null;
+let connectionCheck = null;
+let connectionTest = null;
+async function refreshHermes() {
+    connectionCheck?.abort();
+    const controller = connectionCheck = new AbortController();
+    hermesInfo = null;
+    dom.hermesConnectionStatus.textContent = 'Checking your Hermes configuration…';
+    dom.hermesModel.textContent = dom.hermesProvider.textContent = '—';
+    dom.saveSettings.disabled = dom.testSettings.disabled = true;
+    dom.refreshHermes.disabled = true;
+    try {
+        const info = await fetchHermesStatus(controller.signal);
+        if (controller.signal.aborted)
+            return;
+        hermesInfo = info;
+        dom.hermesConnectionStatus.textContent = info.message;
+        dom.hermesModel.textContent = info.model || 'Choose in your terminal';
+        dom.hermesProvider.textContent = info.provider || 'Not configured';
+        dom.saveSettings.disabled = dom.testSettings.disabled = !info.available || !info.configured;
+    }
+    catch (err) {
+        if (!controller.signal.aborted)
+            dom.hermesConnectionStatus.textContent = err.message;
+    }
+    finally {
+        if (connectionCheck === controller)
+            dom.refreshHermes.disabled = false;
+    }
+}
+function syncAIConnection() {
+    connectionCheck?.abort();
+    connectionTest?.abort();
+    const hermes = dom.setConnection.value === 'hermes';
+    dom.apiConnection.hidden = hermes;
+    dom.hermesConnection.hidden = !hermes;
+    dom.saveSettings.disabled = dom.testSettings.disabled = false;
+    dom.settingsStatus.textContent = '';
+    dom.aiConnectionNote.textContent = hermes
+        ? 'Hermes keeps your login on the server. Only the connection choice is saved in this browser. AI features send the displayed repository context to your Hermes provider.'
+        : 'Endpoint settings are saved in this browser. The key is forwarded through your server and never written to its disk or logs.';
+    if (hermes)
+        void refreshHermes();
+}
+function readAISettings() {
+    return { connection: dom.setConnection.value, hermesModel: hermesInfo?.model || '',
+        baseUrl: dom.setBaseUrl.value.trim().replace(/\/+$/, ''), apiKey: dom.setApiKey.value, model: dom.setModel.value.trim() };
+}
+dom.setConnection.addEventListener('change', syncAIConnection);
+dom.refreshHermes.addEventListener('click', () => { void refreshHermes(); });
 function openSettings() {
     // Same reason the MCP drawer closes settings: one scrim at a time.
     if (!dom.mcpDrawer.hidden)
         closeMcp();
     serverDrawer.close();
-    const s = llm.getSettings();
+    const s = llm.getSettings(false);
+    dom.setConnection.value = s.connection;
     dom.setBaseUrl.value = s.baseUrl;
     dom.setApiKey.value = s.apiKey;
     dom.setModel.value = s.model;
     dom.settingsStatus.textContent = '';
     dom.settingsDrawer.hidden = false;
     dom.drawerScrim.hidden = false;
+    syncAIConnection();
 }
 function closeSettings() {
+    connectionCheck?.abort();
+    connectionTest?.abort();
     dom.settingsDrawer.hidden = true;
     dom.drawerScrim.hidden = true;
 }
@@ -1283,40 +1344,53 @@ dom.mcpStop.addEventListener('click', () => setMcpState('stop'));
 scheduleMcpPoll(0);
 dom.drawerScrim.addEventListener('click', closeSettings);
 dom.saveSettings.addEventListener('click', () => {
-    llm.saveSettings({ baseUrl: dom.setBaseUrl.value, apiKey: dom.setApiKey.value, model: dom.setModel.value });
+    stopAiDraft();
+    llm.saveSettings(readAISettings());
     dom.settingsStatus.className = 'drawer-status ok';
-    dom.settingsStatus.textContent = 'Saved in this browser.';
+    dom.settingsStatus.textContent = dom.setConnection.value === 'hermes' ? 'Hermes connected. Your AI features now use its configured login.' : 'Saved in this browser.';
+    updateAiBtn();
+    if (state.scan) {
+        syncInspector();
+        void renderCanvas();
+    }
 });
 dom.testSettings.addEventListener('click', async () => {
-    const settings = {
-        baseUrl: dom.setBaseUrl.value.trim().replace(/\/+$/, ''),
-        apiKey: dom.setApiKey.value,
-        model: dom.setModel.value.trim(),
-    };
-    if (!settings.baseUrl || !settings.model) {
+    const settings = readAISettings();
+    if (settings.connection !== 'hermes' && (!settings.baseUrl || !settings.model)) {
         dom.settingsStatus.className = 'drawer-status err';
         dom.settingsStatus.textContent = 'Base URL and model are both needed.';
         return;
     }
     dom.settingsStatus.className = 'drawer-status';
-    dom.settingsStatus.textContent = 'Asking the endpoint…';
+    dom.settingsStatus.textContent = settings.connection === 'hermes' ? 'Asking Hermes… first response may take a moment.' : 'Asking the endpoint…';
+    const controller = connectionTest = new AbortController();
+    dom.testSettings.disabled = true;
     try {
         let heard = '';
         for await (const delta of streamExplain({
             ...settings,
+            signal: controller.signal,
             maxTokens: 64,
             messages: [{ role: 'user', content: 'Reply with the single word: ready' }],
         })) {
             heard += delta;
         }
+        if (controller.signal.aborted)
+            return;
         dom.settingsStatus.className = 'drawer-status ok';
         dom.settingsStatus.textContent = heard
-            ? `Connected — ${settings.model} answered.`
+            ? `Connected — ${settings.connection === 'hermes' ? 'Hermes · ' + settings.hermesModel : settings.model} answered. Save to use this connection.`
             : `Connected. It answered with silence, but that is a thinking model spending its whole token budget on thought — explanations use a bigger one.`;
     }
     catch (err) {
+        if (controller.signal.aborted)
+            return;
         dom.settingsStatus.className = 'drawer-status err';
         dom.settingsStatus.textContent = err.message;
+    }
+    finally {
+        if (connectionTest === controller && !controller.signal.aborted)
+            dom.testSettings.disabled = false;
     }
 });
 // ------------------------------------------------------------------- misc --

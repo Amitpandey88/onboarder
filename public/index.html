@@ -40,7 +40,7 @@
     </button>
     <button class="btn btn-ghost" id="themeBtn" title="Switch theme">Dark</button>
     <button class="btn btn-ghost" id="newRepoBtn" hidden>New repo</button>
-    <button class="btn btn-ghost" id="settingsBtn">API key</button>
+    <button class="btn btn-ghost" id="settingsBtn">AI connection</button>
     <button class="btn btn-ghost" id="serverBtn" title="Server mode, network, access key, and tunnels">Server</button>
     <span class="me-links" title="Built by Amit Pandey">
       <a class="me-link" href="https://github.com/Amitpandey88" target="_blank" rel="noopener" title="Amit on GitHub" aria-label="Amit Pandey on GitHub">
@@ -161,7 +161,7 @@
   <footer class="landing-foot" id="landingFoot">
     <span>Everything runs locally.</span>
     <span>Diagrams export as Mermaid or SVG.</span>
-    <span>Explanations optional — bring any OpenAI-compatible key.</span>
+    <span>Explanations optional — connect Hermes or your own AI endpoint.</span>
     <span class="foot-license" id="footCredit">MIT licensed · created by <a href="https://theamit.me" target="_blank" rel="noopener">Amit</a></span>
   </footer>
 </main>
@@ -185,7 +185,7 @@
       <div class="crumbs" id="crumbs"></div>
       <div class="stage-actions">
         <button class="btn btn-ghost btn-sm" id="mmToggleBtn" hidden>Open folders</button>
-        <button class="btn btn-ghost btn-sm" id="aiDrawBtn">AI draft</button>
+        <button class="btn btn-ghost btn-sm" id="aiDrawBtn">AI sketch</button>
         <button class="btn btn-ghost btn-sm" id="copyMermaidBtn">Copy Mermaid</button>
         <button class="btn btn-ghost btn-sm" id="svgBtn">Save SVG</button>
         <button class="btn btn-ghost btn-sm" id="fitBtn">Fit</button>
@@ -297,10 +297,26 @@
     <button class="btn btn-ghost btn-sm" id="drawerClose">Close</button>
   </header>
   <p class="drawer-note">
-    Nothing is preconfigured — no endpoint, model, or key ships with the repo.
-    Point this at any OpenAI-compatible endpoint (OpenAI proper, Groq,
-    OpenRouter, Ollama, LM Studio…). Without one you still get the offline notes.
+    Connect with your existing Hermes login, or use your own AI endpoint.
+    Your offline notes are always available.
   </p>
+  <label class="field">
+    <span class="field-label">Connect through</span>
+    <select id="setConnection" class="text-input">
+      <option value="api">API endpoint</option>
+      <option value="hermes">Hermes · use my configured login</option>
+    </select>
+  </label>
+  <section id="hermesConnection" class="hermes-connection" hidden aria-label="Hermes connection">
+    <div class="hermes-connection-title"><img src="/assets/onboarder-mark.svg" width="36" height="36" alt=""><div><strong>Powered by Hermes</strong><p>No API key to enter here</p></div></div>
+    <p id="hermesConnectionStatus" role="status">Checking your Hermes configuration…</p>
+    <dl class="hermes-connection-details"><div><dt>Model</dt><dd id="hermesModel">—</dd></div><div><dt>Provider</dt><dd id="hermesProvider">—</dd></div></dl>
+    <p class="drawer-note">Uses the same Hermes profile as the Onboarder CLI, on the computer running this server.</p>
+    <p class="drawer-note">To sign in or change models, run this in your terminal:</p>
+    <code class="hermes-setup-command">onboarder agent model</code>
+    <button class="btn btn-outline btn-sm" id="refreshHermes" type="button">Refresh configuration</button>
+  </section>
+  <div id="apiConnection">
   <label class="field">
     <span class="field-label">Base URL</span>
     <input type="text" id="setBaseUrl" class="text-input" placeholder="https://api.openai.com/v1" spellcheck="false">
@@ -313,12 +329,13 @@
     <span class="field-label">Model</span>
     <input type="text" id="setModel" class="text-input" placeholder="gpt-4o-mini" spellcheck="false">
   </label>
+  </div>
   <div class="drawer-actions">
     <button class="btn btn-ink" id="saveSettings">Save</button>
     <button class="btn btn-outline" id="testSettings">Test connection</button>
   </div>
   <p class="drawer-status" id="settingsStatus"></p>
-  <p class="drawer-fine">
+  <p class="drawer-fine" id="aiConnectionNote">
     Stored in this browser’s localStorage, forwarded through your local server,
     never written to disk or logged. Close the tab and it stays here; clear site
     data and it’s gone.

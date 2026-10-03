@@ -1,18 +1,23 @@
-// LLM settings and prompt assembly. The key lives in localStorage and only
-// ever travels to the local server, which forwards it to whatever
-// OpenAI-compatible endpoint the user pointed at.
+// AI connection settings and prompt assembly. Hermes resolves its login on
+// the server; API mode forwards the browser's key to the chosen endpoint.
 const STORE_KEY = 'onboarder.llm.v1';
 // No endpoint, model, or key ships with the repo. Anything saved in the
-// API-key drawer overrides these empty defaults (localStorage wins); without
-// a saved endpoint the app stays on the offline graph explanations.
+// connection drawer overrides these defaults; without a connection the app
+// stays on the offline graph explanations. Old settings remain in API mode.
 export const DEFAULT_SETTINGS = {
+    connection: 'api',
     baseUrl: '',
     apiKey: '',
     model: '',
+    hermesModel: '',
 };
-export function getSettings() {
+export function getSettings(displayModel = true) {
     try {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') };
+        const s = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') };
+        s.connection = s.connection === 'hermes' ? 'hermes' : 'api';
+        if (displayModel && s.connection === 'hermes')
+            s.model = s.hermesModel || 'Hermes';
+        return s;
     }
     catch {
         return { ...DEFAULT_SETTINGS };
@@ -20,6 +25,8 @@ export function getSettings() {
 }
 export function saveSettings(settings) {
     localStorage.setItem(STORE_KEY, JSON.stringify({
+        connection: settings.connection === 'hermes' ? 'hermes' : 'api',
+        hermesModel: settings.hermesModel || '',
         baseUrl: (settings.baseUrl || '').trim().replace(/\/+$/, ''),
         apiKey: settings.apiKey || '',
         model: (settings.model || '').trim(),
@@ -27,7 +34,7 @@ export function saveSettings(settings) {
 }
 export function isConfigured() {
     const s = getSettings();
-    return Boolean(s.baseUrl && s.model);
+    return s.connection === 'hermes' || Boolean(s.baseUrl && s.model);
 }
 // Azure OpenAI speaks a slightly different dialect than the rest: api-key
 // header (handled server-side) and no `reasoning` request parameter.

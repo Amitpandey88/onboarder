@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Onboarder — code compass</title>
+  <desc id="desc">An amber O surrounds a north-pointing compass and three connected repository nodes.</desc>
+  <rect x="12" y="12" width="232" height="232" rx="64" fill="#20242F"/>
+  <path d="M128 38c50 0 90 40 90 90s-40 90-90 90-90-40-90-90 40-90 90-90Z" stroke="#F5C451" stroke-width="10"/>
+  <path d="M128 166V94M88 128h80" stroke="#F5C451" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m128 72-15 25h30l-15-25Z" fill="#F5C451"/>
+  <circle cx="84" cy="128" r="10" fill="#FFE9AD"/>
+  <circle cx="172" cy="128" r="10" fill="#FFE9AD"/>
+  <circle cx="128" cy="174" r="10" fill="#FFE9AD"/>
+</svg>

@@ -2,10 +2,6 @@
 // does. Pulled out of the router so a handler can be read on its own, and so
 // the body limit is one number in one place rather than a check repeated per
 // route and forgotten on the next one.
-// A scan request carries a path or a URL; an explain request carries a prompt
-// and a slice of facts. Two megabytes is far more than either needs, and the
-// point is to have a ceiling at all: a local server with no auth should not let
-// a stray fetch hold memory open.
 export const MAX_BODY_BYTES = 2 * 1024 * 1024;
 // Resolves to the parsed JSON body, or `{}` for an empty one — a POST with no
 // body is a valid "just the defaults" request and every caller would otherwise

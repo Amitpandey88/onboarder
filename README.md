@@ -12,7 +12,7 @@
 
 Onboarder reads a software repository the way a senior engineer would: starting at the front door, tracing import graphs, mapping architectural layers, computing risk/health metrics, discovering dead exports and dependency drift, and charting Git hotspots — rendering everything as interactive, zoomable diagrams.
 
-**100% Local & Private**: Your code never leaves your computer. No external services or accounts are required.
+**Local analysis**: Repository maps and the offline explorer run on your machine without an account. Optional AI chat sends task context and requested source to your configured model provider.
 
 ---
 
@@ -22,8 +22,11 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 # Install from npm (Node 20+, zero runtime dependencies)
 npm install -g codebase-onboarder
 
-# Choose a folder or Git URL to explore in your terminal
+# Open the repository chat harness in your terminal
 onboarder
+
+# Browse offline, including folders and Git URLs
+onboarder explore
 
 # …or start the web UI instead
 onboarder start
@@ -40,7 +43,7 @@ npm start
 
 Open **http://localhost:4310** in your browser (the CLI opens it for you).
 
-- **Two front doors, one engine.** `onboarder` opens an interactive terminal session; `onboarder start` opens the web UI. Both run the *same* analyzer, so they can never disagree about a repository.
+- **Chat, explorer, and web UI.** `onboarder` opens the Hermes chat harness; `onboarder explore` opens offline browsing; `onboarder start` opens the web UI. Repository analysis uses the same engine in all three.
 - **Ready to run from npm**: Compiled JavaScript is included in the package. Application source lives in `src/` as TypeScript. Run `npm run build` after editing it, or use `npm run dev` for automatic rebuilds and server restarts.
 - **Zero runtime dependencies**: Powered by Node.js built-ins (`node:http`, `node:fs`, `node:crypto`).
 - **Offline ready**: Vendored Mermaid.js and Monaco Editor builds are included in `public/vendor/`.
@@ -49,18 +52,71 @@ Open **http://localhost:4310** in your browser (the CLI opens it for you).
 
 ## 🖥️ The terminal app
 
-Type `onboarder` to choose the current folder, browse directories, or paste a Git URL. Local folders are read directly, with no server or browser.
+Type `onboarder` to open the Hermes-powered chat interface for the current repository, or `onboarder chat ~/work/some-repo` to open another local checkout. An amber welcome screen shows the actual configured model, repository, permissions, six workflow skills, and 37 registered tools. The composer has a session status bar with recorded token usage, elapsed run time, and live tool activity. It keeps terminal scrollback and loads the browsing engine only when requested.
+
+```sh
+onboarder chat
+onboarder chat ~/work/some-repo --mode review
+onboarder chat https://github.com/owner/repo
+onboarder chat --resume <conversation-id>
+```
+
+Inside the chat:
+
+```text
+codebase ask › /model configure
+codebase ask › /repo https://github.com/owner/repo
+codebase ask › Explain how authentication works
+codebase ask › Where are those permissions checked?
+codebase ask › /review 42 Focus on correctness and security
+codebase review › /triage 12
+codebase triage › /permissions checks on
+codebase triage › /implement Fix the bug described in issue 12
+codebase implement › /diff
+codebase implement › Add a regression test for that fix
+codebase implement › /history
+```
+
+| Commands | Purpose |
+| --- | --- |
+| `/ask`, `/review`, `/triage`, `/implement`, `/pr`, `/github` | Start a workflow; following messages continue it |
+| `/mode`, `/model`, `/permissions`, `/limits` | Control the workflow, provider, allowed actions, timeout, and turn budget |
+| `/map`, `/tree`, `/find`, `/show`, `/diff`, `/health`, `/rescan` | Browse and analyze offline; inspect the active implementation workspace |
+| `/tour`, `/explain`, `/deps`, `/inspect`, `/graph`, `/blast`, `/symbols` | Follow the reading order, inspect modules, and trace dependencies |
+| `/hubs`, `/layers`, `/patterns`, `/stats`, `/security`, `/stack`, `/entry`, `/externals`, `/coupling`, `/clusters`, `/risks` | Explore repository structure, health, and risks |
+| `/log`, `/hotspots`, `/blame`, `/diagram`, `/layers-diagram`, `/atlas`, `/docs`, `/workflows`, `/sbom` | Inspect Git history, diagrams, documentation, CI, and licenses |
+| `/engines`, `/deep`, `/web`, `/about` | Discover and run optional analyzers, start the web interface, and inspect repository details |
+| `/new`, `/history`, `/resume`, `/repo`, `/status` | Manage saved conversations, repository context, and workspaces |
+| `/clone <GitHub URL>`, `/pull` | Clone a GitHub repository and refresh a clean saved checkout |
+| `/paste`, `/send`, `/discard` | Compose or discard multiline prompts and code |
+| `/setup`, `/doctor`, `/help`, `/clear`, `/cancel`, `/exit` | Set up Hermes, check readiness, and control the terminal session |
+| `/tools`, `/skills`, `/runs`, `/run`, `/export` | Inspect actual capabilities, saved runs, and export this chat as Markdown |
+
+Typing `/` immediately opens a searchable command menu with descriptions. Keep typing to filter, use ↑/↓ to choose, and press Tab or Enter to fill the command without starting a task. A fully typed command executes on Enter. Esc dismisses the menu and restores normal history navigation. Tab also completes settings and indexed file paths. Alt-Enter adds a newline; bracketed paste keeps multiline code together and waits for Enter before sending. Ctrl-A/E move to the start/end, Ctrl-U clears the draft, and Ctrl-C cancels an active task. Ctrl-D cancels, saves, and exits when the draft is empty.
+
+Chat opens in a **full-screen terminal interface** with the composer pinned to the bottom. The welcome, conversation and menus automatically reflow when the terminal window changes size. **Page Up / Page Down** scroll the conversation without editing your draft; new output preserves your reading position until you return to the latest messages. Narrow or short windows use compact layouts, and the original Onboarder **code-compass** logo appears in full or compact terminal art. Its reusable vector image is [public/assets/onboarder-mark.svg](public/assets/onboarder-mark.svg).
+
+The screen paints only changed rows and batches streamed output. Drafts survive resizes and model-wizard handoffs, and leaving chat restores the original shell screen. The in-memory viewport retains up to 4,000 logical lines or 2 MiB; conversation storage and `/export` remain available separately. Follow-ups reuse the saved Hermes session and its isolated implementation workspace. Changing the workflow, PR/issue target, model, or permissions starts a new session. `/clear` clears the screen while keeping context; `/new` resets the conversation. Checks and GitHub writes default to off. `/deep` requires checks permission. `/pr` prepares changes locally unless GitHub writes are enabled; publishing must also be requested in the task. `/export` saves a private Markdown transcript under the agent home's `exports` folder.
+
+`/model` opens a Hermes-style provider/model picker below the input. Type to filter, use ↑/↓ to select, and press Enter to choose. Available providers and models come from the installed Hermes catalog; selection uses Hermes' own credential resolution and saves the model to the dedicated Onboarder profile. Escape keeps your current model and conversation. Choose **Configure provider / authentication**, or run `/model configure`, for the full official Hermes configuration, including custom endpoints and provider login. Older Hermes installations can use this full wizard when the quick picker is unavailable. No model names or provider credentials are hardcoded into the picker.
+
+At startup, an unconfigured profile offers **Choose a provider and model** or **Continue offline**. Configured profiles start directly in chat. Hermes must be installed separately for AI tasks; offline commands work without it. Conversation summaries are stored privately in `~/.config/onboarder/agent/chats`, alongside agent runs, and known environment credentials are redacted. `/resume` requires a conversation for the current repository and preserves your current permission choices. `onboarder chat --resume` takes a **conversation ID**; `onboarder agent … --resume` takes an **agent run ID**.
+
+To ask about a GitHub repository, launch `onboarder chat https://github.com/owner/repo`, use `/repo <URL>` or `/clone <URL>`, or simply paste the URL into chat. You can also paste `<URL> Explain this repository` to clone and ask in one message. HTTPS and GitHub SSH URLs work; private repositories use your existing Git credentials. Cloning shows progress and can be cancelled with Ctrl-C.
+
+Chat checkouts are saved under `~/.config/onboarder/agent/repositories` and remain after exit, so conversations and isolated implementation workspaces can resume. Reopening the same URL reuses its checkout. `/pull` fetches current changes with a fast-forward-only pull and refuses local changes; use `/new` first if an implementation workspace is active. A successful pull resets AI context so the next question reads the updated source. To resume later, reopen the same URL and use `/history`, then `/resume <conversation-id>`.
+
+The original explorer remains available for its full browsing, source picker, diagrams, and optional analyzer commands:
 
 ```bash
-onboarder                 # choose a source; Enter uses the current directory
+onboarder explore         # choose a source; Enter uses the current directory
 onboarder explore ~/work/some-repo
 onboarder report .        # one-shot summary, no interactive terminal needed
 onboarder report . --json # stable JSON for scripts and CI
-onboarder explore         # same source chooser
-onboarder --server        # force the web UI (what bare `onboarder` used to do)
+onboarder --server        # force the web UI
 ```
 
-It lands on a `map` of the repo, then waits:
+The explorer lands on a `map` of the repo, then waits:
 
 ```
   codebase > tour
@@ -136,11 +192,54 @@ The HTTP equivalent is `{ "path": "/repo", "options": { "maxFiles": 10000,
 and 32 reads. Scan cache keys include every file and its imports, exports, and
 findings, so changes beyond the first hundred files also invalidate the cache.
 
-`ask` is optional. Set `ONBOARDER_AI_BASE_URL` and `ONBOARDER_AI_MODEL`, plus
+The explorer's `ask` command is optional. Set `ONBOARDER_AI_BASE_URL` and `ONBOARDER_AI_MODEL`, plus
 `ONBOARDER_AI_API_KEY` when the endpoint requires a key. The CLI also accepts
 `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_KEY`. It sends the question
 and a limited scan summary only when you run `ask`; the key stays in the
 process environment and is not saved in Onboarder's config.
+
+### Hermes repository and GitHub agent
+
+`onboarder agent` adds multi-step repository work through [Nous Research's Hermes Agent](https://github.com/NousResearch/hermes-agent). Hermes is an optional, separately installed Python runtime; Onboarder's npm package still has no runtime dependencies. The TypeScript harness supplies **37 scoped MCP tools** built around Onboarder's existing analysis and GitHub's API.
+
+```sh
+onboarder agent setup
+onboarder agent model                 # choose a provider/model in the dedicated profile
+onboarder agent doctor
+onboarder agent ask . --task "Explain the authentication flow"
+onboarder agent review . --pr 42 --task "Review correctness and security"
+onboarder agent triage . --issue 12 --task "Investigate the cause and propose labels"
+onboarder agent implement . --issue 12 --task "Fix this issue" --allow-checks
+onboarder agent pr . --task "Implement the fix and open a draft PR" --allow-checks --allow-github-writes
+onboarder agent github . --task "Explain why the latest CI run failed"
+onboarder agent runs
+onboarder agent show <run-id>
+```
+
+The same commands work inside the explorer: `agent review --pr 42` uses the loaded repository. Implementation and PR work require a persistent local checkout; the explorer's temporary URL clones are removed on exit. `agent help` lists setup and workflow options. Use `--dry-run --json` to inspect a plan without creating a workspace or calling a model. Use `--json` for one machine-readable result; progress stays on stderr.
+
+| Workflow | Result |
+| --- | --- |
+| `ask` | Repository Q&A grounded in scan, architecture, search and source tools |
+| `review` | Local-change or GitHub PR findings, patch coverage, discussion and checks at the PR head SHA |
+| `triage` | Issue investigation, duplicate candidates, priority, labels and a proposed implementation plan |
+| `implement` | Edits in a separate Git worktree, diff inspection and optional npm checks |
+| `pr` | Implementation plus a proposed PR; publishes a **draft** when GitHub writes are enabled |
+| `github` | Repository, issues, PR discussions, labels, CI runs/jobs, comments and review tasks |
+
+GitHub access uses the local checkout's **github.com `origin`** and `GITHUB_TOKEN` or `GH_TOKEN`. Public reads can work without a token; private reads and writes need a token with access to the requested resources. Git transport uses your existing Git credentials. Publishing a review requires the freshly read PR head SHA and refuses a changed head.
+
+Source editing is available only in `implement`/`pr` worktrees created at **committed HEAD** on a `codex/agent-…` branch. Uncommitted changes in your source checkout are excluded. File tools refuse symlinks, credential files, traversal and files larger than 128 KiB; edits require the hash of a fresh read. Workspaces remain available after completion or failure for inspection. Publishing commits workspace changes, pushes that task branch and creates a draft PR; it does not merge. The PR target defaults to the cached `origin/HEAD` branch, falling back to the current branch; choose another with `--base`. Repeated identical successful writes are deduplicated within one running tool server.
+
+`--allow-checks` allows lockfile dependency installation with lifecycle scripts disabled, plus `npm test`, `npm run typecheck` and `npm run build`. Test/build scripts can execute repository code and may write files. `--allow-github-writes` enables issue updates, comments, PR reviews and draft PR publishing. Both permissions are enforced by the tools and default to off. Onboarder supplies only its dedicated MCP toolset to Hermes.
+
+Runs have a default 24-turn, 300-second limit; adjust with `--max-turns` and `--timeout`. Ctrl-C cancels an active agent in both the CLI and explorer. `--resume <run-id>` continues a saved Hermes session in its original workspace; repeat any enabled permission flags. Resume cannot expand the original permissions. Timeouts, missing completion frames and nonzero process exits are recorded as failures.
+
+Run metadata, final answers and operation audits live under `~/.config/onboarder/agent` (override with `ONBOARDER_AGENT_HOME`). Hermes configuration and transcripts use a dedicated named profile under the installation's `profiles` folder; `agent setup` prints its path. Audit records contain operation names, outcome and timing; Hermes session transcripts can contain prompts and source. Repository/tool content is sent to the configured model during agent tasks. Known environment credentials are redacted from Onboarder diagnostics and final answers. API keys supplied through the environment are not written by Onboarder.
+
+For an existing compatible endpoint, set `ONBOARDER_AI_BASE_URL`, `ONBOARDER_AI_MODEL` and optionally `ONBOARDER_AI_API_KEY` **before the first `agent setup`**. Standard `OPENAI_BASE_URL`, `OPENAI_MODEL`, `OPENAI_API_KEY` aliases also work. Later, `agent model` updates the dedicated profile without changing your normal Hermes profile. Use `ONBOARDER_HERMES_BIN` to select a Hermes executable. For a nonstandard source installation, preserve its `HERMES_HOME`/`HERMES_RUNTIME_DIR` environment so the harness can locate its shared Python packages.
+
+`onboarder agent source` fetches the official MIT-licensed source at the researched revision into the agent source cache. This does not install Python dependencies or vendor Hermes into the npm package. The source review and integration decisions are documented in [Hermes research](docs/HERMES_RESEARCH.md). Developers can run `node scripts/hermes-smoke.mjs` after building to verify a real installed Hermes runtime against a local model fixture, without external inference or GitHub writes.
 
 **It also takes a GitHub URL, the way the site does.** Point it at one and it clones, scans and opens that repo:
 
@@ -305,8 +404,8 @@ Next to **Explorer** in the top nav. One page with everything:
 - **What this means** — the AI reads the report: *"Explain this analysis"* for a
   prioritised read, or ask about a specific finding (*"is the eval finding
   reachable?"*). It is told which engines did **not** run, so it will not claim
-  coverage it does not have. Needs an OpenAI-compatible endpoint; without one the
-  report is still fully readable and the button offers the API key drawer.
+  coverage it does not have. Needs a Hermes connection or an AI endpoint; without one the
+  report is still fully readable and the button offers the AI connection drawer.
 
 Rules that keep this safe to self-host:
 
@@ -340,8 +439,12 @@ Rules that keep this safe to self-host:
 
 ### 5. AI Notes & Explainers (Optional)
 - Works 100% offline out-of-the-box.
+- In **AI connection**, choose **Hermes · use my configured login** to reuse the Onboarder CLI's Hermes provider and model. No API key is needed in the browser. The drawer shows the current model/provider; use **Test connection**, then **Save**. Install Hermes on the computer running the server and run `onboarder agent model` to sign in or change models, then refresh the configuration in the drawer.
 - Connect any OpenAI-compatible LLM endpoint (OpenAI, Azure OpenAI, Groq, OpenRouter, Ollama, LM Studio) to generate streaming explanations and repository documentation.
-- API keys are stored solely in your browser's `localStorage` and never logged or written to disk.
+- Hermes powers questions, explanations, diagrams, documentation, analysis summaries and review briefs using their supplied repository context. Web explanations have no machine tools. Each request starts a fresh conversation, with a two-minute runtime budget and at most two concurrent requests; closing or cancelling an answer stops its Hermes process. Runtime startup can add a few seconds to the first response.
+- **AI sketch** draws the current map, folder, file or architecture view using that connection. Sketches are checked with Mermaid before they are cached and displayed. **Static** returns to the original map; **AI sketch ✓** restores the cached sketch. Generated diagrams support **Copy Mermaid**, **Save SVG**, pan/zoom and file links. **Cancel sketch**, changing views, or opening another repository cancels an unfinished request. Hermes diagram requests use low reasoning without changing the saved chat configuration.
+- Hermes owns its login and may save prompts/source in its session transcripts. Context is sent to the configured provider under its normal account usage limits. Existing API endpoint settings still work; API-mode keys are saved in browser `localStorage` and never logged or written to the server's disk. Hermes requests do not forward these browser keys.
+- Developers can run `node scripts/hermes-web-smoke.mjs` after building to verify the HTTP integration against a real installed Hermes runtime and a local model fixture without external inference.
 
 ### 6. MCP Server — let any AI agent onboard itself
 

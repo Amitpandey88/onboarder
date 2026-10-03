@@ -15,6 +15,7 @@ import { handleCleanup, handleScan } from './apiScan.js';
 import { sendError, sendJSON, readBody } from './http.js';
 import { crossOriginReason, rebindingReason } from './httpGuards.js';
 import { proxyChat } from './llmProxy.js';
+import { hermesWeb } from './hermesChat.js';
 import { serveStatic } from './static.js';
 import { handleSearch } from './apiSearch.js';
 import { handleBlame } from './apiGitBlame.js';
@@ -57,11 +58,14 @@ const ROUTES = [
         run: ({ res, url }) => handleFile(res, url.searchParams.get('scan'), url.searchParams.get('path')),
     },
     {
-        // The proxy is the handler; there is no wrapper to write. It forwards the
-        // browser's key to the endpoint the browser chose and never keeps either.
+        // Hermes owns its server-side login. API mode forwards the browser's key
+        // to its chosen endpoint. Both share the same streaming response contract.
         method: 'POST', path: '/api/explain', body: true,
-        run: ({ res, body }) => proxyChat(res, body),
+        run: ({ res, body, config }) => body?.connection === 'hermes'
+            ? (config.hermes || hermesWeb).chat(res, body) : proxyChat(res, body),
     },
+    { method: 'GET', path: '/api/hermes', sameOrigin: true,
+        run: ({ res, config }) => (config.hermes || hermesWeb).status(res) },
     {
         method: 'POST', path: '/api/doc', body: true,
         run: ({ res, body }) => handleDocs(res, body),

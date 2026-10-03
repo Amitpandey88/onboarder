@@ -160,7 +160,7 @@ async function explainWithAI(question) {
 
   if (!llm.isConfigured()) {
     hooks.onOpenSettings();
-    hooks.onToast('Add an endpoint and model first — the report is still readable without one.');
+    hooks.onToast('Choose Hermes or an endpoint in AI connection — the report is still readable without one.');
     return;
   }
 
@@ -387,7 +387,7 @@ function renderAIBlock() {
   const ask = escapeHtml(state.analysis.ai.question || '');
   const settingsBtn = configured
     ? ''
-    : '<button class="btn btn-ghost btn-sm" data-open-settings>API key…</button>';
+    : '<button class="btn btn-ghost btn-sm" data-open-settings>AI connection…</button>';
   return `<section class="analysis-block">
     <h2 class="analysis-h">What this means <span class="analysis-h-sub">ask the AI</span></h2>
     <div class="analysis-ai">

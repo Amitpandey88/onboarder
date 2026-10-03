@@ -53,6 +53,10 @@ test('matchNodeText: exact path, unique basename, ambiguity, junk', () => {
   assert.equal(matchNodeText('shared/scan.js', files), 'shared/scan.js');
   assert.equal(matchNodeText('scan.js\nhub', files), 'shared/scan.js', 'unique basename inside a longer label');
   assert.equal(matchNodeText('util.js', files), null, 'two util.js files — ambiguous, no guess');
+  assert.equal(matchNodeText('server/util.js: 17 dependents', files), 'server/util.js', 'an annotated full path still opens the correct file');
+  assert.equal(matchNodeText('server/util.js and public/util.js', files), null, 'multiple full paths are ambiguous');
+  assert.equal(matchNodeText('unrelated-scan.js.backup', files), null, 'substring matches must not open unrelated files');
+  assert.equal(matchNodeText('scan.js and util.js', files), null, 'multiple file names are ambiguous');
   assert.equal(matchNodeText('nonexistent.js', files), null);
   assert.equal(matchNodeText('', files), null);
 });

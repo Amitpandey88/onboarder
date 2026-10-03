@@ -18,6 +18,7 @@ import { scanOptionsFromFlags } from '../scanOptions.js';
 //     before anything is drawn, so a redirect gets plain, fitted text.
 
 import readline from 'node:readline';
+import { explorerAgent } from '../agent/command.js';
 import readlinePromises from 'node:readline/promises';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -144,6 +145,7 @@ async function shouldShowHint(flags) {
 // interleaved `cd`s would leave the session pointing at a repo nobody asked
 // for.
 function session({ repo, flags, out, err, version }) {
+  let agentAbort: AbortController | null = null;
   const ctx = {
     picker: null as SourcePicker | null,
     repo,
@@ -157,6 +159,12 @@ function session({ repo, flags, out, err, version }) {
       return ctx.picker.view();
     },
     github: () => askGithub(ctx),
+    agent: async (args: string[]) => {
+      if (ctx.repo.cloneDir && ['implement', 'pr'].includes(args[0])) throw new Error('Open a persistent local checkout before implementing changes or creating a PR. This explorer clone is removed when the session ends.');
+      agentAbort = new AbortController();
+      try { return await explorerAgent(args, ctx.repo.root, agentAbort.signal, out, err); }
+      finally { agentAbort = null; }
+    },
     web: () => startWeb(ctx),
     diff: async (base = 'HEAD', head = '', file = '') => formatDiff(
       await getGitDiff(ctx.repo.root, { base, head, file }),
@@ -235,6 +243,7 @@ function session({ repo, flags, out, err, version }) {
   // its input is followed immediately by `exit`. The exit waits on the queue.
   rl.on('close', () => {
     closed = true;
+    agentAbort?.abort();
     // The listener is removed on every exit path, including the interval one
     // below, so a session that ends by any route leaves stdout as it found it.
     if (onResize) process.stdout.off('resize', onResize);
@@ -244,6 +253,7 @@ function session({ repo, flags, out, err, version }) {
   // does, and matches every other REPL people use.
   rl.on('SIGINT', () => {
     if (closed) return;
+    if (agentAbort) { agentAbort.abort(); out(dim('\n  Cancelling agent…')); return; }
     if (ctx.picker) {
       ctx.picker = null;
       out(dim('\n  Selection cancelled.'));
@@ -411,7 +421,7 @@ async function askGithub(ctx) {
 // prints where it is; if not, it starts it detached, so the person keeps their
 // session. The URL is the same one `onboarder start` would print, because it
 // comes from the same `serverUrls` the CLI and the banner use.
-async function startWeb(ctx) {
+export async function startWeb(ctx) {
   const file = ctx.flags.config || configPath();
   const settings = await readSettings(file).catch(() => null);
   const urls = serverUrls(settings || undefined);

@@ -40,21 +40,24 @@ export function matchNodeText(text, files) {
     const t = String(text || '').trim();
     if (!t)
         return null;
-    const exact = files.find((f) => t === f.path || t.endsWith('/' + f.path) || t === f.name && false);
+    const exact = files.find((f) => t === f.path || t.endsWith('/' + f.path));
     if (exact)
         return exact.path;
-    let hit = null;
-    for (const f of files) {
-        if (!t.includes(f.name))
-            continue;
-        if (hit && hit !== f.path) {
-            // same basename twice — ambiguous only if the paths differ
-            const dup = files.filter((x) => x.name === f.name);
-            if (dup.length > 1)
-                return null;
+    const containsLabel = (label) => {
+        let at = t.indexOf(label);
+        while (at !== -1) {
+            if (!/[\w./-]/.test(t[at - 1] || '') && !/[\w./-]/.test(t[at + label.length] || ''))
+                return true;
+            at = t.indexOf(label, at + 1);
         }
-        hit = f.path;
-    }
-    return hit;
+        return false;
+    };
+    // Models often annotate the full path with a role or dependency count.
+    // Prefer that path before considering potentially duplicated basenames.
+    const paths = files.filter(f => containsLabel(f.path));
+    if (paths.length)
+        return paths.length === 1 ? paths[0].path : null;
+    const names = files.filter(f => containsLabel(f.name));
+    return names.length === 1 ? names[0].path : null;
 }
 //# sourceMappingURL=aiMermaid.js.map

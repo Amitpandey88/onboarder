@@ -158,12 +158,13 @@ export async function fetchMcpCommand() {
 // Streams an OpenAI-compatible chat completion through the local proxy.
 // Yields text deltas as they arrive; throws with the provider's message on
 // a non-200 from upstream.
-export async function* streamExplain({ baseUrl, apiKey, model, messages, maxTokens = 1200, providerOptions = {}, signal = undefined }) {
+export async function* streamExplain({ connection = 'api', baseUrl = '', apiKey = '', model = '', messages, maxTokens = 1200, providerOptions = {}, purpose = '', signal = undefined }) {
     const res = await fetch('/api/explain', {
         signal,
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ baseUrl, apiKey, model, messages, stream: true, max_tokens: maxTokens, ...providerOptions }),
+        body: JSON.stringify(connection === 'hermes' ? { connection, messages, stream: true, ...(purpose === 'diagram' ? { purpose } : {}) }
+            : { baseUrl, apiKey, model, messages, stream: true, max_tokens: maxTokens, ...providerOptions }),
     });
     if (!res.ok) {
         let detail = '';
@@ -176,35 +177,57 @@ export async function* streamExplain({ baseUrl, apiKey, model, messages, maxToke
         }
         throw new Error(detail || `The provider said ${res.status}.`);
     }
+    if (!res.body)
+        throw new Error('The connection returned no answer stream.');
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done)
-            break;
-        buffer += decoder.decode(value, { stream: true });
-        const frames = buffer.split('\n\n');
-        buffer = frames.pop();
-        for (const frame of frames) {
-            for (const line of frame.split('\n')) {
-                if (!line.startsWith('data:'))
-                    continue;
-                const payload = line.slice(5).trim();
-                if (payload === '[DONE]')
-                    return;
-                try {
-                    const json = JSON.parse(payload);
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done)
+                break;
+            buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, '\n');
+            if (buffer.length > 2 * 1024 * 1024)
+                throw new Error('The answer exceeded the stream limit.');
+            const frames = buffer.split('\n\n');
+            buffer = frames.pop();
+            for (const frame of frames) {
+                for (const line of frame.split('\n')) {
+                    if (!line.startsWith('data:'))
+                        continue;
+                    const payload = line.slice(5).trim();
+                    if (payload === '[DONE]')
+                        return;
+                    let json;
+                    try {
+                        json = JSON.parse(payload);
+                    }
+                    catch {
+                        continue;
+                    }
+                    if (json.error)
+                        throw new Error(typeof json.error === 'string' ? json.error : json.error.message || 'The assistant could not finish its answer.');
                     const delta = json.choices?.[0]?.delta?.content;
-                    if (delta)
+                    if (typeof delta === 'string' && delta)
                         yield delta;
-                }
-                catch {
-                    /* a partial JSON frame — the next chunk completes it */
                 }
             }
         }
+        if (connection === 'hermes')
+            throw new Error('Hermes disconnected before finishing its answer. Try again.');
     }
+    finally {
+        await reader.cancel().catch(() => { });
+        reader.releaseLock();
+    }
+}
+export async function fetchHermesStatus(signal) {
+    const res = await fetch('/api/hermes', { signal });
+    const data = await res.json();
+    if (!res.ok)
+        throw new Error(data.error || 'Could not check Hermes.');
+    return data;
 }
 // The Server drawer's three round-trips. The read is a GET that comes back
 // with the secret masked; writes go through PUT with only the changed keys;

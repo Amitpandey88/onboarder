@@ -5,7 +5,7 @@
 // browser-picked folder reads from the File System Access handle it kept. Every
 // caller that wants file text goes through here, so neither the docs view nor
 // the code tab has to know which kind of repo it is looking at.
-import { roleOf, scanIndex } from '/shared/analyzer/graph.js';
+import { roleOf, scanIndex } from '../../shared/analyzer/graph.js';
 import { state } from './state.js';
 import { fetchFileText } from './api.js';
 export async function readRepoFile(path) {

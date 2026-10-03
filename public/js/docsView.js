@@ -193,7 +193,7 @@ async function askAboutRepo() {
         return hooks.onToast('Type a question first.');
     if (!llm.isConfigured()) {
         hooks.onOpenSettings();
-        hooks.onToast('Add an endpoint and model first.');
+        hooks.onToast('Choose Hermes or an endpoint in AI connection first.');
         return;
     }
     input.value = '';
@@ -239,11 +239,11 @@ async function askAboutRepo() {
             card.querySelector('.doc-qa-a').innerHTML = mdLite(text) + '<span class="caret"></span>';
         }
         card.querySelector('.doc-qa-a').innerHTML =
-            mdLite(text) + `<p class="explain-src">Answered by ${settings.model}, looking at ${escapeHtml(scope)}.</p>`;
+            mdLite(text) + `<p class="explain-src">Answered by ${escapeHtml(settings.model)}, looking at ${escapeHtml(scope)}.</p>`;
     }
     catch (err) {
         card.querySelector('.doc-qa-a').innerHTML =
-            `<p style="color:var(--warn)">${escapeHtml(err.message)} — check the API key drawer, top right.</p>`;
+            `<p style="color:var(--warn)">${escapeHtml(err.message)} — check the AI connection drawer, top right.</p>`;
     }
 }
 // ---- doc tabs: detailed AI documents per file/folder -----------------------
@@ -380,7 +380,7 @@ function scheduleDocPaneRefresh(entry) {
 async function generateDocTab(entry) {
     if (!llm.isConfigured()) {
         entry.status = 'error';
-        entry.error = 'No endpoint configured — open the API key drawer, top right.';
+        entry.error = 'No AI connection configured — open the AI connection drawer, top right.';
         showActiveDoc();
         renderDocStrip();
         hooks.onOpenSettings();
@@ -453,7 +453,7 @@ async function writeDocsWithAI() {
         return;
     if (!llm.isConfigured()) {
         hooks.onOpenSettings();
-        hooks.onToast('Add an endpoint and model first.');
+        hooks.onToast('Choose Hermes or an endpoint in AI connection first.');
         return;
     }
     const settings = llm.getSettings();
@@ -544,7 +544,7 @@ async function writeDocsWithAI() {
             }
         }
         if (note)
-            note.textContent = `Written by ${settings.model} from the real import graph. Press “Regenerate documentation” for a fresh take.`;
+            note.textContent = `Written by ${escapeHtml(settings.model)} from the real import graph. Press “Regenerate documentation” for a fresh take.`;
         if (btn)
             btn.textContent = 'Regenerate documentation';
     }

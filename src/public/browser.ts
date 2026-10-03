@@ -40,8 +40,9 @@ interface Window {
   require: AmdLoader;
   monaco: MonacoApi;
   MonacoEnvironment: { getWorkerUrl(workerId: string, label: string): string };
-  mermaid: {
-    initialize(options: unknown): void;
+    mermaid: {
+      initialize(options: unknown): void;
+      parse(source: string): Promise<false | { diagramType: string }>;
     render(id: string, source: string): Promise<{ svg: string }>;
   };
 }

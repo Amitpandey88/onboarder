@@ -127,7 +127,7 @@ async function summarizeStackItem(name) {
         return hooks.onToast('Unknown dependency.');
     if (!llm.isConfigured()) {
         hooks.onOpenSettings();
-        return hooks.onToast('Add an endpoint and model first.');
+        return hooks.onToast('Choose Hermes or an endpoint in AI connection first.');
     }
     const row = host.querySelector(`[data-stack-sum="${CSS.escape(name)}"]`)?.closest('.stack-item');
     const body = row?.querySelector('[data-stack-body]');
@@ -166,7 +166,7 @@ async function summarizeStackItem(name) {
             slot.innerHTML = mdLite(text) + '<span class="caret"></span>';
         }
         slot.innerHTML = mdLite(text)
-            + `<p class="explain-src">${docsText ? `From ${escapeHtml(docsTitle)}` : 'No docs fetched — general knowledge'} · ${settings.model}</p>`;
+            + `<p class="explain-src">${docsText ? `From ${escapeHtml(docsTitle)}` : 'No docs fetched — general knowledge'} · ${escapeHtml(settings.model)}</p>`;
     }
     catch (err) {
         slot.innerHTML = `<p style="color:var(--warn)">${escapeHtml(err.message)}</p>`;
