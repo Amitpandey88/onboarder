@@ -154,6 +154,10 @@ test('a good response comes back as facts, not as the raw payload', async () => 
   assert.equal(r.ok, true);
   assert.equal(r.repoPath, 'expressjs/express');
   assert.equal(r.facts.stars, 65000);
+  assert.equal(r.facts.watching, 1900);
+  assert.equal(r.facts.license, 'MIT');
+  assert.equal(r.facts.branch, 'master');
+});
 
 test('a token is sent when there is one, and its absence is not an error', async () => {
   const before = { GITHUB_TOKEN: process.env.GITHUB_TOKEN, GH_TOKEN: process.env.GH_TOKEN };
@@ -206,11 +210,6 @@ test('this repository knows its own origin', async () => {
     return;
   }
   assert.match(r.url, /github\.com|gitlab|bitbucket|^https?:|^git@/);
-});
-
-  assert.equal(r.facts.watching, 1900);
-  assert.equal(r.facts.license, 'MIT');
-  assert.equal(r.facts.branch, 'master');
 });
 
 test('a JSON body that is not JSON is a reason, not a crash', async () => {
