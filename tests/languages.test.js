@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import * as js from '../shared/analyzer/languages/javascript.js';
 import * as py from '../shared/analyzer/languages/python.js';
 import * as go from '../shared/analyzer/languages/go.js';
+import * as ts from '../shared/analyzer/languages/typescript.js';
 
 test('javascript: imports of every shape', () => {
   const src = [
@@ -19,6 +20,27 @@ test('javascript: imports of every shape', () => {
   const specs = imports.map((i) => i.spec);
   assert.deepEqual(specs.sort(), ['./lazy.js', './side-effect.js', './things.js', './util.js', 'fs', 'react']);
   assert.ok(!specs.includes('./ghost.js'), 'commented import must not appear');
+});
+
+test('javascript and typescript: quoted example imports do not create graph edges', () => {
+  for (const [analyzer, path] of [[js, 'fixture.js'], [ts, 'fixture.ts']]) {
+    const src = [
+      `const example = "import './ghost.js';";`,
+      `const emoji = "😀";`,
+      'const template = `require("./template-ghost.js")`;',
+      `const url = 'https://example.test';`,
+      `const marker = '/*';`,
+      `// import './comment-ghost.js';`,
+      `/* export { x } from './block-ghost.js'; */`,
+      `import './real.js';`,
+      `const lazy = import('./lazy.js');`,
+    ].join('\n');
+    assert.deepEqual(
+      analyzer.analyze(src, path).imports.map((i) => i.spec).sort(),
+      ['./lazy.js', './real.js'],
+      `${path} only reports imports in executable code`
+    );
+  }
 });
 
 test('javascript: exports, functions, and intra-file calls', () => {
@@ -70,6 +92,36 @@ test('javascript: import resolution', () => {
   assert.deepEqual(
     js.resolveImport('@/components/Button', 'src/pages/Home.tsx', has, context),
     { path: 'src/components/Button.tsx' }
+  );
+});
+
+test('javascript: configured aliases resolve by specificity and report missing targets', () => {
+  const has = (p) => ['src/special.js', 'src/general.js'].includes(p);
+  const context = { tsPaths: {
+    baseUrl: '.',
+    paths: {
+      '@/*': ['src/*'],
+      '@/special': ['src/special.js'],
+      '@deep/*': ['missing/*'],
+    },
+  } };
+
+  assert.deepEqual(js.resolveImport('@/special', 'src/app.ts', has, context), { path: 'src/special.js' });
+  assert.deepEqual(js.resolveImport('@/general', 'src/app.ts', has, context), { path: 'src/general.js' });
+  assert.deepEqual(js.resolveImport('@/missing', 'src/app.ts', has, context), { unresolved: '@/missing' });
+  assert.deepEqual(js.resolveImport('@deep/thing', 'src/app.ts', has, context), { unresolved: '@deep/thing' });
+  assert.deepEqual(js.resolveImport('react', 'src/app.ts', has, context), { external: 'react' });
+});
+
+test('javascript: browser-root imports from public map to public files', () => {
+  const has = (p) => ['public/js/util.js', 'js/util.js'].includes(p);
+  assert.deepEqual(
+    js.resolveImport('/js/util.js', 'public/app.js', has),
+    { path: 'public/js/util.js' },
+  );
+  assert.deepEqual(
+    js.resolveImport('/js/util.js', 'src/app.js', has),
+    { path: 'js/util.js' },
   );
 });
 

@@ -45,3 +45,16 @@ test('ScanCache saves and retrieves in memory and storage mock', () => {
   assert.deepEqual(cache.get('k1'), { score: 90 });
   assert.equal(storageMock.data['k1'], JSON.stringify({ score: 90 }));
 });
+
+test('cache keys include files beyond the first hundred', () => {
+  const files = Array.from({ length: 150 }, (_, i) => ({ path: `${i}.ts`, size: 20, loc: 1 }));
+  const before = { root: '/repo', files };
+  const after = { ...before, files: files.map((file, i) => i === 149 ? { ...file, size: 21 } : file) };
+  assert.notEqual(repoCacheKey(before), repoCacheKey(after));
+});
+
+test('same-size import changes invalidate the scan cache', () => {
+  const before = { root: '/repo', files: [{ path: 'a.ts', size: 20, loc: 1, imports: [{ spec: './b' }] }] };
+  const after = { ...before, files: [{ ...before.files[0], imports: [{ spec: './c' }] }] };
+  assert.notEqual(repoCacheKey(before), repoCacheKey(after));
+});

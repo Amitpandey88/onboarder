@@ -1,6 +1,6 @@
 {
   "name": "codebase-onboarder",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Drop a path. Get a map. A zero-dependency codebase visualizer with a CLI onboarding wizard, a web UI, and an optional key-gated self-hosted mode.",
   "type": "module",
   "bin": {
@@ -17,11 +17,18 @@
     "LICENSE"
   ],
   "scripts": {
+    "build": "npm run typecheck && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.strict.json",
     "start": "node server/index.js",
     "mcp": "node server/mcp/standalone.js",
-    "test": "node --test",
+    "test": "npm run build && node --test",
     "postinstall": "node bin/postinstall.js",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm test",
+    "prestart": "node bin/build-if-source.js",
+    "dev": "node scripts/dev.mjs",
+    "build:check": "node scripts/check-build.mjs",
+    "check": "npm run typecheck && npm test && npm run build:check",
+    "prepare": "node bin/build-if-source.js"
   },
   "engines": {
     "node": ">=20"
@@ -44,5 +51,9 @@
   "homepage": "https://github.com/Amitpandey88/onboarder#readme",
   "bugs": "https://github.com/Amitpandey88/onboarder/issues",
   "author": "Amit Pandey",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "typescript": "^7.0.2"
+  }
 }

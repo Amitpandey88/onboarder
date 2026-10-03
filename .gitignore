@@ -15,3 +15,13 @@ plan.md
 
 # playwright-cli browser session artifacts
 .playwright-cli/
+
+# TypeScript build products; src/ is the application source of truth.
+# Existing tracked outputs stay checked in so Node 20 and npm installs can run them.
+/cli/
+/server/
+/shared/
+/public/*.js
+/public/*.d.ts
+/public/*.map
+/public/js/

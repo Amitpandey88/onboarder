@@ -1,48 +1,39 @@
 export class MetricSparkline extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-  }
-
-  static get observedAttributes() {
-    return ['values', 'label'];
-  }
-
-  connectedCallback() {
-    this.render();
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (oldValue !== newValue) {
-      this.render();
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
     }
-  }
-
-  render() {
-    const valuesStr = this.getAttribute('values') || '';
-    const label = this.getAttribute('label') || '';
-    const values = valuesStr.split(',').map(n => parseFloat(n)).filter(n => !isNaN(n));
-    
-    if (values.length === 0) {
-      this.shadowRoot.innerHTML = '';
-      return;
+    static get observedAttributes() {
+        return ['values', 'label'];
     }
-
-    const width = 120;
-    const height = 32;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || 1;
-    
-    const points = values.map((val, i) => {
-      const x = (i / (values.length - 1)) * width;
-      const y = height - ((val - min) / range) * (height - 4) - 2;
-      return `${x},${y}`;
-    }).join(' ');
-
-    const fillPoints = `0,${height} ${points} ${width},${height}`;
-
-    this.shadowRoot.innerHTML = `
+    connectedCallback() {
+        this.render();
+    }
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (oldValue !== newValue) {
+            this.render();
+        }
+    }
+    render() {
+        const valuesStr = this.getAttribute('values') || '';
+        const label = this.getAttribute('label') || '';
+        const values = valuesStr.split(',').map(n => parseFloat(n)).filter(n => !isNaN(n));
+        if (values.length === 0) {
+            this.shadowRoot.innerHTML = '';
+            return;
+        }
+        const width = 120;
+        const height = 32;
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const range = max - min || 1;
+        const points = values.map((val, i) => {
+            const x = (i / (values.length - 1)) * width;
+            const y = height - ((val - min) / range) * (height - 4) - 2;
+            return `${x},${y}`;
+        }).join(' ');
+        const fillPoints = `0,${height} ${points} ${width},${height}`;
+        this.shadowRoot.innerHTML = `
       <style>
         :host {
           display: inline-flex;
@@ -83,7 +74,7 @@ export class MetricSparkline extends HTMLElement {
       </svg>
       ${label ? `<div class="label">${label}</div>` : ''}
     `;
-  }
+    }
 }
-
 customElements.define('metric-sparkline', MetricSparkline);
+//# sourceMappingURL=MetricSparkline.js.map

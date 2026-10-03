@@ -11,19 +11,15 @@
 // A failed lookup is never fatal. `github` on a repo with no remote, a private
 // one, or a machine with no network is a normal thing to type, so every path
 // returns the honest reason instead of throwing.
-
 import { githubRepoPath, remoteError, remoteFacts } from '../../shared/analyzer/github.js';
-
 const API = 'https://api.github.com/repos/';
 const TIMEOUT_MS = 8000;
-
 // The token is read per call rather than at import: a session that exports one
 // mid-flight should not need to be restarted to pick it up.
 function token() {
-  const t = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-  return typeof t === 'string' && t.trim() ? t.trim() : '';
+    const t = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    return typeof t === 'string' && t.trim() ? t.trim() : '';
 }
-
 /**
  * Look up a GitHub repository's public facts.
  *
@@ -35,41 +31,43 @@ function token() {
  * something to print, not something to crash a session over.
  */
 export async function fetchRepoFacts(url, { fetchImpl = globalThis.fetch } = {}) {
-  const repoPath = githubRepoPath(url);
-  if (!repoPath) {
-    return { ok: false, reason: 'That is not a GitHub URL, so there are no remote facts to ask for.' };
-  }
-  if (typeof fetchImpl !== 'function') {
-    return { ok: false, reason: 'This runtime has no fetch, so GitHub cannot be asked.' };
-  }
-
-  const headers = { accept: 'application/vnd.github+json', 'user-agent': 'onboarder' };
-  const auth = token();
-  if (auth) headers.authorization = 'Bearer ' + auth;
-
-  let res;
-  try {
-    res = await fetchImpl(API + repoPath, {
-      headers,
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-  } catch (err) {
-    // A timeout and a refused connection are the same thing to the person who
-    // typed the command: it did not come back. The message is kept because
-    // "GitHub could not be reached" and "the certificate is not trusted" are
-    // very different problems on very different machines.
-    const detail = /timeout|abort/i.test(err?.message || '') ? ' (it took too long)' : '';
-    return { ok: false, reason: 'Could not reach GitHub' + detail + ' — ' + (err?.message || err) };
-  }
-
-  if (!res.ok) return { ok: false, reason: remoteError(res.status) };
-
-  let facts;
-  try {
-    facts = remoteFacts(await res.json());
-  } catch {
-    return { ok: false, reason: 'GitHub sent something that is not JSON.' };
-  }
-  if (!facts) return { ok: false, reason: 'GitHub sent no repository facts.' };
-  return { ok: true, facts, repoPath };
+    const repoPath = githubRepoPath(url);
+    if (!repoPath) {
+        return { ok: false, reason: 'That is not a GitHub URL, so there are no remote facts to ask for.' };
+    }
+    if (typeof fetchImpl !== 'function') {
+        return { ok: false, reason: 'This runtime has no fetch, so GitHub cannot be asked.' };
+    }
+    const headers = { accept: 'application/vnd.github+json', 'user-agent': 'onboarder' };
+    const auth = token();
+    if (auth)
+        headers.authorization = 'Bearer ' + auth;
+    let res;
+    try {
+        res = await fetchImpl(API + repoPath, {
+            headers,
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+    }
+    catch (err) {
+        // A timeout and a refused connection are the same thing to the person who
+        // typed the command: it did not come back. The message is kept because
+        // "GitHub could not be reached" and "the certificate is not trusted" are
+        // very different problems on very different machines.
+        const detail = /timeout|abort/i.test(err?.message || '') ? ' (it took too long)' : '';
+        return { ok: false, reason: 'Could not reach GitHub' + detail + ' — ' + (err?.message || err) };
+    }
+    if (!res.ok)
+        return { ok: false, reason: remoteError(res.status) };
+    let facts;
+    try {
+        facts = remoteFacts(await res.json());
+    }
+    catch {
+        return { ok: false, reason: 'GitHub sent something that is not JSON.' };
+    }
+    if (!facts)
+        return { ok: false, reason: 'GitHub sent no repository facts.' };
+    return { ok: true, facts, repoPath };
 }
+//# sourceMappingURL=github.js.map

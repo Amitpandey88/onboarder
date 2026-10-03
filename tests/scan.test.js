@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { scanRepo } from '../shared/analyzer/scan.js';
-import { computeFacts } from '../shared/analyzer/graph.js';
+import { computeFacts, roleOf } from '../shared/analyzer/graph.js';
 import { detectManifest } from '../shared/analyzer/services.js';
 import { memSource } from './helpers.js';
 
@@ -69,6 +69,38 @@ test('computeFacts: finds circular dependencies', async () => {
   assert.deepEqual(facts.cycles[0].sort(), ['x.js', 'y.js', 'z.js']);
   assert.deepEqual(facts.inCycle.sort(), ['x.js', 'y.js', 'z.js']);
   assert.deepEqual(facts.orphans, ['lonely.js']);
+});
+
+test('computeFacts: test reachability includes chains longer than 500 files', () => {
+  const paths = Array.from({ length: 505 }, (_, i) => `src/mod${i}.js`);
+  const files = ['specs/start.js', ...paths].map((path) => ({
+    path, name: path.split('/').pop(), exports: [],
+  }));
+  const edges = [{ from: 'specs/start.js', to: paths[0] }];
+  for (let i = 0; i < paths.length - 1; i++) edges.push({ from: paths[i], to: paths[i + 1] });
+  const facts = computeFacts({ files, edges, externals: [] });
+
+  assert.equal(facts.testCoverage.testedCount, paths.length);
+  assert.equal(facts.testCoverage.totalNonTest, paths.length);
+  assert.equal(facts.testCoverage.ratio, 100);
+  assert.ok(!facts.orphans.includes('specs/start.js'));
+  assert.equal(roleOf('specs/start.js', facts), 'test');
+});
+
+test('computeFacts: a named import does not make an unused default export live', async () => {
+  const scan = await scanRepo(memSource({
+    'consumer.js': "import { named } from './lib.js';\n",
+    'lib.js': 'export const named = 1;\nexport default function unused() {}\n',
+  }));
+  const facts = computeFacts(scan, {});
+  assert.ok(facts.deadExports.some((e) => e.file === 'lib.js' && e.name === 'default'));
+  assert.ok(!facts.deadExports.some((e) => e.file === 'lib.js' && e.name === 'named'));
+
+  const imported = await scanRepo(memSource({
+    'consumer.js': "import lib from './lib.js';\n",
+    'lib.js': 'export default function live() {}\n',
+  }));
+  assert.ok(!computeFacts(imported, {}).deadExports.some((e) => e.file === 'lib.js' && e.name === 'default'));
 });
 
 test('detectManifest: package.json entry points', async () => {
@@ -171,4 +203,13 @@ test('scanRepo: tsconfig paths and rich folder metrics', async () => {
 
   // Dependency drift (lodash unused)
   assert.ok(facts.depsDrift.unusedDeclared.includes('lodash'));
+});
+
+test('scanRepo: public browser-root imports become internal edges', async () => {
+  const scan = await scanRepo(memSource({
+    'public/app.js': "import { helper } from '/js/util.js';\nhelper();\n",
+    'public/js/util.js': 'export function helper() {}\n',
+  }));
+  assert.deepEqual(scan.edges.map((e) => [e.from, e.to]), [['public/app.js', 'public/js/util.js']]);
+  assert.equal(scan.stats.imports.confidence, 100);
 });

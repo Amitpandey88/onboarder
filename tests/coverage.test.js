@@ -141,6 +141,30 @@ test('an external package counts as placed, not as a failure', async () => {
   assert.equal(scan.stats.imports.confidence, 100);
 });
 
+test('a missing configured alias lowers import confidence instead of appearing external', async () => {
+  const scan = await scanRepo(memSource({
+    'tsconfig.json': JSON.stringify({ compilerOptions: { paths: { '@/*': ['src/*'] } } }),
+    'src/app.ts': "import '@/missing';\nimport 'react';\n",
+  }));
+  assert.deepEqual(scan.stats.imports, {
+    total: 2, internal: 0, external: 1, unresolved: 1, confidence: 50,
+    worst: [{ spec: '@/missing', count: 1, from: 'src/app.ts' }],
+  });
+  assert.deepEqual(scan.externals.map((x) => x.name), ['react']);
+});
+
+test('example imports inside strings do not lower confidence or invent edges', async () => {
+  const scan = await scanRepo(memSource({
+    'a.js': `const example = "import './missing.js';";\nimport './b.js';\n`,
+    'b.js': 'export const b = 1;\n',
+  }));
+  assert.equal(scan.stats.imports.total, 1);
+  assert.equal(scan.stats.imports.internal, 1);
+  assert.equal(scan.stats.imports.unresolved, 0);
+  assert.equal(scan.stats.imports.confidence, 100);
+  assert.deepEqual(scan.edges.map((e) => e.to), ['b.js']);
+});
+
 test('the worst-unresolved list is capped so the payload stays bounded', async () => {
   // The whole scan is JSON'd over HTTP; an unbounded list of every miss in a
   // monorepo is how that stops being free.

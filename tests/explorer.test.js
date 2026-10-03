@@ -19,6 +19,9 @@ import { wrapText } from '../cli/explorer/wrap.js';
 import { COMMANDS, commandNames, completer, helpText, lookup, shellEscape, tokenize } from '../cli/explorer/commands.js';
 import * as A from '../cli/explorer/advanced.js';
 import { runExplore } from '../cli/explorer/app.js';
+import { SourcePicker } from '../cli/explorer/picker.js';
+import { formatDiff, formatEngines, formatDeepAnalysis } from '../cli/explorer/featureViews.js';
+import { askConfig, askModel, askSetupMessage } from '../cli/explorer/assistant.js';
 import { main } from '../cli/main.js';
 import { width } from '../server/layout.js';
 import { panel, row } from '../server/layout.js';
@@ -228,10 +231,15 @@ test('every command in the table produces output from the fixture', async () => 
     // than a test that runs. The failure shape is the interesting one anyway.
     github: async () => 'asked',
     web: async () => 'started',
+    selectSource: async () => 'choose a source',
+    diff: async () => 'changed files',
+    engines: () => 'engine status',
+    deep: async () => 'deep findings',
+    ask: async () => 'answer',
   };
   const argsFor = {
     explain: ['render.js'], tree: ['src', '2'], find: ['render'], show: ['render.js'],
-    deps: ['render.js'], help: ['map'], cd: ['.'],
+    deps: ['render.js'], inspect: ['render.js'], help: ['map'], cd: ['.'],
   };
 
   for (const cmd of COMMANDS) {
@@ -246,6 +254,77 @@ test('aliases and case both resolve to the same command', () => {
   assert.equal(lookup('SHOW').name, 'show');
   assert.equal(lookup('q').name, 'exit');
   assert.equal(lookup('nonsense'), undefined);
+});
+
+test('source picker accepts local folders and Git URLs, and browses without changing cwd', async () => {
+  await ensureRepo();
+  const picker = new SourcePicker(dir);
+  assert.match(await picker.view(), /Use current folder/);
+  const browse = await picker.choose('2');
+  assert.equal(browse.done, false);
+  assert.match(browse.message, /FOLDERS/);
+  const move = await picker.choose('1');
+  assert.equal(move.done, false);
+  const parent = await picker.choose('..');
+  assert.equal(parent.done, false);
+  const use = await picker.choose('use');
+  assert.deepEqual(use, { done: true, target: dir, message: '' });
+
+  const pasted = new SourcePicker(dir);
+  assert.deepEqual(await pasted.choose('https://github.com/org/repo'), {
+    done: true, target: 'https://github.com/org/repo', message: '',
+  });
+  const missing = await new SourcePicker(dir).choose('/definitely/not/a/folder');
+  assert.equal(missing.done, false);
+  assert.match(missing.message, /No folder found/);
+});
+
+test('new terminal views expose the web data without placeholder values', async () => {
+  await ensureRepo();
+  assert.match(lookup('workflows').run({ repo }, []), /No GitHub Actions workflows/);
+  assert.match(lookup('sbom').run({ repo }, []), /express/);
+  assert.match(lookup('atlas').run({ repo }, []), /diagram/);
+  assert.match(lookup('inspect').run({ repo }, ['render.js']), /IMPORTED BY/);
+  const diff = formatDiff({
+    files: [{ oldPath: 'src/render.js', newPath: 'src/render.js', status: 'modified', additions: 1, deletions: 0,
+      hunks: [{ header: '@@ -1 +1 @@', lines: [{ type: 'add', text: 'new line' }] }] }],
+    stats: { additions: 1, deletions: 0 },
+  }, { 'src/render.js': ['src/index.js'] }, 4, 'src/render.js');
+  assert.match(diff, /1 dependent files may be affected/);
+  assert.match(diff, /\+new line/);
+  assert.match(formatEngines({ semgrep: { label: 'Semgrep', kind: 'security', available: false, reason: 'not installed' } }), /missing/);
+  assert.match(formatDeepAnalysis({ passes: [], findings: [], ms: 0 }), /No external engine ran/);
+});
+
+test('new terminal views fit a narrow terminal', async () => {
+  await ensureRepo();
+  const before = process.env.COLUMNS;
+  process.env.COLUMNS = '40';
+  try {
+    for (const name of ['workflows', 'sbom', 'atlas', 'inspect']) {
+      const output = await lookup(name).run({ repo }, name === 'inspect' ? ['render.js'] : []);
+      for (const line of String(output).split('\n')) {
+        assert.ok(width(line) <= 40, `${name}: ${JSON.stringify(line)}`);
+      }
+    }
+  } finally {
+    if (before === undefined) delete process.env.COLUMNS;
+    else process.env.COLUMNS = before;
+  }
+});
+
+test('optional AI request uses supplied endpoint and keeps the key out of output', async () => {
+  const config = askConfig({ ONBOARDER_AI_BASE_URL: 'https://example.test/v1/', ONBOARDER_AI_MODEL: 'test-model', ONBOARDER_AI_API_KEY: 'secret' });
+  assert.ok(config);
+  const answer = await askModel('Where to start?', 'Entry: src/index.js', config, async (url, options) => {
+    assert.equal(url, 'https://example.test/v1/chat/completions');
+    assert.equal(options.headers.authorization, 'Bearer secret');
+    const body = JSON.parse(options.body);
+    assert.match(body.messages[1].content, /src\/index\.js/);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: 'Start at src/index.js.' } }] }) };
+  });
+  assert.equal(answer, 'Start at src/index.js.');
+  assert.doesNotMatch(askSetupMessage(), /secret/);
 });
 
 test('tokenize keeps quoted phrases as one argument', () => {
@@ -591,4 +670,3 @@ test('a re-read of a clone keeps its identity, instead of becoming a nameless te
   assert.match(about, /github\.com\/someone\/something/, 'about still names the source');
   assert.match(about, /temp clone/, 'and still admits it is one');
 });
-

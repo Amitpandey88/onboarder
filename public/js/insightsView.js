@@ -1,42 +1,37 @@
 // GitHub Insights & Pulse View.
 // Renders 52-week contribution heatmap, contributor leaderboard, punchcard, and release timeline.
-
 import { escapeHtml } from './html.js';
-
 export function renderInsights(container, { scan, facts, history }) {
-  if (!container) return;
-
-  const commits = history?.commits || [];
-  const authorMap = new Map();
-  const dayHourMatrix = Array.from({ length: 7 }, () => Array(24).fill(0));
-  const dayCounts = new Map();
-
-  // Process commit dates & authors
-  for (const c of commits) {
-    const { key, name } = authorIdentity(c.author);
-    if (!authorMap.has(key)) {
-      authorMap.set(key, { name, commits: 0, additions: 0, deletions: 0, firstDate: c.date, lastDate: c.date, files: new Set() });
+    if (!container)
+        return;
+    const commits = history?.commits || [];
+    const authorMap = new Map();
+    const dayHourMatrix = Array.from({ length: 7 }, () => Array(24).fill(0));
+    const dayCounts = new Map();
+    // Process commit dates & authors
+    for (const c of commits) {
+        const { key, name } = authorIdentity(c.author);
+        if (!authorMap.has(key)) {
+            authorMap.set(key, { name, commits: 0, additions: 0, deletions: 0, firstDate: c.date, lastDate: c.date, files: new Set() });
+        }
+        const a = authorMap.get(key);
+        a.commits++;
+        if (c.date < a.firstDate)
+            a.firstDate = c.date;
+        if (c.date > a.lastDate)
+            a.lastDate = c.date;
+        const d = new Date(c.date || Date.now());
+        if (!isNaN(d.getTime())) {
+            const day = d.getDay(); // 0 = Sun, 6 = Sat
+            const hour = d.getHours();
+            dayHourMatrix[day][hour]++;
+            const ymd = d.toISOString().slice(0, 10);
+            dayCounts.set(ymd, (dayCounts.get(ymd) || 0) + 1);
+        }
     }
-    const a = authorMap.get(key);
-    a.commits++;
-    if (c.date < a.firstDate) a.firstDate = c.date;
-    if (c.date > a.lastDate) a.lastDate = c.date;
-
-    const d = new Date(c.date || Date.now());
-    if (!isNaN(d.getTime())) {
-      const day = d.getDay(); // 0 = Sun, 6 = Sat
-      const hour = d.getHours();
-      dayHourMatrix[day][hour]++;
-
-      const ymd = d.toISOString().slice(0, 10);
-      dayCounts.set(ymd, (dayCounts.get(ymd) || 0) + 1);
-    }
-  }
-
-  const sortedAuthors = [...authorMap.values()].sort((a, b) => b.commits - a.commits);
-  const totalCommits = commits.length || 1;
-
-  container.innerHTML = `
+    const sortedAuthors = [...authorMap.values()].sort((a, b) => b.commits - a.commits);
+    const totalCommits = commits.length || 1;
+    container.innerHTML = `
     <div class="insights-layout">
       <section class="insights-hero">
         <div class="insights-stat-card">
@@ -106,63 +101,54 @@ export function renderInsights(container, { scan, facts, history }) {
     </div>
   `;
 }
-
 // gitHistory shapes commit.author as { name, email }; a bare string is also
 // tolerated so older cached payloads don't break the view. Commits are grouped
 // by email when present — the same person with two name spellings is one
 // contributor, like shared/analyzer/history.js does server-side.
 function authorIdentity(author) {
-  if (author && typeof author === 'object') {
-    const name = author.name || author.email || 'Anonymous';
-    return { key: author.email || name, name };
-  }
-  const name = author || 'Anonymous';
-  return { key: name, name };
+    if (author && typeof author === 'object') {
+        const name = author.name || author.email || 'Anonymous';
+        return { key: author.email || name, name };
+    }
+    const name = author || 'Anonymous';
+    return { key: name, name };
 }
-
-
 function renderCalendarHeatmap(dayCounts) {
-  const weeks = 52;
-  const daysPerWeek = 7;
-  const cellSize = 12;
-  const cellGap = 3;
-
-  const now = new Date();
-  const cells = [];
-  const oneDayMs = 24 * 60 * 60 * 1000;
-
-  // Align to end on current day
-  const endDay = new Date(now);
-  const startDay = new Date(endDay.getTime() - (weeks * 7) * oneDayMs);
-
-  let maxCount = 1;
-  for (const c of dayCounts.values()) if (c > maxCount) maxCount = c;
-
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-  for (let w = 0; w < weeks; w++) {
-    for (let d = 0; d < 7; d++) {
-      const cur = new Date(startDay.getTime() + (w * 7 + d) * oneDayMs);
-      const ymd = cur.toISOString().slice(0, 10);
-      const count = dayCounts.get(ymd) || 0;
-      let level = 0;
-      if (count > 0) level = Math.min(4, Math.ceil((count / maxCount) * 4));
-
-      const x = w * (cellSize + cellGap) + 30;
-      const y = d * (cellSize + cellGap) + 20;
-
-      cells.push(`
+    const weeks = 52;
+    const daysPerWeek = 7;
+    const cellSize = 12;
+    const cellGap = 3;
+    const now = new Date();
+    const cells = [];
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    // Align to end on current day
+    const endDay = new Date(now);
+    const startDay = new Date(endDay.getTime() - (weeks * 7) * oneDayMs);
+    let maxCount = 1;
+    for (const c of dayCounts.values())
+        if (c > maxCount)
+            maxCount = c;
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (let w = 0; w < weeks; w++) {
+        for (let d = 0; d < 7; d++) {
+            const cur = new Date(startDay.getTime() + (w * 7 + d) * oneDayMs);
+            const ymd = cur.toISOString().slice(0, 10);
+            const count = dayCounts.get(ymd) || 0;
+            let level = 0;
+            if (count > 0)
+                level = Math.min(4, Math.ceil((count / maxCount) * 4));
+            const x = w * (cellSize + cellGap) + 30;
+            const y = d * (cellSize + cellGap) + 20;
+            cells.push(`
         <rect class="cal-cell lvl-${level}" x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="2">
           <title>${ymd}: ${count} commit${count === 1 ? '' : 's'}</title>
         </rect>
       `);
+        }
     }
-  }
-
-  const svgWidth = weeks * (cellSize + cellGap) + 40;
-  const svgHeight = 7 * (cellSize + cellGap) + 30;
-
-  return `
+    const svgWidth = weeks * (cellSize + cellGap) + 40;
+    const svgHeight = 7 * (cellSize + cellGap) + 30;
+    return `
     <div class="cal-scroll-wrap">
       <svg class="cal-heatmap-svg" viewBox="0 0 ${svgWidth} ${svgHeight}" style="max-width: 100%; height: auto;">
         <text class="cal-label" x="5" y="42">Mon</text>
@@ -182,49 +168,44 @@ function renderCalendarHeatmap(dayCounts) {
     </div>
   `;
 }
-
 function renderPunchcardSvg(matrix) {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const cellW = 20;
-  const cellH = 20;
-  const padLeft = 40;
-  const padTop = 20;
-  let max = 1;
-
-  for (let d = 0; d < 7; d++) {
-    for (let h = 0; h < 24; h++) {
-      if (matrix[d][h] > max) max = matrix[d][h];
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const cellW = 20;
+    const cellH = 20;
+    const padLeft = 40;
+    const padTop = 20;
+    let max = 1;
+    for (let d = 0; d < 7; d++) {
+        for (let h = 0; h < 24; h++) {
+            if (matrix[d][h] > max)
+                max = matrix[d][h];
+        }
     }
-  }
-
-  const dots = [];
-  for (let d = 0; d < 7; d++) {
-    for (let h = 0; h < 24; h++) {
-      const val = matrix[d][h];
-      if (val === 0) continue;
-      const r = Math.max(2, Math.min(8, (val / max) * 8));
-      const cx = padLeft + h * cellW + cellW / 2;
-      const cy = padTop + d * cellH + cellH / 2;
-      dots.push(`
+    const dots = [];
+    for (let d = 0; d < 7; d++) {
+        for (let h = 0; h < 24; h++) {
+            const val = matrix[d][h];
+            if (val === 0)
+                continue;
+            const r = Math.max(2, Math.min(8, (val / max) * 8));
+            const cx = padLeft + h * cellW + cellW / 2;
+            const cy = padTop + d * cellH + cellH / 2;
+            dots.push(`
         <circle cx="${cx}" cy="${cy}" r="${r}" class="punch-dot">
           <title>${days[d]} ${h}:00 - ${val} commit${val === 1 ? '' : 's'}</title>
         </circle>
       `);
+        }
     }
-  }
-
-  const hoursHeader = [0, 4, 8, 12, 16, 20].map((h) => `
+    const hoursHeader = [0, 4, 8, 12, 16, 20].map((h) => `
     <text class="punch-lbl" x="${padLeft + h * cellW + cellW / 2}" y="12" text-anchor="middle">${h}h</text>
   `).join('');
-
-  const daysHeader = days.map((day, idx) => `
+    const daysHeader = days.map((day, idx) => `
     <text class="punch-lbl" x="5" y="${padTop + idx * cellH + cellH / 2 + 4}">${day}</text>
   `).join('');
-
-  const svgW = padLeft + 24 * cellW + 10;
-  const svgH = padTop + 7 * cellH + 10;
-
-  return `
+    const svgW = padLeft + 24 * cellW + 10;
+    const svgH = padTop + 7 * cellH + 10;
+    return `
     <div class="cal-scroll-wrap">
       <svg class="punch-svg" viewBox="0 0 ${svgW} ${svgH}">
         ${hoursHeader}
@@ -234,3 +215,4 @@ function renderPunchcardSvg(matrix) {
     </div>
   `;
 }
+//# sourceMappingURL=insightsView.js.map

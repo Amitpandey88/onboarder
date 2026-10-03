@@ -1,25 +1,21 @@
 // GitHub Actions & CI/CD Workflows View.
 // Renders workflow triggers, job dependency DAGs, and execution steps.
-
 import { escapeHtml } from './html.js';
-
 export function renderWorkflows(container, { scan }) {
-  if (!container) return;
-
-  const workflows = scan?.workflows || [];
-
-  if (!workflows.length) {
-    container.innerHTML = `
+    if (!container)
+        return;
+    const workflows = scan?.workflows || [];
+    if (!workflows.length) {
+        container.innerHTML = `
       <div class="workflows-empty-wrap">
         <div class="wf-empty-icon">⚙️</div>
         <h3>No CI/CD Workflows Detected</h3>
         <p>No GitHub Actions workflows were found under <code>.github/workflows/</code> in this repository.</p>
       </div>
     `;
-    return;
-  }
-
-  container.innerHTML = `
+        return;
+    }
+    container.innerHTML = `
     <div class="workflows-layout">
       <header class="workflows-header">
         <div>
@@ -35,12 +31,10 @@ export function renderWorkflows(container, { scan }) {
     </div>
   `;
 }
-
 function renderWorkflowCard(wf) {
-  const triggers = wf.triggers || [];
-  const jobs = wf.jobs || [];
-
-  return `
+    const triggers = wf.triggers || [];
+    const jobs = wf.jobs || [];
+    return `
     <article class="workflow-card">
       <div class="wf-card-top">
         <div class="wf-title-area">
@@ -62,12 +56,10 @@ function renderWorkflowCard(wf) {
     </article>
   `;
 }
-
 function renderJobCard(job) {
-  const steps = job.steps || [];
-  const needs = job.needs || [];
-
-  return `
+    const steps = job.steps || [];
+    const needs = job.needs || [];
+    return `
     <div class="wf-job-card">
       <div class="wf-job-head">
         <span class="wf-job-name">${escapeHtml(job.name)}</span>
@@ -93,3 +85,4 @@ function renderJobCard(job) {
     </div>
   `;
 }
+//# sourceMappingURL=workflowsView.js.map

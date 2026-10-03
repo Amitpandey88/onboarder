@@ -1,0 +1,11 @@
+{
+  "profile": "balanced",
+  "exclude": [
+    "cli/**", "server/**", "shared/**", "public/js/**", "public/*.js", "public/vendor/**"
+  ],
+  "instructions": [
+    { "path": "src/server/**", "instruction": "Check session capabilities, same-origin guards, path containment, bounded input/output, cancellation, and timeouts. Do not log credentials." },
+    { "path": "src/shared/**", "instruction": "Keep the engine portable: no Node or DOM APIs. Verify changed-line accounting and honest analysis coverage." },
+    { "path": "src/public/**", "instruction": "Escape repository-controlled text. Preserve keyboard access, visible focus, mobile layouts, and stale-request protection." }
+  ]
+}

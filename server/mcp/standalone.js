@@ -11,9 +11,7 @@
 // would look like a server bug rather than a logging bug. Redirecting is better
 // than trusting: the guard costs one comparison per write and cannot be forgotten
 // by a future contributor three files deep.
-
 import { serveMcp, SERVER_INFO } from './server.js';
-
 // stdout is a shared pipe with two kinds of writer: the protocol, which must be
 // the only thing a client ever sees, and everything else — a stray `console.log`
 // in a shared analyzer, a logger — which would be read as a malformed frame and
@@ -25,18 +23,18 @@ import { serveMcp, SERVER_INFO } from './server.js';
 // on being the first thing to run.
 const realStdoutWrite = process.stdout.write.bind(process.stdout);
 const protocolStream = { write: (chunk) => realStdoutWrite(chunk) };
-
 process.stdout.write = function toStderr(chunk, encoding, callback) {
-  process.stderr.write(chunk);
-  if (typeof encoding === 'function') encoding();
-  else if (typeof callback === 'function') callback();
-  return true;
+    process.stderr.write(chunk);
+    if (typeof encoding === 'function')
+        encoding();
+    else if (typeof callback === 'function')
+        callback();
+    return true;
 };
-
 // Diagnostics are opt-in: a client reading stdout is reading a protocol stream
 // and nothing else, so anything else has to be asked for.
 if (process.env.ONBOARDER_MCP_LOG === '1') {
-  console.error(`[onboarder-mcp] ${SERVER_INFO.name} ${SERVER_INFO.version} starting on stdio`);
+    console.error(`[onboarder-mcp] ${SERVER_INFO.name} ${SERVER_INFO.version} starting on stdio`);
 }
-
 serveMcp({ output: protocolStream });
+//# sourceMappingURL=standalone.js.map

@@ -598,3 +598,11 @@ test('a scan of this repo still works end to end', async () => {
   });
   assert.equal(escape.status, 400, 'with a real root, climbing out is a bad path');
 });
+
+test('POST /api/scan rejects invalid options before scanning', async () => {
+  for (const body of [null, { path: '.', options: { maxFiles: 0 } }, { path: '.', options: { readConcurrency: '4' } }, { demo: true, path: '.' }, { gitUrl: '--not-a-url' }]) {
+    const response = await request(port, { method: 'POST', path: '/api/scan', body });
+    assert.equal(response.status, 400);
+    assert.ok(response.json.error);
+  }
+});

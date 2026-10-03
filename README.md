@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Zero Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-success.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-560%20passing-brightgreen.svg)](tests/)
+[![Tests](https://github.com/Amitpandey88/onboarder/actions/workflows/ci.yml/badge.svg)](https://github.com/Amitpandey88/onboarder/actions/workflows/ci.yml)
 
 > **Drop a path. Get a map.**  
 > A lightweight, zero-dependency codebase visualizer and architectural map generator that runs entirely on your local machine.
@@ -22,7 +22,7 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 # Install from npm (Node 20+, zero runtime dependencies)
 npm install -g codebase-onboarder
 
-# Explore the repo you are standing in, right in your terminal
+# Choose a folder or Git URL to explore in your terminal
 onboarder
 
 # …or start the web UI instead
@@ -34,13 +34,14 @@ Or from source:
 ```bash
 git clone https://github.com/Amitpandey88/onboarder.git
 cd onboarder
+npm ci
 npm start
 ```
 
 Open **http://localhost:4310** in your browser (the CLI opens it for you).
 
 - **Two front doors, one engine.** `onboarder` opens an interactive terminal session; `onboarder start` opens the web UI. Both run the *same* analyzer, so they can never disagree about a repository.
-- **Zero build steps**: Native ES modules.
+- **Ready to run from npm**: Compiled JavaScript is included in the package. Application source lives in `src/` as TypeScript. Run `npm run build` after editing it, or use `npm run dev` for automatic rebuilds and server restarts.
 - **Zero runtime dependencies**: Powered by Node.js built-ins (`node:http`, `node:fs`, `node:crypto`).
 - **Offline ready**: Vendored Mermaid.js and Monaco Editor builds are included in `public/vendor/`.
 
@@ -48,11 +49,14 @@ Open **http://localhost:4310** in your browser (the CLI opens it for you).
 
 ## 🖥️ The terminal app
 
-Type `onboarder` in any repo and you get the website, in your terminal. No server, no browser, no network — it reads the folder directly.
+Type `onboarder` to choose the current folder, browse directories, or paste a Git URL. Local folders are read directly, with no server or browser.
 
 ```bash
-onboarder                 # explore the current directory
+onboarder                 # choose a source; Enter uses the current directory
 onboarder explore ~/work/some-repo
+onboarder report .        # one-shot summary, no interactive terminal needed
+onboarder report . --json # stable JSON for scripts and CI
+onboarder explore         # same source chooser
 onboarder --server        # force the web UI (what bare `onboarder` used to do)
 ```
 
@@ -63,8 +67,16 @@ It lands on a `map` of the repo, then waits:
   codebase > hotspots
   codebase > find resolveImport
   codebase > deps logger.js
+  codebase > inspect logger.js      # one file’s links, exports, and findings
   codebase > blast pathUtil.js      # what breaks if this breaks
   codebase > github                # what GitHub says about this repo
+  codebase > workflows             # CI triggers, jobs, and steps
+  codebase > sbom express           # dependency and license inventory
+  codebase > diff HEAD~1 HEAD      # changes and dependent-file impact
+  codebase > engines               # optional deep analyzers on this machine
+  codebase > deep gitleaks          # run one analyzer when requested
+  codebase > ask Where should I start? # optional AI answer with scan context
+  codebase > pick                  # choose another local folder or Git URL
   codebase > !git log --oneline -3  # shell, without leaving
   codebase > exit
 ```
@@ -72,15 +84,63 @@ It lands on a `map` of the repo, then waits:
 | | |
 |---|---|
 | **map · tour · explain** | What this is, the reading order for a new teammate, and a file or folder explained in prose |
-| **tree · find · show · deps** | Browse it, search it, read it, and trace what it connects to |
+| **tree · find · show · inspect · deps** | Browse, search, read, inspect, and trace files |
 | **graph · blast · symbols** | The dependency tree as arrows, the transitive blast radius, and a file's outline |
 | **health · hubs · layers · patterns** | The analysis, in the same words the site uses |
 | **coupling · clusters · risks** | Folder traffic as a heat grid, module groups, and everything wrong in one list |
 | **log · hotspots · blame** | Git history, the files that are complex *and* often changed, and who wrote a line |
-| **diagram · docs** | Real Mermaid source, and prose you can print or write to `ONBOARDER.md` |
-| **cd · rescan · web** | Switch repo, reload from disk, or start the web UI without leaving |
+| **diagram · atlas · docs** | Mermaid source, a diagram index, and prose you can print or write to `ONBOARDER.md` |
+| **workflows · sbom · diff** | CI pipelines, dependency/license inventory, and changed files with blast radius |
+| **engines · deep** | See optional analyzers, then run one (`deep semgrep`) or all (`deep all`) |
+| **ask** | Ask an OpenAI-compatible model a question using the current repository scan |
+| **pick · cd · rescan · web** | Browse device folders, switch repo, reload from disk, or start the web UI |
 | **github** | Stars, forks, watchers, license and topics from GitHub, for the repo you have loaded |
 | **Tab · `!cmd`** | Completes commands then file paths; runs a shell command inline |
+
+`report` reads a local folder or Git URL once, prints file counts, import resolution,
+entry points, health, security, and test reachability, then exits. Its JSON output
+has `schemaVersion: 1` and contains no source text.
+
+All application modules are authored in TypeScript under `src/`: the server,
+MCP tools, analyzer, diagrams, CLI, and browser views. Builds emit JavaScript,
+declarations, and source maps into the existing runtime folders, so the npm CLI
+and Node 20+ keep their existing entry points. Edit `src/`, rather than generated
+files in `cli/`, `server/`, `shared/`, or `public/js/`.
+
+```bash
+npm ci
+npm run dev        # rebuild on changes; restart after a successful compilation
+npm run build      # typecheck and generate the distributable files
+npm run check      # typecheck, tests, and generated-build consistency
+```
+
+`tsconfig.json` checks the whole application. The new portable contracts, scan
+controls, request validator, browser adapter, editor wrapper, and terminal layout
+also pass the strict checks in `tsconfig.strict.json`. Older view and orchestration
+code still uses permissive types; converting every legacy callback and data bag
+to strict types is follow-up work. No application file disables type checking.
+
+Scans accept validated limits and bounded read concurrency. The browser offers a
+**Cancel scan** button, browser-folder scans report progress, and disconnected
+server requests stop scanning. File limits measure UTF-8 bytes, including
+non-ASCII source. TypeScript configs support comments, trailing commas, slash
+aliases, and mapping generated JavaScript imports back to TypeScript source. CLI limits work with `report` and persist across `explore` rescans and repository changes:
+
+```bash
+onboarder report . --max-files 10000 --max-file-size 524288 --read-concurrency 4
+```
+
+The HTTP equivalent is `{ "path": "/repo", "options": { "maxFiles": 10000,
+"maxFileSize": 524288, "readConcurrency": 4 } }`. Defaults are 4,000 files,
+200 KiB per file, and 8 concurrent reads. Maximums are 100,000 files, 10 MiB,
+and 32 reads. Scan cache keys include every file and its imports, exports, and
+findings, so changes beyond the first hundred files also invalidate the cache.
+
+`ask` is optional. Set `ONBOARDER_AI_BASE_URL` and `ONBOARDER_AI_MODEL`, plus
+`ONBOARDER_AI_API_KEY` when the endpoint requires a key. The CLI also accepts
+`OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_API_KEY`. It sends the question
+and a limited scan summary only when you run `ask`; the key stays in the
+process environment and is not saved in Onboarder's config.
 
 **It also takes a GitHub URL, the way the site does.** Point it at one and it clones, scans and opens that repo:
 
@@ -104,6 +164,7 @@ Details worth knowing:
 - **Fits your terminal.** Every line is fitted to the current width and re-fits on resize; prose wraps instead of running off the edge. `NO_COLOR` and `COLUMNS` are honored.
 - **It refuses to hang.** Without a TTY, `onboarder explore` explains itself and exits rather than waiting for input that will never come. Scripts and CI keep working.
 - **Bridges to the web.** `web` starts the UI in the background and prints the URL, without ending your session.
+- **Interactive source picker.** `pick` or a bare `cd` lists device folders, supports parent/home navigation and paging, and accepts pasted paths or Git URLs. A failed load leaves the current repository open.
 
 ---
 
@@ -118,6 +179,72 @@ Details worth knowing:
 
 ## 🔍 Features & Views
 
+### Change Review — a local review workbench
+
+After opening a repository by its local path, the **Review** tab is the first
+workspace. Choose working-tree changes (including untracked files), staged
+changes, or a branch/commit range, then select **Run review**.
+
+- Security and quality patterns are flagged on **added lines**, with file and
+  line references, severity, and suggested next steps. Credential excerpts are
+  redacted from reports, including other findings on the same credential line.
+- A risk-sorted walkthrough groups source, tests, documentation, dependencies,
+  and configuration changes. Dependency impact uses the last repository scan;
+  rescan after structural edits and treat branch-range impact as an estimate.
+- The checklist reports high-severity patterns, conflict markers, test-file
+  changes, change size, and skipped files. Tests are **not executed** and
+  test-file changes do not establish coverage.
+- Filter findings, acknowledge them locally, and export Markdown or JSON.
+  Acknowledgements belong to an exact comparison fingerprint; editing the
+  change starts a fresh review. Exports always include all detected findings.
+- An optional **reviewer's brief** sends the report to your configured AI
+  provider for a summary and testing plan. It does not send the raw diff.
+  Core reviews work offline without an API key.
+
+The same review is available to scripts:
+
+```bash
+onboarder review .
+onboarder review . --staged --json
+onboarder review . --base main --head feature/my-change
+onboarder review . --profile focused --fail-on high
+```
+
+`--fail-on` exits with status 1 for findings at or above the selected severity.
+Conflict markers also return 1. Invalid comparisons return a failure instead
+of falling back to a different diff. Reviews use the Git repository root;
+subfolder scans cannot read changes outside the scanned folder.
+
+Optional `.onboarder-review.json` in the repository root:
+
+```json
+{
+  "profile": "balanced",
+  "exclude": ["dist/**", "**/*.generated.ts"],
+  "instructions": [
+    { "path": "src/auth/**", "instruction": "Check permission boundaries and failure handling." }
+  ]
+}
+```
+
+Profiles: `focused` includes medium/above, `balanced` low/above, and `thorough`
+all patterns. Exclusions use `*`, `**`, and `?` path globs. Guidelines are shown
+for human review and included in the optional AI brief; the pattern engine
+does not claim to enforce natural-language guidelines. Configuration always
+comes from the current working tree, including for staged and branch reviews.
+This project's configuration excludes generated JavaScript and vendored files
+so changes are reviewed in their canonical TypeScript source.
+
+Git commands have a 15-second timeout and a 5 MB output limit. Working reviews
+include at most 200 untracked files, each at most 1 MB; oversized inputs fail
+explicitly. Binary content, deleted files, metadata-only changes, exclusions,
+and untracked symlinks have visible skip reasons. Reviews can be canceled.
+
+Inspired by CodeRabbit's change summaries, path guidelines, and pre-merge
+checks, this is a local pattern review workflow. It does not install a GitHub
+App, automatically post PR comments, apply fixes, execute repository scripts,
+or replace a human/security review.
+
 ### 1. Explorer (One Canvas, 6 Modes)
 - **Tree**: Hierarchical expandable cell map of directories, files, hubs, and entry points with ghost connection cells.
 - **Files**: Intra-folder dependency graphs with deep-dive call inspections.
@@ -127,6 +254,17 @@ Details worth knowing:
 - **Services**: Automatic detection for `docker-compose.yml`, `Procfile`, and monorepo workspaces.
 - **Tour**: Curated step-by-step walkthrough of key architectural waypoints.
 - **Atlas**: Grid gallery of every pre-generated diagram across folders and components.
+
+**Search:** Click Search or press `Cmd/Ctrl+K` to find files, symbols, and file
+contents. Arrow keys select results; Enter opens them and `Cmd/Ctrl+Enter`
+opens the source. `Alt+Left/Right` switches result kinds. Tab moves between
+dialog controls; Escape clears the query, then closes. Filters such as
+`path:src ext:ts render` can be removed using their chips.
+
+Search reuses the scan's symbol index, combines rapid keystrokes, and displays
+bounded previews with exact local match counts. Graph animation pauses outside
+the Graph tab, while search is open, and when the browser tab is hidden. Review
+filters update the findings without rebuilding the surrounding workspace.
 
 ### 1b. Deep Analysis — plug in the best engines (Optional, self-hosted)
 
@@ -375,43 +513,29 @@ Cloudflare quick tunnels and Tailscale remain supported. They terminate TLS and 
 
 ```
 codebase-onboarder/
-├── bin/             # npm entry point (shebang trampoline) & postinstall note
-├── cli/             # Onboarding wizard, config commands, doctor, tunnels
-│   ├── main.js      # argv → command; bare `onboarder` picks explorer vs server
-│   ├── ui.js        # Terminal paint; --no-color / NO_COLOR strip it in one place
-│   └── explorer/    # The terminal app
-│       ├── app.js     # The readline session, TTY guards, `web` bridge
-│       ├── session.js # Loads a repo exactly as POST /api/scan does
-│       ├── views.js   # The site's screens, drawn as text (pure functions)
-│       └── commands.js# One command table: dispatch, help, and tests share it
-├── server/          # Zero-dependency Node.js HTTP server
-│   ├── index.js     # createServer / startServer / startup banner
-│   ├── config.js    # Settings schema, normalization, atomic 0600 writes
-│   ├── pidfile.js   # PID + run record (mode, url, log) for status / stop / restart
-│   ├── daemon.js    # Detached background start, log file, readiness probe
-│   ├── startup.js   # Login items: launchd plist / systemd --user unit / Startup folder
-│   ├── logger.js    # Aligned-text or JSON log lines from one entry shape
-│   ├── layout.js    # Shared terminal geometry: width, fit, panel, resize
-│   ├── router.js    # Route table, live per-request settings, auth & CSRF gates
-│   ├── auth.js      # Signed HttpOnly browser sessions
-│   ├── apiAuth.js   # Login/status/logout endpoints
-│   ├── apiSettings.js# GET/PUT /api/settings, key rotation
-│   ├── tunnel.js    # Cloudflare & Tailscale status/commands
-│   ├── https.js     # Caddy config, ACME/TLS readiness & lifecycle
-│   ├── httpGuards.js# Host verification & CSRF/rebinding guards
-│   ├── apiScan.js   # Local & remote scan coordination
-│   ├── apiFile.js   # Path-traversal safe file serving
-│   ├── gitHistory.js# Local Git log parser & hotspot metrics
-│   └── sessions.js  # Temporary clone lifecycle manager
-├── shared/          # Isomorphic analyzer engine (Runs in Node & Browser)
-│   ├── analyzer/    # Language parsers, graph analytics, metrics, security
-│   └── diagram/     # Mermaid diagram generation
-├── public/          # Frontend client application
-│   ├── js/          # Vanilla ES modules (State, Inspector, Views, Settings)
-│   ├── vendor/      # Vendored Mermaid & Monaco Editor (Offline)
-│   ├── index.html   # Main application interface
-│   └── login.html   # Self-hosted access-key sign-in
-└── tests/           # Comprehensive node:test suite
+├── src/                  # Canonical TypeScript application source
+│   ├── cli/              # Wizard, lifecycle commands, terminal explorer, reports
+│   ├── server/           # HTTP server, auth, settings, clone sessions, MCP, tools
+│   ├── shared/           # Portable contracts and the isomorphic analysis engine
+│   │   ├── contracts.ts  # FileSource, scan options/progress, settings, analysis types
+│   │   ├── analyzer/     # Language parsers, graph analytics, scan controls, metrics
+│   │   ├── diagram/      # Mermaid and AI diagram generation
+│   │   └── search/       # Shared query language
+│   └── public/           # Browser application, views, components, integration types
+├── bin/                  # npm entry-point trampoline and postinstall note
+├── cli/                  # Generated terminal runtime and declarations
+├── server/               # Generated server/MCP runtime and declarations
+├── shared/               # Generated shared engine, served at /shared/
+├── public/
+│   ├── app.js & js/      # Generated browser ES modules
+│   ├── vendor/           # Offline Mermaid and Monaco builds
+│   ├── index.html        # App shell and scan controls
+│   ├── login.html        # Self-hosted access-key sign-in
+│   └── styles.css        # Existing paper-and-ink design
+├── scripts/              # Development watcher and build consistency verification
+├── tsconfig.json         # Whole-application compilation
+├── tsconfig.strict.json  # Strict core checks
+└── tests/                # Native node:test regression suite
 ```
 
 ---
@@ -421,7 +545,10 @@ codebase-onboarder/
 Onboarder includes a comprehensive automated test suite built with Node's native test runner:
 
 ```bash
-# Run all 565 tests
+# Run all checks (also exercised in CI on Node 20, 22, and 24)
+npm run check
+
+# Run the regression suite
 npm test
 ```
 
@@ -433,6 +560,7 @@ Test suites cover:
 - The settings layer end to end: schema validation, atomic config writes, the
   Bearer auth gate, key rotation, DNS-rebinding protection, and the wizard's
   branching/flag logic.
+- Scan cancellation, bounded concurrent reads, UTF-8 limits, and request validation.
 - Deep Analysis tooling: engine detection across Windows/macOS/Linux, install-plan
   validation, output parsing, and report shaping.
 

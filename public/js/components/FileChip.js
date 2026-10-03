@@ -1,51 +1,47 @@
 export class FileChip extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-  }
-
-  static get observedAttributes() {
-    return ['path', 'lang', 'risk'];
-  }
-
-  connectedCallback() {
-    this.render();
-    this.addEventListener('click', () => {
-      this.dispatchEvent(new CustomEvent('file-select', {
-        detail: { path: this.getAttribute('path') },
-        bubbles: true,
-        composed: true
-      }));
-    });
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (oldValue !== newValue) {
-      this.render();
+    title;
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
     }
-  }
-
-  getRiskColor(risk) {
-    const score = parseInt(risk, 10) || 0;
-    if (score <= 33) return 'rgb(76, 175, 80)';
-    if (score <= 66) return 'rgb(255, 193, 7)';
-    return 'rgb(244, 67, 54)';
-  }
-
-  render() {
-    const path = this.getAttribute('path') || '';
-    const lang = this.getAttribute('lang') || 'txt';
-    const risk = this.getAttribute('risk') || '0';
-    
-    const basename = path.split('/').pop();
-    const riskColor = this.getRiskColor(risk);
-    
-    // Hash for lang color
-    let hash = 0;
-    for (let i = 0; i < lang.length; i++) hash = lang.charCodeAt(i) + ((hash << 5) - hash);
-    const langHue = Math.abs(hash) % 360;
-
-    this.shadowRoot.innerHTML = `
+    static get observedAttributes() {
+        return ['path', 'lang', 'risk'];
+    }
+    connectedCallback() {
+        this.render();
+        this.addEventListener('click', () => {
+            this.dispatchEvent(new CustomEvent('file-select', {
+                detail: { path: this.getAttribute('path') },
+                bubbles: true,
+                composed: true
+            }));
+        });
+    }
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (oldValue !== newValue) {
+            this.render();
+        }
+    }
+    getRiskColor(risk) {
+        const score = parseInt(risk, 10) || 0;
+        if (score <= 33)
+            return 'rgb(76, 175, 80)';
+        if (score <= 66)
+            return 'rgb(255, 193, 7)';
+        return 'rgb(244, 67, 54)';
+    }
+    render() {
+        const path = this.getAttribute('path') || '';
+        const lang = this.getAttribute('lang') || 'txt';
+        const risk = this.getAttribute('risk') || '0';
+        const basename = path.split('/').pop();
+        const riskColor = this.getRiskColor(risk);
+        // Hash for lang color
+        let hash = 0;
+        for (let i = 0; i < lang.length; i++)
+            hash = lang.charCodeAt(i) + ((hash << 5) - hash);
+        const langHue = Math.abs(hash) % 360;
+        this.shadowRoot.innerHTML = `
       <style>
         :host {
           display: inline-flex;
@@ -95,8 +91,8 @@ export class FileChip extends HTMLElement {
       <div class="name" title="${path}">${basename}</div>
       <div class="risk-dot" title="Risk: ${risk}"></div>
     `;
-    this.title = path;
-  }
+        this.title = path;
+    }
 }
-
 customElements.define('file-chip', FileChip);
+//# sourceMappingURL=FileChip.js.map

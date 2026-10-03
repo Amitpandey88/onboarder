@@ -1,37 +1,33 @@
 export class RiskBadge extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-  }
-
-  static get observedAttributes() {
-    return ['score'];
-  }
-
-  connectedCallback() {
-    this.render();
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (name === 'score' && oldValue !== newValue) {
-      this.updateScore(parseInt(newValue, 10) || 0);
+    constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
     }
-  }
-
-  getScoreColor(score) {
-    if (score <= 33) return 'rgb(76, 175, 80)';
-    if (score <= 66) return 'rgb(255, 193, 7)';
-    return 'rgb(244, 67, 54)';
-  }
-
-  render() {
-    const score = parseInt(this.getAttribute('score') || '0', 10);
-    const size = 48;
-    const strokeWidth = 4;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
-    
-    this.shadowRoot.innerHTML = `
+    static get observedAttributes() {
+        return ['score'];
+    }
+    connectedCallback() {
+        this.render();
+    }
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (name === 'score' && oldValue !== newValue) {
+            this.updateScore(parseInt(newValue, 10) || 0);
+        }
+    }
+    getScoreColor(score) {
+        if (score <= 33)
+            return 'rgb(76, 175, 80)';
+        if (score <= 66)
+            return 'rgb(255, 193, 7)';
+        return 'rgb(244, 67, 54)';
+    }
+    render() {
+        const score = parseInt(this.getAttribute('score') || '0', 10);
+        const size = 48;
+        const strokeWidth = 4;
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        this.shadowRoot.innerHTML = `
       <style>
         :host {
           display: inline-flex;
@@ -67,39 +63,35 @@ export class RiskBadge extends HTMLElement {
         }
       </style>
       <svg viewBox="0 0 ${size} ${size}">
-        <circle class="bg" cx="${size/2}" cy="${size/2}" r="${radius}" />
-        <circle class="arc" cx="${size/2}" cy="${size/2}" r="${radius}" />
+        <circle class="bg" cx="${size / 2}" cy="${size / 2}" r="${radius}" />
+        <circle class="arc" cx="${size / 2}" cy="${size / 2}" r="${radius}" />
       </svg>
       <span class="text">${score}</span>
     `;
-    this.updateScore(score);
-  }
-
-  updateScore(score) {
-    if (!this.shadowRoot.querySelector('.arc')) return;
-    
-    const size = 48;
-    const strokeWidth = 4;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (score / 100) * circumference;
-    
-    const arc = this.shadowRoot.querySelector('.arc');
-    const text = this.shadowRoot.querySelector('.text');
-    
-    const color = this.getScoreColor(score);
-    arc.style.stroke = color;
-    text.textContent = score;
-
-    arc.animate([
-      { strokeDashoffset: circumference },
-      { strokeDashoffset: offset }
-    ], {
-      duration: 1000,
-      easing: 'ease-out',
-      fill: 'forwards'
-    });
-  }
+        this.updateScore(score);
+    }
+    updateScore(score) {
+        if (!this.shadowRoot.querySelector('.arc'))
+            return;
+        const size = 48;
+        const strokeWidth = 4;
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (score / 100) * circumference;
+        const arc = this.shadowRoot.querySelector('.arc');
+        const text = this.shadowRoot.querySelector('.text');
+        const color = this.getScoreColor(score);
+        arc.style.stroke = color;
+        text.textContent = score;
+        arc.animate([
+            { strokeDashoffset: circumference },
+            { strokeDashoffset: offset }
+        ], {
+            duration: 1000,
+            easing: 'ease-out',
+            fill: 'forwards'
+        });
+    }
 }
-
 customElements.define('risk-badge', RiskBadge);
+//# sourceMappingURL=RiskBadge.js.map

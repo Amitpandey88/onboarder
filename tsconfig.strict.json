@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true
+  },
+  "include": [
+    "src/shared/contracts.ts",
+    "src/shared/review/contracts.ts",
+    "src/server/gitDiff.ts",
+    "src/shared/analyzer/scanControl.ts",
+    "src/server/scanRequest.ts",
+    "src/cli/scanOptions.ts",
+    "src/public/browser.ts",
+    "src/public/js/fileSourceBrowser.ts",
+    "src/public/js/dom.ts",
+    "src/public/js/html.ts",
+    "src/public/js/mobilePanels.ts",
+    "src/cli/explorer/report.ts",
+    "src/cli/explorer/wrap.ts",
+    "src/public/js/codeViewer.ts",
+    "src/shared/analyzer/jsonConfig.ts"
+  ]
+}
