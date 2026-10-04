@@ -56,7 +56,7 @@ export const CHAT_COMMANDS = [
   ['workflows', '', 'Inspect GitHub Actions workflows'],
   ['sbom', '[package]', 'Inspect dependencies and licenses'],
   ['engines', '', 'Show available optional analyzers'],
-  ['deep', '<engine|all>', 'Run an optional analyzer when checks are enabled'],
+  ['deep', '[engine|all|security|dead-code|results|explain|export|options]', 'Choose web UI analyzers, configure scans, and explain saved results'],
   ['web', '', 'Open the repository in the web interface'],
   ['about', '', 'Show repository and application information'],
   ['tools', '', 'List the actual tools available to Hermes'],
@@ -109,6 +109,7 @@ export function completeChat(line: string, files: string[] = []): [string[], str
   if (command === '/mode') candidates = AGENT_MODES;
   if (command === '/permissions') candidates = args.length === 1 ? ['checks', 'github'] : ['on', 'off'];
   if (command === '/model' && args.length === 1) candidates = ['configure', 'default'];
+  if (command === '/deep') candidates = args.length === 1 ? ['all', 'security', 'dead-code', 'semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck', 'results', 'explain', 'export', 'options', 'help'] : args[0] === 'options' ? ['semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck'] : args[0] === 'results' ? ['critical', 'high', 'medium', 'low', 'info', 'semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck'] : [];
   if (['/show', '/tree', '/repo', '/deps', '/inspect', '/graph', '/blast', '/symbols', '/explain', '/blame', '/docs', '/diagram'].includes(command!)) candidates = files;
   return [candidates.filter(c => c.startsWith(fragment)).slice(0, 100), fragment];
 }

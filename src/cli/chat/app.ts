@@ -5,6 +5,7 @@ import { TerminalComposer } from './composer.js';
 import { profileDisplay } from './profile.js';
 import { HermesModels } from './models.js';
 import { ChatSources } from './source.js';
+import { ChatAnalysis } from './analysis.js';
 import { chatBanner, ChatRenderer, type ChatTheme } from './render.js';
 import { AGENT_MODES, type AgentMode } from '../agent/contracts.js';
 import { agentCommand } from '../agent/command.js';
@@ -30,6 +31,9 @@ export const CHAT_HELP = `
   /review 42 · /triage 12 · /implement <task> · /pr <task> · /github <task>
   /model opens a searchable model picker. /model configure opens full Hermes setup.
   /permissions checks on permits repository test execution.
+  /deep opens the web UI's analyzer picker; /engines lists availability.
+  /deep all · /deep security · /deep options semgrep · /deep results high
+  /deep explain asks Hermes about the report; /deep export saves private JSON.
   /permissions github on permits GitHub writes explicitly requested in a task.
   /new starts fresh; /history and /resume restore conversations.
   /repo <GitHub URL> or a pasted URL clones and opens a repository.
@@ -94,7 +98,7 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
   const theme: ChatTheme = { accent: text => paint(text, 'yellow', 'bold'), muted: dim, strong: bold, success: ok, error: bad,
     status: text => colorEnabled() ? '\x1b[48;5;234m\x1b[38;5;220m' + text + '\x1b[0m' : text };
   let composer: TerminalComposer | null = null, handingOff = false, exiting = false, active: Promise<void> | null = null;
-  let display = await profileDisplay(), startedAt = 0, toolCalls = 0, lastTool = '';
+  let display = await profileDisplay(), startedAt = 0, toolCalls = 0, lastTool = '', analysisRunning = false;
   let resolveDone: () => void;
   const done = new Promise<void>(resolve => { resolveDone = resolve; });
   const safe = (text: string) => terminalText(redact(text));
@@ -103,6 +107,10 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
   };
   const browser = repositoryBrowser(flags, text => print(dim(text)), version);
   const renderer = new ChatRenderer(print, theme);
+  const analysis = new ChatAnalysis({ progress: text => print(dim(safe(text))),
+    choose: (choices, signal) => composer!.choose({ title: 'Deep Analysis — Select Engines',
+      hint: 'Same engines as the web UI · /deep options <engine> for settings', choices, signal }),
+  });
   const models = new HermesModels();
   const configureModel = async (signal: AbortSignal): Promise<boolean> => {
     // Give the official wizard exclusive terminal ownership, then restore chat.
@@ -173,6 +181,11 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
     checks: flags.allowChecks === true, github: flags.allowGithubWrites === true, timeout, maxTurns, base: flags.base }, {
     output: onOutput,
     sources,
+    analysis: async (name, args, folder, signal, checks) => {
+      analysisRunning = true; startedAt = Date.now();
+      try { return await analysis.execute(name, args, folder, signal, checks); }
+      finally { analysisRunning = false; }
+    },
     chooseModel,
     browse: (name, args, folder, signal) => browser.run(name, args, folder, signal),
     utility: async (name, signal) => {
@@ -203,7 +216,7 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
       const repo = s.sourceUrl?.split('/').at(-1) || path.basename(s.root);
       const tokens = controller.lastResult?.tokens?.total;
       const status = [model, repo, s.mode, `${catalog.length} tools`, tokens === undefined ? 'tokens —' : `${tokens} tokens`,
-        controller.busy && startedAt ? `${Math.floor((Date.now() - startedAt) / 1000)}s · ${toolCalls} calls${lastTool ? ' · ' + lastTool : ''}` : `${controller.record.turns.length} turns`].join(' │ ');
+        controller.busy && startedAt ? `${Math.floor((Date.now() - startedAt) / 1000)}s · ${analysisRunning ? 'deep analysis' : `${toolCalls} calls${lastTool ? ' · ' + lastTool : ''}`}` : `${controller.record.turns.length} turns`].join(' │ ');
       return { mode: s.mode, status: safe(status), busy: controller.busy, pasting: controller.pasting, files: browser.files };
     },
     submit: line => {

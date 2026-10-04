@@ -52,7 +52,7 @@ Open **http://localhost:4310** in your browser (the CLI opens it for you).
 
 ## 🖥️ The terminal app
 
-Type `onboarder` to open the Hermes-powered chat interface for the current repository, or `onboarder chat ~/work/some-repo` to open another local checkout. An amber welcome screen shows the actual configured model, repository, permissions, six workflow skills, and 37 registered tools. The composer has a session status bar with recorded token usage, elapsed run time, and live tool activity. It keeps terminal scrollback and loads the browsing engine only when requested.
+Type `onboarder` to open the Hermes-powered chat interface for the current repository, or `onboarder chat ~/work/some-repo` to open another local checkout. An amber welcome screen shows the actual configured model, repository, permissions, six workflow skills, and 39 registered tools. The composer has a session status bar with recorded token usage, elapsed run time, and live tool activity. It keeps terminal scrollback and loads the browsing engine only when requested.
 
 ```sh
 onboarder chat
@@ -96,7 +96,7 @@ Typing `/` immediately opens a searchable command menu with descriptions. Keep t
 
 Chat opens in a **full-screen terminal interface** with the composer pinned to the bottom. The welcome, conversation and menus automatically reflow when the terminal window changes size. **Page Up / Page Down** scroll the conversation without editing your draft; new output preserves your reading position until you return to the latest messages. Narrow or short windows use compact layouts, and the original Onboarder **code-compass** logo appears in full or compact terminal art. Its reusable vector image is [public/assets/onboarder-mark.svg](public/assets/onboarder-mark.svg).
 
-The screen paints only changed rows and batches streamed output. Drafts survive resizes and model-wizard handoffs, and leaving chat restores the original shell screen. The in-memory viewport retains up to 4,000 logical lines or 2 MiB; conversation storage and `/export` remain available separately. Follow-ups reuse the saved Hermes session and its isolated implementation workspace. Changing the workflow, PR/issue target, model, or permissions starts a new session. `/clear` clears the screen while keeping context; `/new` resets the conversation. Checks and GitHub writes default to off. `/deep` requires checks permission. `/pr` prepares changes locally unless GitHub writes are enabled; publishing must also be requested in the task. `/export` saves a private Markdown transcript under the agent home's `exports` folder.
+The screen paints only changed rows and batches streamed output. Drafts survive resizes and model-wizard handoffs, and leaving chat restores the original shell screen. The in-memory viewport retains up to 4,000 logical lines or 2 MiB; conversation storage and `/export` remain available separately. Follow-ups reuse the saved Hermes session and its isolated implementation workspace. Changing the workflow, PR/issue target, model, or permissions starts a new session. `/clear` clears the screen while keeping context; `/new` resets the conversation. Checks and GitHub writes default to off. `/deep` runs the same external analyzers as the web UI and requires checks permission. `/pr` prepares changes locally unless GitHub writes are enabled; publishing must also be requested in the task. `/export` saves a private Markdown transcript under the agent home's `exports` folder.
 
 `/model` opens a Hermes-style provider/model picker below the input. Type to filter, use ↑/↓ to select, and press Enter to choose. Available providers and models come from the installed Hermes catalog; selection uses Hermes' own credential resolution and saves the model to the dedicated Onboarder profile. Escape keeps your current model and conversation. Choose **Configure provider / authentication**, or run `/model configure`, for the full official Hermes configuration, including custom endpoints and provider login. Older Hermes installations can use this full wizard when the quick picker is unavailable. No model names or provider credentials are hardcoded into the picker.
 
@@ -198,9 +198,34 @@ The explorer's `ask` command is optional. Set `ONBOARDER_AI_BASE_URL` and `ONBOA
 and a limited scan summary only when you run `ask`; the key stays in the
 process environment and is not saved in Onboarder's config.
 
+### Deep analysis in terminal chat
+
+The terminal uses the web UI's **Semgrep, Gitleaks, Knip, Vulture and Depcheck** engines, settings and finding parsers. `/engines` shows installed binaries, available runners, and installation instructions without scanning the repository. `/deep` opens a searchable engine picker; you can also run an engine, several engines, all engines, or a purpose group directly.
+
+```text
+/permissions checks on
+/deep
+/deep security
+/deep semgrep gitleaks
+/deep options semgrep
+/deep semgrep config=p/security-audit severity=ERROR
+/deep gitleaks history=true
+/deep knip include=files,exports
+/deep vulture minConfidence=90
+/deep results high
+/deep explain Which findings should I fix first?
+/deep export
+```
+
+Each engine reports progress and its outcome. Missing or failed tools remain distinct from a successful clean pass. Ctrl-C or `/cancel` stops running analyzers and their process trees; a cancelled run keeps the previous report. Checks permission is required because analyzer runners may fetch packages and repository analyzer configuration can execute code. Engine installation is explicit; `/engines` lists the commands to use. Typed settings are restricted to the same schema as the web forms.
+
+Reports are private snapshots stored under `~/.config/onboarder/agent/analysis`, keyed by the exact workspace. `/deep results` can filter by severity or engine, works without an AI login, and restores the report after reopening chat. `/deep export` saves the full normalized report as private JSON. Reports identify when and where they ran; rerun them after edits. `/deep explain` sends bounded findings and all engine coverage to Hermes, then normal chat follow-ups continue that conversation. Implementation scans use the active isolated worktree. Reports from another workspace are never substituted.
+
+Hermes can also discover and run these engines when you ask in ordinary chat, such as “Run security deep analysis and explain the highest-priority findings.” Its tools expose availability/settings and enforce the current task root and checks permission; they cannot override the repository path or run arbitrary commands. Model tool responses limit the findings and disclose truncation.
+
 ### Hermes repository and GitHub agent
 
-`onboarder agent` adds multi-step repository work through [Nous Research's Hermes Agent](https://github.com/NousResearch/hermes-agent). Hermes is an optional, separately installed Python runtime; Onboarder's npm package still has no runtime dependencies. The TypeScript harness supplies **37 scoped MCP tools** built around Onboarder's existing analysis and GitHub's API.
+`onboarder agent` adds multi-step repository work through [Nous Research's Hermes Agent](https://github.com/NousResearch/hermes-agent). Hermes is an optional, separately installed Python runtime; Onboarder's npm package still has no runtime dependencies. The TypeScript harness supplies **39 scoped MCP tools** built around Onboarder's existing analysis and GitHub's API.
 
 ```sh
 onboarder agent setup

@@ -46,7 +46,7 @@ function unavailableReason(def) {
   return (def.install && def.install.length) ? def.install.join(' ') : 'Not found on PATH.';
 }
 
-async function runOneTool(def, root, toolOptions: Record<string, any> = {}) {
+async function runOneTool(def, root, toolOptions: Record<string, any> = {}, signal?: AbortSignal) {
   // A tool that reports through a file (gitleaks) gets a per-run temp path —
   // never /dev/stdout, which does not exist on Windows, and never a fixed
   // name, so two concurrent runs cannot read each other's report.
@@ -64,6 +64,7 @@ async function runOneTool(def, root, toolOptions: Record<string, any> = {}) {
   const result = await runTool(resolved.argv, {
     cwd: def.cwd ? root : undefined,
     timeout: TOOL_TIMEOUT_MS,
+    signal,
   });
 
   // Read and remove the report file whatever happened above.
@@ -81,9 +82,11 @@ async function runOneTool(def, root, toolOptions: Record<string, any> = {}) {
   if (!result.ok) {
     return { ...emptyPass(def.id, def.label, result.error || 'The tool could not be run.'), available: true };
   }
+  if (def.usesReportFile && reportText === null) return { ...emptyPass(def.id, def.label, result.stderr || 'The analyzer did not create its report.'), available: true };
 
   const stdout = (def.usesReportFile ? (reportText || '') : (result.stdout || '')).trim();
   if (!stdout) {
+    if (result.status !== 0) return { ...emptyPass(def.id, def.label, `Exited ${result.status}: ${result.stderr || 'No readable report.'}`), available: true };
     // A clean pass: the tool ran and found nothing. That is a real answer, and
     // worth saying — "Gitleaks: no secrets" is the outcome a self-hosting user
     // runs the tool to hear.
@@ -113,13 +116,21 @@ function passResult(def, resolved, findings, started) {
 // `options` is per-engine GUI settings, sanitized against the registry schema
 // before any of it touches a command line.
 export async function runExternalAnalysis(root, options: Record<string, any> = {}) {
+  options.signal?.throwIfAborted();
   const kinds = options.kinds ? new Set(options.kinds) : null;
   const tools = options.tools ? new Set(options.tools) : null;
   const rawOptions = options.options && typeof options.options === 'object' ? options.options : {};
   const defs = TOOL_DEFS.filter((d) => (!kinds || kinds.has(d.kind)) && (!tools || tools.has(d.id)));
 
   const started = Date.now();
-  const passes = await Promise.all(defs.map((def) => runOneTool(def, root, sanitizeOptions(def, rawOptions[def.id]))));
+  const passes = await Promise.all(defs.map(async def => {
+    options.signal?.throwIfAborted();
+    options.onProgress?.({ phase: 'start', id: def.id, label: def.label });
+    const pass = await runOneTool(def, root, sanitizeOptions(def, rawOptions[def.id]), options.signal);
+    if (!options.signal?.aborted) options.onProgress?.({ phase: 'complete', id: def.id, label: def.label, pass });
+    return pass;
+  }));
+  options.signal?.throwIfAborted();
 
   const ran = passes.filter((p) => p.ok);
   const findings = mergeFindings(...passes.map((p) => p.findings));

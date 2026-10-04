@@ -228,7 +228,7 @@ while time.monotonic() < deadline:
         elif stage == 1 and b'MODEL_WIZARD_READY' in data:
             child.send_signal(signal.SIGINT)
             stage = 2
-        elif stage == 2 and b'operation was aborted' in data:
+        elif stage == 2 and b'Task cancelled.' in data:
             os.write(master, b'/exit\\n')
             stage = 3
     if child.poll() is not None: break

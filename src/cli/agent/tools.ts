@@ -41,6 +41,25 @@ export function createAgentTools(manifest: RunManifest, options: { client?: Gith
     receipts.set(key, result); return result;
   };
   const add = (name: string, description: string, properties: Record<string, unknown>, required: string[], run: AgentTool['run']) => tools.push({ name, description, inputSchema: { type: 'object', properties, required, additionalProperties: false }, run });
+  add('onboarder_agent_engines', 'Discover the same optional analyzers and configurable settings as the web UI. Read-only availability check.', {}, [], async () => {
+    const [{ toolsStatus }, { clearDetectionCache }] = await Promise.all([import('../../server/tools/scan.js'), import('../../server/tools.js')]);
+    clearDetectionCache(); return toolsStatus();
+  });
+  add('onboarder_agent_deep_analysis', 'Run web UI deep-analysis engines in this task workspace. Requires checks permission; runner downloads and repository configuration may execute code. Report missing/failed engines explicitly. No repository path override.', {
+    tools: { type: 'array', items: { type: 'string', enum: ['semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck'] } },
+    kind: { type: 'string', enum: ['all', 'security', 'dead-code'] }, options: { type: 'object', description: 'Per-engine settings from onboarder_agent_engines, sanitized by the shared registry.' },
+  }, [], async args => {
+    if (!manifest.permissions.checks) throw new Error('Deep-analysis execution was not enabled. Use /permissions checks on or --allow-checks.');
+    if (args.kind !== undefined && !['all', 'security', 'dead-code'].includes(String(args.kind))) throw new Error('Choose all, security or dead-code.');
+    if (args.tools !== undefined && (!Array.isArray(args.tools) || !args.tools.length || args.tools.some(id => !['semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck'].includes(String(id))))) throw new Error('Choose registered analyzers only.');
+    if (args.options !== undefined && (!args.options || typeof args.options !== 'object' || Array.isArray(args.options))) throw new Error('options must be per-engine settings.');
+    const { runExternalAnalysis } = await import('../../server/tools/scan.js');
+    const report = await runExternalAnalysis(manifest.root, { tools: args.tools,
+      ...(args.kind && args.kind !== 'all' ? { kinds: [args.kind] } : {}), options: args.options, signal: options.signal });
+    return { ...report, passes: report.passes.map(pass => ({ ...pass, findings: pass.findings.slice(0, 50) })),
+      findings: report.findings.slice(0, 100), totalFindings: report.findings.length, truncated: report.findings.length > 100,
+      note: 'Findings are candidates. Missing or failed engines provide no assurance; verify source before changing it.' };
+  });
   add('onboarder_agent_context', 'Current task, repository, workspace, and enforced permissions. Start here.', {}, [], async () => ({ ...manifest, task: redact(manifest.task), auditFile: undefined }));
   add('onboarder_agent_read_file', 'Read source text and its sha256 for a subsequent edit. No symlinks or credential files.', { file: string }, ['file'], async args => readAgentFile(manifest.root, field(args, 'file', 500)));
   add('onboarder_agent_write_file', 'Write source only in this run\'s isolated workspace. expectedSha256 must match a fresh read, or be new for a new file.', { file: string, content: string, expectedSha256: string }, ['file', 'content', 'expectedSha256'], async args => {

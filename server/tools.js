@@ -155,9 +155,13 @@ export function runTool(argv, options = {}) {
     const timeout = options.timeout || TOOL_TIMEOUT_MS;
     const { command, args } = spawnArgv(argv);
     return new Promise((resolve) => {
+        if (options.signal?.aborted) {
+            resolve({ ok: false, stdout: '', cancelled: true, error: 'Analysis cancelled.' });
+            return;
+        }
         let child;
         try {
-            child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], env: options.env });
+            child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], env: options.env, detached: process.platform !== 'win32' });
         }
         catch (err) {
             resolve({ ok: false, status: -1, stdout: '', stderr: String(err && err.message || err), timedOut: false });
@@ -166,27 +170,63 @@ export function runTool(argv, options = {}) {
         let stdout = '';
         let stderr = '';
         let settled = false;
+        let stopped = null, bytes = 0;
+        const stop = (reason) => {
+            if (settled || stopped)
+                return;
+            stopped = reason;
+            if (process.platform === 'win32' && child.pid) {
+                const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+                killer.on('error', () => child.kill());
+                killer.unref();
+            }
+            else {
+                try {
+                    process.kill(-child.pid, 'SIGKILL');
+                }
+                catch {
+                    child.kill('SIGKILL');
+                }
+            }
+        };
+        const abort = () => stop({ ok: false, cancelled: true, error: 'Analysis cancelled.' });
         const finish = (extra) => {
             if (settled)
                 return;
             settled = true;
             clearTimeout(timer);
+            options.signal?.removeEventListener('abort', abort);
             resolve({ status: child.exitCode, stdout, stderr, ...extra });
         };
         const cap = (chunk, into) => {
             const next = into + chunk;
             return next.length > MAX_OUTPUT_BYTES ? next.slice(0, MAX_OUTPUT_BYTES) : next;
         };
-        child.stdout.on('data', (c) => { stdout = cap(c.toString(), stdout); });
-        child.stderr.on('data', (c) => { stderr = cap(c.toString(), stderr).slice(-4000); });
+        child.stdout.setEncoding('utf8');
+        child.stderr.setEncoding('utf8');
+        const collect = (chunk, stderrChunk = false) => {
+            bytes += Buffer.byteLength(chunk);
+            if (bytes > MAX_OUTPUT_BYTES) {
+                stop({ ok: false, error: 'Analyzer output exceeded the size limit.' });
+                return;
+            }
+            if (stderrChunk)
+                stderr = cap(chunk, stderr).slice(-4000);
+            else
+                stdout = cap(chunk, stdout);
+        };
+        child.stdout.on('data', c => collect(c));
+        child.stderr.on('data', c => collect(c, true));
         const timer = setTimeout(() => {
-            child.kill('SIGKILL');
-            finish({ ok: false, timedOut: true, error: `${argv[0]} took too long and was stopped.` });
+            stop({ ok: false, timedOut: true, error: `${argv[0]} took too long and was stopped.` });
         }, timeout);
         child.on('error', (err) => {
             finish({ ok: false, timedOut: false, error: 'Could not run ' + argv[0] + ': ' + err.message });
         });
-        child.on('close', () => finish({ ok: true, timedOut: false }));
+        child.on('close', () => finish(stopped || { ok: true, timedOut: false }));
+        options.signal?.addEventListener('abort', abort, { once: true });
+        if (options.signal?.aborted)
+            abort();
     });
 }
 // The contract every analyzer hands back: findings normalized to the shape the

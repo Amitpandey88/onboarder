@@ -1,4 +1,4 @@
-export interface ToolResult { status?: number; ok: boolean; stdout: string; stderr?: string; error?: string; timedOut?: boolean; code?: number; ms?: number }
+export interface ToolResult { status?: number; ok: boolean; stdout: string; stderr?: string; error?: string; timedOut?: boolean; cancelled?: boolean; code?: number; ms?: number }
 // The deep-analysis engine: Onboarder becomes the frontend, and the sharpest
 // open-source analyzers become its backend.
 //
@@ -166,9 +166,10 @@ export function runTool(argv, options: Record<string, any> = {}) {
   const { command, args } = spawnArgv(argv);
 
   return new Promise<ToolResult>((resolve) => {
+    if (options.signal?.aborted) { resolve({ ok: false, stdout: '', cancelled: true, error: 'Analysis cancelled.' }); return; }
     let child;
     try {
-      child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], env: options.env });
+      child = spawn(command, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], env: options.env, detached: process.platform !== 'win32' });
     } catch (err) {
       resolve({ ok: false, status: -1, stdout: '', stderr: String(err && err.message || err), timedOut: false });
       return;
@@ -177,10 +178,23 @@ export function runTool(argv, options: Record<string, any> = {}) {
     let stdout = '';
     let stderr = '';
     let settled = false;
+    let stopped: Partial<ToolResult> | null = null, bytes = 0;
+    const stop = (reason: Partial<ToolResult>) => {
+      if (settled || stopped) return;
+      stopped = reason;
+      if (process.platform === 'win32' && child.pid) {
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+        killer.on('error', () => child.kill()); killer.unref();
+      } else {
+        try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); }
+      }
+    };
+    const abort = () => stop({ ok: false, cancelled: true, error: 'Analysis cancelled.' });
     const finish = (extra) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      options.signal?.removeEventListener('abort', abort);
       resolve({ status: child.exitCode, stdout, stderr, ...extra });
     };
 
@@ -188,18 +202,25 @@ export function runTool(argv, options: Record<string, any> = {}) {
       const next = into + chunk;
       return next.length > MAX_OUTPUT_BYTES ? next.slice(0, MAX_OUTPUT_BYTES) : next;
     };
-    child.stdout.on('data', (c) => { stdout = cap(c.toString(), stdout); });
-    child.stderr.on('data', (c) => { stderr = cap(c.toString(), stderr).slice(-4000); });
+    child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+    const collect = (chunk: string, stderrChunk = false) => {
+      bytes += Buffer.byteLength(chunk);
+      if (bytes > MAX_OUTPUT_BYTES) { stop({ ok: false, error: 'Analyzer output exceeded the size limit.' }); return; }
+      if (stderrChunk) stderr = cap(chunk, stderr).slice(-4000); else stdout = cap(chunk, stdout);
+    };
+    child.stdout.on('data', c => collect(c));
+    child.stderr.on('data', c => collect(c, true));
 
     const timer = setTimeout(() => {
-      child.kill('SIGKILL');
-      finish({ ok: false, timedOut: true, error: `${argv[0]} took too long and was stopped.` });
+      stop({ ok: false, timedOut: true, error: `${argv[0]} took too long and was stopped.` });
     }, timeout);
 
     child.on('error', (err) => {
       finish({ ok: false, timedOut: false, error: 'Could not run ' + argv[0] + ': ' + err.message });
     });
-    child.on('close', () => finish({ ok: true, timedOut: false }));
+    child.on('close', () => finish(stopped || { ok: true, timedOut: false }));
+    options.signal?.addEventListener('abort', abort, { once: true });
+    if (options.signal?.aborted) abort();
   });
 }
 
@@ -210,4 +231,3 @@ export function runTool(argv, options: Record<string, any> = {}) {
 export function emptyPass(id, label, reason) {
   return { id, label, ok: false, available: false, findings: [], reason, source: 'external', tool: id };
 }
-

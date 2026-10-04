@@ -19,6 +19,7 @@ export interface ChatPorts {
   browse?: (name: string, args: string[], root: string, signal: AbortSignal) => Promise<string>;
   utility?: (name: ChatUtility, signal: AbortSignal) => Promise<string>;
   chooseModel?: (configure: boolean, signal: AbortSignal) => Promise<boolean>;
+  analysis?: (name: string, args: string[], root: string, signal: AbortSignal, checks: boolean) => Promise<{ text: string; explain?: string }>;
   store?: ChatStore; runner?: Omit<RunnerOptions, 'onEvent' | 'signal'>;
   sources?: ChatSources;
 }
@@ -141,6 +142,12 @@ export class ChatController {
         this.settings.timeout = seconds; this.settings.maxTurns = turns; await this.persist(); this.say(`${seconds}s · ${turns} agent turns`); return;
       }
       if (name === 'setup' || name === 'doctor') { this.say(await this.utility(name)); return; }
+      if ((name === 'deep' || name === 'engines') && this.ports.analysis) {
+        const result = await this.ports.analysis(name, args, this.workspace, this.abort.signal, this.settings.checks);
+        this.abort.signal.throwIfAborted();
+        if (result.explain) await this.run(result.explain, result.text); else this.say(result.text);
+        return;
+      }
       if (BROWSE_COMMANDS.includes(name as typeof BROWSE_COMMANDS[number])) {
         if (name === 'deep' && !this.settings.checks) throw new Error('Enable /permissions checks on before running an external analyzer.');
         if (!this.ports.browse) throw new Error('Repository browsing is unavailable.');
@@ -161,7 +168,7 @@ export class ChatController {
         Object.assign(this.settings, { mode, pr, issue }); await this.run(task); return;
       }
       throw new Error(`Unknown command /${name}. Use /help; Tab completes commands.`);
-    } catch (e) { this.say(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { this.say(this.abort?.signal.aborted ? 'Task cancelled.' : e instanceof Error ? e.message : String(e)); }
     finally { this.busy = false; this.abort = null; }
   }
   private async submit(task: string) {
@@ -202,13 +209,13 @@ export class ChatController {
     this.say(`Resumed conversation ${id}.\n${this.status()}${changed ? '\nPermissions changed; the next task starts a new Hermes session.' : ''}`);
     const last = record.turns.at(-1); if (last) this.say('Last answer\n' + last.answer);
   }
-  private async run(task: string) {
+  private async run(task: string, displayPrompt = task) {
     if (!task.trim() || task.length > 16000) throw new Error('Messages must contain 1–16000 characters.');
     const s = this.settings, start = Date.now();
     const request: AgentRequest = { root: s.root, mode: s.mode, task, model: s.model, provider: s.provider, pr: s.pr, issue: s.issue,
       base: s.base, allowChecks: s.checks, allowGithubWrites: s.github, timeoutSeconds: s.timeout, maxTurns: s.maxTurns,
       ...(this.record.lastRun ? { resume: this.record.lastRun } : {}) };
-    this.ports.output({ type: 'start', prompt: terminalText(redact(task, this.ports.runner?.env)), mode: s.mode });
+    this.ports.output({ type: 'start', prompt: terminalText(redact(displayPrompt, this.ports.runner?.env)), mode: s.mode });
     let result: Awaited<ReturnType<typeof runAgent>>, sessionStarted = false;
     try {
       result = await (this.ports.run || runAgent)(request, { ...this.ports.runner, signal: this.abort!.signal,
@@ -225,7 +232,7 @@ export class ChatController {
     // Failed startup can emit an ID without creating a usable Hermes session.
     // Keep the previous working session on failure; new failures start fresh.
     if (result.sessionId && (result.status === 'completed' || result.status === 'cancelled' && sessionStarted)) this.record.lastRun = result.id;
-    this.record.turns.push({ at: new Date().toISOString(), prompt: task, answer: result.answer, run: result.id, status: result.status });
+    this.record.turns.push({ at: new Date().toISOString(), prompt: displayPrompt, answer: result.answer, run: result.id, status: result.status });
     this.record.turns = this.record.turns.slice(-100);
     this.ports.output({ type: 'end', result, elapsed: Date.now() - start });
     await this.persist();

@@ -133,11 +133,33 @@ test('scoped MCP rejects root overrides, checks and all write operations by defa
   assert.equal((await call('onboarder_scan', { path: '/tmp/elsewhere' })).result.isError, true);
   assert.equal((await call('onboarder_agent_write_file', { file: 'a.ts', content: 'bad', expectedSha256: 'new' })).result.isError, true);
   assert.equal((await call('onboarder_agent_run_check', { check: 'test' })).result.isError, true);
+  assert.equal((await call('onboarder_agent_deep_analysis', { tools: ['gitleaks'] })).result.isError, true);
+  assert.equal((await call('onboarder_agent_deep_analysis', { path: '/tmp/elsewhere' })).result.isError, true);
   assert.equal((await call('github_comment', { number: 1, body: 'private comment' })).result.isError, true);
   assert.equal(fetched, 0);
   const context = await call('onboarder_agent_context', {}); assert.equal(context.result.structuredContent.repository, 'fixture/repo');
   const scan = await call('onboarder_scan', {}); assert.equal(scan.result.isError, false);
   const audit = await fs.readFile(manifest.auditFile, 'utf8'); assert.ok(!audit.includes('private comment')); assert.ok(!audit.includes('bad')); assert.match(audit, /github_comment/);
+});
+test('Hermes deep-analysis tools expose shared settings and pin execution to the task workspace', { skip: process.platform === 'win32' }, async t => {
+  const { manifest, temp, root } = await fixture(t);
+  const bin = path.join(temp, 'bin'); await fs.mkdir(bin);
+  const argvFile = path.join(temp, 'analyzer-args.json');
+  await fs.writeFile(path.join(bin, 'gitleaks'), `#!${process.execPath}\nconst fs=require('fs');const args=process.argv.slice(2);fs.writeFileSync(${JSON.stringify(argvFile)},JSON.stringify(args));fs.writeFileSync(args[args.indexOf('--report-path')+1],'[]');`, { mode: 0o700 });
+  const { clearDetectionCache } = await import('../server/tools.js');
+  const before = process.env.PATH; process.env.PATH = bin; clearDetectionCache();
+  t.after(() => { process.env.PATH = before; clearDetectionCache(); });
+  manifest.permissions.checks = true;
+  const dispatch = createAgentDispatcher(manifest);
+  const call = (name, args) => dispatch({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } });
+  const status = await call('onboarder_agent_engines', {});
+  assert.equal(status.result.isError, false); assert.ok(status.result.structuredContent.gitleaks.options.some(option => option.key === 'history'));
+  const report = await call('onboarder_agent_deep_analysis', { tools: ['gitleaks'], options: { gitleaks: { history: true } } });
+  assert.equal(report.result.isError, false); assert.equal(report.result.structuredContent.ranCount, 1);
+  const args = JSON.parse(await fs.readFile(argvFile, 'utf8')); assert.equal(args[args.indexOf('--source') + 1], root); assert.ok(!args.includes('--no-git'));
+  assert.equal((await call('onboarder_agent_deep_analysis', { tools: ['arbitrary-command'] })).result.isError, true);
+  assert.equal((await call('onboarder_agent_deep_analysis', { tools: [] })).result.isError, true);
+  assert.equal((await call('onboarder_agent_deep_analysis', { tools: ['gitleaks'], path: '/etc' })).result.isError, true);
 });
 test('GitHub writes require capability and identical successful operations are not duplicated', async t => {
   const { manifest } = await fixture(t); manifest.permissions.github = true;

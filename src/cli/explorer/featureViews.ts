@@ -26,7 +26,7 @@ interface GitDiff {
 
 interface ToolStatus {
   label: string; kind: string; available: boolean;
-  how?: string | null; reason?: string | null;
+  how?: string | null; reason?: string | null; purpose?: string;
 }
 interface Finding {
   path?: string; file?: string; line?: number;
@@ -148,6 +148,7 @@ export function formatEngines(status: Record<string, ToolStatus>): string {
   for (const [id, tool] of Object.entries(status)) {
     const state = !tool.available ? 'missing' : tool.how === 'path' ? 'installed' : 'runnable';
     lines.push(`  ${state}  ${tool.label} (${id})  ·  ${tool.kind}`);
+    if (tool.purpose) lines.push(`    ${tool.purpose}`);
     lines.push(`    ${tool.available ? tool.how || 'available' : tool.reason || 'Not installed'}`);
   }
   lines.push('', '  Run: deep <engine>   or   deep all');
@@ -207,6 +208,7 @@ export function formatDeepAnalysis(report: AnalysisReport): string {
     for (const finding of report.findings.slice(0, 40)) {
       const place = finding.path || finding.file || '(repository)';
       lines.push(`  ${finding.severity || 'info'}  ${place}${finding.line ? `:${finding.line}` : ''}  ${finding.rule || finding.message || ''}`);
+      if (finding.message && finding.rule) lines.push(`    ${finding.message}`);
     }
     if (report.findings.length > 40) lines.push(`  … ${report.findings.length - 40} more findings.`);
     lines.push('', '  Findings are candidates; review test and vendored files before acting.');
