@@ -1,0 +1,6 @@
+# Large reproducible render outputs remain local; GitHub hosts the share copy.
+master/
+ambient-original.wav
+preview-*.jpg
+validation-contact.jpg
+__pycache__/

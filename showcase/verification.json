@@ -1,0 +1,29 @@
+{
+  "programs": [],
+  "stream_groups": [],
+  "streams": [
+    {
+      "codec_name": "h264",
+      "codec_type": "video",
+      "width": 1920,
+      "height": 1080,
+      "r_frame_rate": "30/1",
+      "nb_frames": "1200"
+    },
+    {
+      "codec_name": "aac",
+      "codec_type": "audio",
+      "sample_rate": "48000",
+      "channels": 2,
+      "r_frame_rate": "0/0",
+      "nb_frames": "1876"
+    }
+  ],
+  "format": {
+    "duration": "40.000000",
+    "size": "4992642"
+  },
+  "sha256": "86f40133e2fec325d2603e0be6b9c05d8e9bffc9f07492560e2c4c5e7c07f67e",
+  "complete_decode": "passed",
+  "variant": "GitHub optimized share copy; full-quality original in local master/"
+}

@@ -16,6 +16,16 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 
 ---
 
+## Showcase film
+
+[![Watch the Onboarder showcase](https://raw.githubusercontent.com/Amitpandey88/onboarder/main/showcase/poster.jpg)](https://github.com/Amitpandey88/onboarder/blob/main/showcase/onboarder-showcase.mp4)
+
+[Watch or download the video](https://github.com/Amitpandey88/onboarder/blob/main/showcase/onboarder-showcase.mp4) — 40 seconds, 1080p, with slow camera moves, animated connections, web and terminal scenes, and original ambient music.
+
+[Storyboard and editable assets](https://github.com/Amitpandey88/onboarder/tree/main/showcase).
+
+---
+
 ## Product previews
 
 **Web UI — load a local folder, a Git URL, or a browser folder.**
