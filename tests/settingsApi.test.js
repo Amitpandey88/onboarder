@@ -203,7 +203,7 @@ test('localhost never sees the self-hosted login page, even without a key', asyn
     const local = await request(keyless.port, { path: '/', headers: { host: `localhost:${keyless.port}`, accept: 'text/html' } });
     assert.equal(local.status, 200);
     assert.match(local.text, /id="landing"/);
-    assert.match(local.text, /Understand your code/);
+    assert.match(local.text, /class="landing-title"/);
     assert.doesNotMatch(local.text, /Welcome back/);
     const status = await request(keyless.port, { path: '/api/auth/status', headers: { host: `localhost:${keyless.port}` } });
     assert.deepEqual(status.json, { authenticated: true, configured: false });

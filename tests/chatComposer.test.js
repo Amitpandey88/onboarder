@@ -183,7 +183,7 @@ os.close(master)
 sys.stdout.buffer.write(data)
 sys.exit(child.returncode)
 `;
-  const result = await runProcess('/usr/bin/python3', ['-c', python, process.execPath], { env: { ...process.env, TERM: 'xterm-256color', ONBOARDER_AGENT_HOME: home, HERMES_HOME: path.join(home, 'hermes') }, timeoutMs: 15000 });
+  const result = await runProcess('/usr/bin/python3', ['-c', python, process.execPath], { env: { ...process.env, TERM: 'xterm-256color', ONBOARDER_AGENT_HOME: home, HERMES_HOME: path.join(home, 'hermes'), ONBOARDER_HERMES_BIN: process.execPath }, timeoutMs: 15000 });
   assert.equal(result.code, 0, result.stdout + result.stderr); assert.match(result.stdout, /Built-in workflow skills/); assert.match(result.stdout, /Conversation saved/);
   assert.equal(await fs.access(path.join(home, 'runs')).then(() => true).catch(() => false), false, 'Pasted input did not start an agent run');
 });

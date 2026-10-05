@@ -60,7 +60,6 @@ const dom = {};
 [
     'landing', 'landingError', 'landingStatus', 'cancelScanBtn', 'scanProgress', 'pathForm', 'pathInput', 'gitForm', 'gitInput',
     'pickBtn', 'demoBtn', 'explorer', 'viewTabs', 'repoChip', 'newRepoBtn', 'settingsBtn',
-    'landingAbout', 'creditsHide', 'creditsRemove', 'creditsBar', 'creditsShow', 'creditsBarRemove',
     'treeFilter', 'fileTree', 'crumbs', 'copyMermaidBtn', 'svgBtn', 'fitBtn',
     'canvas', 'canvasContent', 'canvasEmpty', 'stageFoot', 'themeBtn', 'aiDrawBtn', 'docView', 'aboutView', 'codeView',
     'mmToggleBtn', 'stageFilters', 'modeSwitch', 'nodeFilter', 'testsToggle', 'depthSelect',
@@ -167,36 +166,6 @@ dom.gitForm.addEventListener('submit', (event) => {
 dom.demoBtn.addEventListener('click', () => {
     loadFromServer({ demo: true }, 'Reading our own source…');
 });
-// The landing credits card can be tucked away or permanently removed; the choice sticks.
-const CREDITS_KEY = 'onboarder.credits';
-function applyCreditsVisibility() {
-    const status = localStorage.getItem(CREDITS_KEY);
-    if (status === 'removed') {
-        dom.landingAbout?.remove();
-        dom.creditsBar?.remove();
-        return;
-    }
-    const hidden = status === 'hidden';
-    if (dom.landingAbout)
-        dom.landingAbout.hidden = hidden;
-    if (dom.creditsBar)
-        dom.creditsBar.hidden = !hidden;
-}
-function removeCreditsPermanently() {
-    localStorage.setItem(CREDITS_KEY, 'removed');
-    applyCreditsVisibility();
-}
-dom.creditsHide?.addEventListener('click', () => {
-    localStorage.setItem(CREDITS_KEY, 'hidden');
-    applyCreditsVisibility();
-});
-dom.creditsShow?.addEventListener('click', () => {
-    localStorage.setItem(CREDITS_KEY, 'shown');
-    applyCreditsVisibility();
-});
-dom.creditsRemove?.addEventListener('click', removeCreditsPermanently);
-dom.creditsBarRemove?.addEventListener('click', removeCreditsPermanently);
-applyCreditsVisibility();
 dom.pickBtn.addEventListener('click', async () => {
     if (!canPickFolder()) {
         return landingIdle('This browser can’t pick folders. Chrome or Edge can; the other two options work anywhere.');
@@ -274,7 +243,7 @@ function enterExplorer(payload, opts) {
     dom.repoChip.title = state.scan.root;
     dom.brandNote.textContent = state.scan.stats.filesParsed + ' files · ' + state.scan.stats.edgeCount + ' connections';
     renderSidebar();
-    setView(state.scanId ? 'review' : 'map');
+    setView('map');
 }
 // The big name is the repo's own; the small line says where it actually lives.
 function repoSubLabel() {

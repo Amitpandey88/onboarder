@@ -197,7 +197,7 @@ sys.stdout.buffer.write(data)
 sys.exit(child.returncode)
 `;
   const output = await runProcess('/usr/bin/python3', ['-c', terminalFixture, process.execPath], {
-    env: { ...process.env, TERM: 'xterm-256color', ONBOARDER_AGENT_HOME: temp },
+    env: { ...process.env, TERM: 'xterm-256color', ONBOARDER_AGENT_HOME: temp, ONBOARDER_HERMES_BIN: process.execPath },
     timeoutMs: 15000,
   });
   assert.equal(output.code, 0, output.stderr + output.stdout); assert.match(output.stdout, /Multiline message discarded/); assert.match(output.stdout, /Conversation saved/);

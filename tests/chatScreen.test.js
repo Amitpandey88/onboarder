@@ -109,7 +109,7 @@ os.close(master)
 sys.stdout.buffer.write(data)
 sys.exit(child.returncode)
 `;
-  const result = await runProcess('/usr/bin/python3', ['-c', python, process.execPath], { env: { ...process.env, TERM: 'xterm-256color', ONBOARDER_AGENT_HOME: home }, timeoutMs: 12000 });
+  const result = await runProcess('/usr/bin/python3', ['-c', python, process.execPath], { env: { ...process.env, TERM: 'xterm-256color', ONBOARDER_AGENT_HOME: home, ONBOARDER_HERMES_BIN: process.execPath }, timeoutMs: 12000 });
   assert.equal(result.code, 0, result.stdout + result.stderr);
   assert.match(result.stdout, /\x1b\[\?1049h/); assert.match(result.stdout, /\x1b\[\?1049l/); assert.match(result.stdout, /Conversation saved/);
   assert.match(result.stdout, /RESIZE_DRAFT/); assert.ok(result.stdout.indexOf('\x1b[?1049l') < result.stdout.indexOf('Conversation saved'));

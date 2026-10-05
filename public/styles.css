@@ -2159,67 +2159,30 @@ button.doc-entry-name:hover { text-decoration: underline; }
   margin: 3px 0 8px;
 }
 
-/* ---------- landing: tool & maker card ---------- */
-
-.landing-about {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  margin-top: 36px;
-  text-align: left;
-  background: var(--card);
-  border: 1.5px solid var(--ink);
-  border-radius: 10px;
-  box-shadow: var(--shadow-sm);
-}
-.la-actions {
-  position: absolute;
-  top: 8px;
-  right: 10px;
+/* ---------- landing: support ---------- */
+.coffee-card {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-.la-hide {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--faint);
-  background: none;
-  border: none;
-  border-radius: 4px;
-  padding: 2px 7px;
-  cursor: pointer;
-}
-.la-hide:hover { color: var(--ink); background: var(--accent-soft); }
-.la-remove:hover { color: var(--warn); background: #fee2e2; }
-.credits-bar { margin: 36px 0 0; display: flex; justify-content: center; align-items: center; gap: 8px; }
-.credits-show {
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 54px;
+  gap: 12px;
+  margin: 28px auto 0;
+  padding: 12px 22px;
+  font: 13px var(--mono);
+  color: var(--ink);
+  text-decoration: none;
+  text-align: center;
+  background: var(--card);
+  border: 1.5px solid var(--ink);
+  border-radius: 14px;
   box-shadow: var(--shadow-sm);
-  padding: 8px 16px;
+  transition: transform .1s ease, box-shadow .1s ease;
 }
-.credits-show:hover { background: var(--accent-soft); transform: translateY(-1px); }
-.credits-bar-remove {
-  font-size: 11px;
-  color: var(--faint);
-  padding: 6px 10px;
-}
-.credits-bar-remove:hover { color: var(--warn); }
-.la-col { flex: 1 1 0; padding: 18px 22px 16px; min-width: 0; }
-.la-rule { border-left: 1px dotted var(--line); margin: 14px 0; }
-.la-name { font-family: var(--serif); font-size: 20px; font-weight: 600; }
-.la-role {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--accent);
-  letter-spacing: 0.02em;
-  margin: 3px 0 8px;
-}
-.la-note { color: var(--faint); font-size: 12.5px; line-height: 1.55; margin: 4px 0 12px; }
-
-@media (max-width: 860px) {
-  .landing-about { flex-direction: column; }
-  .la-rule { border-left: none; border-top: 1px dotted var(--line); margin: 0 18px; }
-}
+.coffee-card:hover { transform: translate(-1px, -1px); box-shadow: var(--shadow); }
+.coffee-card:active { transform: none; box-shadow: none; }
+.coffee-icon { flex: none; width: 24px; height: 24px; }
 
 .code-gutter {
   position: sticky;

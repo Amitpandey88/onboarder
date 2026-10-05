@@ -4,6 +4,7 @@ import { ChatController, type ChatOutput } from './controller.js';
 import { TerminalComposer } from './composer.js';
 import { profileDisplay } from './profile.js';
 import { HermesModels } from './models.js';
+import { hermesInstalled, hermesInstallCommand, installHermes } from './runtime.js';
 import { ChatSources } from './source.js';
 import { ChatAnalysis } from './analysis.js';
 import { chatBanner, ChatRenderer, type ChatTheme } from './render.js';
@@ -112,7 +113,37 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
       hint: 'Same engines as the web UI · /deep options <engine> for settings', choices, signal }),
   });
   const models = new HermesModels();
+  const ensureHermes = async (signal: AbortSignal): Promise<boolean> => {
+    if (await hermesInstalled()) return true;
+    const command = hermesInstallCommand();
+    print(dim('Hermes is not installed. Install Hermes to configure a provider and use AI chat.\n' + command));
+    const answer = await composer!.choose({ title: 'Hermes is not installed',
+      hint: 'Press Enter to run the official Hermes install command, or continue offline.', signal,
+      choices: [{ value: 'install', label: 'Install Hermes', detail: command },
+        { value: 'offline', label: 'Continue offline', detail: '/map · /tree · /find · install later with /model' }] });
+    if (answer !== 'install' || exiting) return false;
+    handingOff = true; composer?.suspend();
+    let failure: unknown;
+    try {
+      out('Installing Hermes…\n' + command);
+      await installHermes(signal);
+    } catch (e) {
+      signal.throwIfAborted();
+      failure = e;
+    } finally { handingOff = false; if (!exiting) composer?.start(); }
+    if (failure) {
+      print(bad(safe(failure instanceof Error ? failure.message : String(failure))) + '\nInstall manually with:\n' + command);
+      return false;
+    }
+    if (!await hermesInstalled()) {
+      print(bad('Hermes is still unavailable. Restart your terminal after installation, or check ONBOARDER_HERMES_BIN.\n' + command));
+      return false;
+    }
+    print(ok('Hermes installed. Choose a provider and model to enable AI chat.'));
+    return true;
+  };
   const configureModel = async (signal: AbortSignal): Promise<boolean> => {
+    if (!await ensureHermes(signal)) return false;
     // Give the official wizard exclusive terminal ownership, then restore chat.
     const before = await profileDisplay();
     handingOff = true; composer?.suspend();
@@ -126,6 +157,7 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
   };
   const chooseModel = async (configure: boolean, signal: AbortSignal): Promise<boolean> => {
     if (configure) return configureModel(signal);
+    if (!await ensureHermes(signal)) return false;
     print(dim('Loading Hermes model catalog…'));
     let providers: Awaited<ReturnType<HermesModels['catalog']>> = [];
     try { providers = await models.catalog(signal); }
@@ -243,7 +275,9 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
   try {
     if (flags.resume) await controller.resume(flags.resume);
     composer.start();
-    if (!controller.settings.model && !display.model) {
+    if (!await hermesInstalled()) {
+      await controller.accept('/model configure');
+    } else if (!controller.settings.model && !display.model) {
       const answer = await composer.choose({ title: 'Welcome — Model & Provider', hint: 'Set up AI chat now, or use repository commands offline.',
         choices: [{ value: 'configure', label: 'Choose a provider and model', detail: 'Open full Hermes configuration' },
           { value: 'offline', label: 'Continue offline', detail: '/map · /tree · /find · set up later with /model' }], signal: startup.signal });

@@ -26,11 +26,6 @@ export interface AppElements {
   'codeTabContainer': HTMLElement;
   'codeView': HTMLElement;
   'copyMermaidBtn': HTMLButtonElement;
-  'creditsBar': HTMLElement;
-  'creditsBarRemove': HTMLButtonElement;
-  'creditsHide': HTMLButtonElement;
-  'creditsRemove': HTMLButtonElement;
-  'creditsShow': HTMLButtonElement;
   'crumbs': HTMLElement;
   'demoBtn': HTMLButtonElement;
   'depthSelect': HTMLSelectElement;
@@ -85,7 +80,6 @@ export interface AppElements {
   'inspectorBody': HTMLElement;
   'inspectorEmpty': HTMLElement;
   'landing': HTMLElement;
-  'landingAbout': HTMLElement;
   'landingError': HTMLElement;
   'landingFoot': HTMLElement;
   'landingStatus': HTMLElement;
