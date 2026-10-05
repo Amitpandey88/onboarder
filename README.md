@@ -16,6 +16,26 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 
 ---
 
+## Product previews
+
+**Web UI — load a local folder, a Git URL, or a browser folder.**
+
+![Onboarder web UI with repository loading options](https://raw.githubusercontent.com/Amitpandey88/onboarder/main/docs/images/web-landing.jpg)
+
+**Explore — navigate the source map, entry points, and import connections.**
+
+![Onboarder Explore view showing the published TypeScript source architecture](https://raw.githubusercontent.com/Amitpandey88/onboarder/main/docs/images/web-explore.jpg)
+
+**Terminal chat — repository tools, workflow skills, and a pinned composer.**
+
+![Onboarder 1.0.2 terminal chat with its code compass, tools, and workflow skills](https://raw.githubusercontent.com/Amitpandey88/onboarder/main/docs/images/terminal-chat.png)
+
+The web images show the 1.0.2 interface and its published source. The terminal
+image is rendered from a real 1.0.2 terminal session running offline; AI model
+configuration is optional for repository browsing.
+
+---
+
 ## ⚡ Quickstart
 
 ```bash
