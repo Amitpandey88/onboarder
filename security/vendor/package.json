@@ -5,6 +5,6 @@
   "description": "Audit metadata for shipped browser libraries; never installed by Onboarder.",
   "dependencies": {
     "mermaid": "11.17.2",
-    "monaco-editor": "0.52.2"
+    "monaco-editor": "0.57.0"
   }
 }
