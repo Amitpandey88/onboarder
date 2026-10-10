@@ -6,6 +6,7 @@ import { redact, terminalText } from '../agent/process.js';
 import { ChatStore, newChat, historySummary, type ChatRecord, type ChatSettings } from './store.js';
 import { slashInput, chatHelp, BROWSE_COMMANDS } from './commands.js';
 import { ChatSources, isRemoteSource } from './source.js';
+import { FILE_ACTIONS, type FileSelection } from './navigation.js';
 
 export type ChatOutput =
   | { type: 'message'; text: string }
@@ -19,6 +20,8 @@ export interface ChatPorts {
   browse?: (name: string, args: string[], root: string, signal: AbortSignal) => Promise<string>;
   utility?: (name: ChatUtility, signal: AbortSignal) => Promise<string>;
   chooseModel?: (configure: boolean, signal: AbortSignal) => Promise<boolean>;
+  chooseFile?: (root: string, query: string, signal: AbortSignal) => Promise<FileSelection | null>;
+  chooseConversation?: (records: ChatRecord[], signal: AbortSignal) => Promise<string | null>;
   analysis?: (name: string, args: string[], root: string, signal: AbortSignal, checks: boolean) => Promise<{ text: string; explain?: string }>;
   store?: ChatStore; runner?: Omit<RunnerOptions, 'onEvent' | 'signal'>;
   sources?: ChatSources;
@@ -100,7 +103,29 @@ export class ChatController {
       if (name === 'paste') { this.paste = []; this.say('Multiline input. /send submits; /discard cancels.'); return; }
       if (name === 'new') { this.record = newChat({ ...this.settings, pr: undefined, issue: undefined }); this.lastResult = null; this.say('New conversation. ' + this.record.id); await this.persist(); return; }
       if (name === 'history') { this.say(historySummary(await this.store.list(this.settings.root))); return; }
-      if (name === 'resume') { await this.resume(args[0] || ''); return; }
+      if (name === 'resume') {
+        if (args.length > 1) throw new Error('Usage: /resume [conversation ID]');
+        let id: string | undefined = args[0];
+        if (!id) {
+          if (!this.ports.chooseConversation) throw new Error('Use /history, then /resume <conversation ID>.');
+          const records = (await this.store.list(this.settings.root)).filter(record => record.id !== this.record.id);
+          this.abort.signal.throwIfAborted();
+          if (!records.length) { this.say('No other saved conversations for this repository yet.'); return; }
+          id = await this.ports.chooseConversation(records, this.abort.signal) || undefined;
+          this.abort.signal.throwIfAborted();
+          if (!id) return;
+          if (!records.some(record => record.id === id)) throw new Error('Choose a saved conversation from this repository.');
+        }
+        await this.resume(id); return;
+      }
+      if (name === 'open') {
+        if (!this.ports.chooseFile || !this.ports.browse) throw new Error('Use /tree to find a file, then /show <file> to read it.');
+        const selected = await this.ports.chooseFile(this.workspace, args.join(' '), this.abort.signal);
+        this.abort.signal.throwIfAborted();
+        if (!selected) return;
+        if (!FILE_ACTIONS.some(action => action.value === selected.action)) throw new Error('Choose a supported file action.');
+        this.say(await this.ports.browse(selected.action, [selected.path], this.workspace, this.abort.signal)); return;
+      }
       if (name === 'repo' || name === 'clone') {
         if (!body) { this.say(name === 'clone' ? 'Usage: /clone <GitHub URL>' : (this.settings.sourceUrl || this.settings.root)); return; }
         if (name === 'clone' && (args.length !== 1 || !isRemoteSource(args[0]!))) throw new Error('Usage: /clone <GitHub URL>');
@@ -167,7 +192,7 @@ export class ChatController {
         if (mode !== this.settings.mode || pr !== this.settings.pr || issue !== this.settings.issue) this.resetContext();
         Object.assign(this.settings, { mode, pr, issue }); await this.run(task); return;
       }
-      throw new Error(`Unknown command /${name}. Use /help; Tab completes commands.`);
+      throw new Error(`Unknown command /${name}. Use Ctrl-P to search commands, or /help for the guide.`);
     } catch (e) { this.say(this.abort?.signal.aborted ? 'Task cancelled.' : e instanceof Error ? e.message : String(e)); }
     finally { this.busy = false; this.abort = null; }
   }

@@ -1,7 +1,7 @@
 import { AGENT_MODES } from '../agent/contracts.js';
 
 export const CHAT_COMMANDS = [
-  ['help', '[command]', 'Show commands and examples'],
+  ['help', '[command|all]', 'Show commands and examples'],
   ['ask', '<question>', 'Ask about this repository'],
   ['review', '[PR number] [task]', 'Review local changes or a GitHub PR'],
   ['triage', '[issue number] [task]', 'Investigate issues and suggest fixes'],
@@ -17,12 +17,13 @@ export const CHAT_COMMANDS = [
   ['pull', '', 'Update the saved checkout without overwriting local changes'],
   ['new', '', 'Start a fresh conversation'],
   ['history', '', 'List saved conversations for this repository'],
-  ['resume', '<conversation ID>', 'Continue a saved conversation'],
+  ['resume', '[conversation ID]', 'Pick or continue a saved conversation'],
   ['status', '', 'Show model, permissions, workspace, and last run'],
   ['paste', '', 'Enter a multiline message; finish with /send or /discard'],
   ['cancel', '', 'Stop the active task (Ctrl-C also works)'],
   ['map', '', 'Repository overview, available offline'],
   ['tree', '[folder] [depth]', 'Browse repository files'],
+  ['open', '[query]', 'Pick a code file, then read, inspect or trace it'],
   ['find', '<query>', 'Search files, symbols, and contents'],
   ['show', '<file> [from] [count]', 'Read a file'],
   ['diff', '[base] [head] [file]', 'Inspect changes in the current workspace'],
@@ -72,6 +73,17 @@ export const CHAT_COMMANDS = [
   ['exit', '', 'Save and exit (Ctrl-D also works)'],
 ] as const;
 export type ChatCommand = typeof CHAT_COMMANDS[number][0];
+const COMMAND_GROUPS: Record<string, readonly string[]> = {
+  'Browse the repository': ['map', 'tree', 'open', 'find', 'show', 'tour', 'repo', 'clone', 'pull', 'web'],
+  'Code and architecture': ['explain', 'deps', 'inspect', 'graph', 'blast', 'symbols', 'hubs', 'layers', 'patterns', 'stats', 'stack', 'entry', 'externals', 'coupling', 'clusters', 'diagram', 'layers-diagram', 'atlas', 'docs', 'about'],
+  'Health and security': ['diff', 'health', 'rescan', 'security', 'risks', 'log', 'hotspots', 'blame', 'workflows', 'sbom', 'engines', 'deep'],
+  'AI workflows': [...AGENT_MODES, 'mode', 'tools', 'skills'],
+  'Conversations': ['new', 'history', 'resume', 'paste', 'send', 'discard', 'runs', 'run', 'export', 'clear'],
+  'Setup and controls': ['help', 'model', 'status', 'permissions', 'limits', 'doctor', 'setup', 'cancel', 'exit'],
+};
+export function commandGroup(name: string): string {
+  return Object.entries(COMMAND_GROUPS).find(([, names]) => names.includes(name))?.[0] || 'Other commands';
+}
 export const BROWSE_COMMANDS = ['map', 'tree', 'find', 'show', 'diff', 'health', 'rescan', 'tour', 'explain', 'deps', 'inspect', 'graph', 'blast', 'symbols', 'hubs', 'layers', 'patterns', 'stats', 'security', 'stack', 'entry', 'externals', 'coupling', 'clusters', 'risks', 'log', 'hotspots', 'blame', 'diagram', 'layers-diagram', 'atlas', 'docs', 'workflows', 'sbom', 'engines', 'deep', 'web', 'about'] as const;
 
 export function suggestCommands(line: string): typeof CHAT_COMMANDS[number][] {
@@ -90,6 +102,18 @@ export function slashInput(line: string): { name: string; args: string[]; body: 
   return { name: match[1]!, args, body };
 }
 export function chatHelp(topic = ''): string {
+  if (!topic) return ['Onboarder · command guide', '', 'Start here',
+    '  /map        Get the repository overview', '  /tour       Find a useful reading order',
+    '  /open       Pick a code file and choose what to explore', '  /find query Search files, symbols and source', '',
+    'Quick access', '  Ctrl-P  Search all commands · Enter inserts, then Enter runs',
+    '  Ctrl-O  Browse code files    Ctrl-R  Resume a conversation', '',
+    ...Object.entries(COMMAND_GROUPS).flatMap(([group, names]) => [group, '  ' + names.map(name => '/' + name).join('  '), '']),
+    'Use /help <command> for usage, or /help all for the complete reference.',
+    'Alt-Enter adds a line · PgUp/PgDn scroll · Ctrl-End returns to the latest output.',
+    'Ctrl-C cancels a task · Ctrl-D saves and exits.',
+    'Repository browsing works offline. Configure optional AI with /model.',
+    'Checks and GitHub writes stay off until you enable them with /permissions.'].join('\n');
+  if (topic === 'all') topic = '';
   const commands = topic ? CHAT_COMMANDS.filter(c => c[0] === topic.replace(/^\//, '')) : CHAT_COMMANDS;
   if (!commands.length) return `Unknown command /${topic}. Use /help.`;
   return ['Slash commands', '', ...commands.map(([name, args, detail]) => `  /${name}${args ? ' ' + args : ''}\n    ${detail}`), '',

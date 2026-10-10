@@ -3,14 +3,30 @@ import type { ChatOutput } from './controller.js';
 import type { ChatSettings } from './store.js';
 import { cells, clip } from './text.js';
 import { ONBOARDER_MARK, ONBOARDER_COMPACT_MARK } from './logo.js';
+import { screenDivider, type TranscriptDivider } from './screen.js';
 
 export interface ChatTheme {
   accent: (text: string) => string; muted: (text: string) => string;
   strong: (text: string) => string; success: (text: string) => string; error: (text: string) => string;
   status?: (text: string) => string;
+  selection?: (text: string) => string;
 }
 export const plainTheme: ChatTheme = { accent: s => s, muted: s => s, strong: s => s, success: s => s, error: s => s };
-export interface BannerInfo { model?: string; provider?: string; tools?: number; session?: string; rows?: number; fullscreen?: boolean; catalog?: { name: string; description: string }[] }
+export interface BannerInfo { model?: string; provider?: string; tools?: number; session?: string; rows?: number; fullscreen?: boolean; indexedFiles?: number; catalog?: { name: string; description: string }[] }
+export interface StatusInfo { model: string; repo: string; busy: boolean; elapsed: number; activity?: string; calls: number; tokens?: number; turns: number; tools: number }
+export function chatStatus(settings: ChatSettings, columns: number, info: StatusInfo): string {
+  const room = Math.max(1, columns - 1), milliseconds = Math.max(0, info.elapsed), elapsed = Math.floor(milliseconds / 1000);
+  const spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'][Math.floor(milliseconds / 250) % 10];
+  const activity = info.busy ? `${spinner} ${clip(info.activity || 'Working', room >= 100 ? 24 : 16)} ${elapsed}s` : '● Ready';
+  const permissions = `checks ${settings.checks ? 'on' : 'off'} · GitHub ${settings.github ? 'on' : 'off'}`;
+  const model = clip(info.model === 'model not configured' ? 'Offline · /model for AI' : info.model, room < 110 ? 18 : 24);
+  const details = room < 36 ? [activity, settings.mode]
+    : room < 72 ? [activity, permissions]
+    : room < 110 ? [model, activity, permissions]
+    : [model, activity, permissions, clip(info.repo, 16), settings.mode, info.busy ? `${info.calls} calls` : `${info.turns} turns`,
+      info.tokens === undefined ? `${info.tools} tools` : `${Intl.NumberFormat('en', { notation: 'compact' }).format(info.tokens)} tokens`];
+  return clip(details.join(' │ '), room);
+}
 const SIGIL = ONBOARDER_MARK;
 const LETTERS: Record<string, string[]> = {
   O: [' ███ ', '█   █', '█   █', '█   █', ' ███ '],
@@ -100,11 +116,11 @@ function screenBanner(settings: ChatSettings, columns: number, theme: ChatTheme,
   const model = settings.model || info.model || '/model — choose a provider';
   const details = [settings.sourceUrl || settings.root, 'Model: ' + model,
     `${settings.mode} · checks ${settings.checks ? 'on' : 'off'} · GitHub writes ${settings.github ? 'on' : 'off'}`,
-    'Maps · code · GitHub · history · security', `${info.tools ?? 'Scoped'} tools · 6 skills · session ${info.session?.slice(0, 8) || 'new'}`];
-  if (height < 10 || width < 28) return ['◈ ONBOARDER', ...details, 'Type / for commands'].slice(0, height).map(t => theme.accent(clip(t, room))).join('\n');
+    info.indexedFiles ? `${info.indexedFiles} code files indexed · /open to browse` : 'Repository browsing works offline',
+    `${info.tools ?? 'Scoped'} tools · 6 skills · session ${info.session?.slice(0, 8) || 'new'}`];
+  if (height < 10 || width < 28) return ['◈ ONBOARDER', ...details.slice(0, 3), '/map overview · /tour reading order', 'Ctrl-P commands · Ctrl-O files'].slice(0, height).map(t => theme.accent(clip(t, room))).join('\n');
   const output: string[] = [];
-  if (width >= 55 && height >= 18) for (let r = 0; r < 5; r++) output.push(indent + theme.accent([... 'ONBOARDER'].map(c => LETTERS[c]![r]).join(' ')));
-  else output.push(indent + theme.accent('◈ ONBOARDER · code compass'));
+  output.push(indent + theme.accent('◈ ONBOARDER · code compass'));
   if (height >= 14) output.push(indent + theme.muted(clip('Understand the code. Find your direction.', width)), '');
   const title = clip(` Onboarder v${version || 'dev'} · Hermes harness `, width - 6);
   output.push(indent + theme.accent('╭─' + title + '─'.repeat(width - cells(title) - 3) + '╮'));
@@ -112,19 +128,21 @@ function screenBanner(settings: ChatSettings, columns: number, theme: ChatTheme,
     const aa = clip(a, left), bb = clip(b, right);
     return indent + theme.accent('│ ') + theme.accent(aa) + ' '.repeat(left - cells(aa)) + '  ' + (accent ? theme.accent(bb) : bb) + ' '.repeat(right - cells(bb)) + theme.accent(' │');
   };
-  if (height >= 30 && width >= 76) {
+  const expanded = height >= 27 && width >= 76;
+  if (expanded) {
     const left = Math.floor((width - 6) * 0.39), right = width - left - 6, tools = info.catalog || [];
     const groups = [['repository', tools.filter(t => t.name.startsWith('onboarder_agent_'))],
       ['analysis', tools.filter(t => !t.name.startsWith('onboarder_agent_') && !t.name.startsWith('github_'))],
       ['github', tools.filter(t => t.name.startsWith('github_'))]] as const;
     const available = groups.flatMap(([label, list]) => list.length ? [label + ': ' + list.slice(0, 2).map(t => t.name.replace(/^onboarder_(?:agent_)?|^github_/, '')).join(', '), `  ${list.length} tools · /tools for details`] : []);
-    const b = ['Available Tools', ...(available.length ? available : ['repository · analysis · github']), '', 'Available Skills',
-      '/ask — understand the repository', '/review — local changes and pull requests', '/triage — investigate issues',
-      '/implement — isolated code changes', '/pr — prepare draft pull requests', '/github — issues, reviews and CI', '', `${info.tools ?? 'Scoped'} tools · 6 skills · /help`];
+    const b = ['Start here', '/map — understand the repository', '/tour — find a reading order',
+      '/open — pick a file and explore it', '/find <query> — search the code', '/review — review changes with AI', '/model — set up optional AI', '',
+      'Available Tools', ...(available.length ? available : ['repository · analysis · github']), '', 'Available Skills',
+      'ask · review · triage · implement · pr · github'];
     const a = [...ONBOARDER_MARK, '', model, settings.provider || info.provider || 'Choose provider with /model',
       settings.sourceUrl || settings.root, 'Session: ' + (info.session?.slice(0, 8) || 'new'),
       `Checks ${settings.checks ? 'on' : 'off'} · GitHub ${settings.github ? 'on' : 'off'}`];
-    for (let i = 0; i < Math.max(a.length, b.length); i++) output.push(pair(a[i] || '', b[i] || '', left, right, b[i]?.startsWith('Available')));
+    for (let i = 0; i < Math.max(a.length, b.length); i++) output.push(pair(a[i] || '', b[i] || '', left, right, b[i]?.startsWith('Available') || b[i] === 'Start here'));
   } else if (width >= 62) {
     const left = 13, right = width - left - 6;
     for (let i = 0; i < details.length; i++) output.push(pair(ONBOARDER_COMPACT_MARK[i]!, details[i]!, left, right));
@@ -135,9 +153,9 @@ function screenBanner(settings: ChatSettings, columns: number, theme: ChatTheme,
     }
   }
   output.push(indent + theme.accent('╰' + '─'.repeat(width - 2) + '╯'));
-  if (height >= 14) output.push('');
-  output.push(indent + theme.muted(clip('Ask a question or paste a GitHub URL. Type / for commands.', width)));
-  if (height >= 18) output.push(indent + theme.muted(clip('↑/↓ select · Enter choose · PgUp/PgDn scroll · Esc close', width)));
+  if (!expanded && height - output.length >= 5) output.push('', indent + theme.strong('Start here'), indent + clip('/map overview · /tour reading order · /open code files', width));
+  output.push(indent + theme.muted(clip('Ctrl-P commands · Ctrl-O files · Ctrl-R resume · /help', width)));
+  if (height - output.length > 0) output.push(indent + theme.muted(clip('Ask a question or paste a GitHub URL. PgUp/PgDn scroll.', width)));
   return output.slice(0, height).join('\n');
 }
 
@@ -147,8 +165,15 @@ export class ChatRenderer {
   private segment = '';
   private code = false;
   private streamed = 0;
-  constructor(private write: (text: string) => void, private theme = plainTheme, private env: NodeJS.ProcessEnv = process.env) {}
+  private replyOpen = false;
+  constructor(private write: (text: string) => void, private theme = plainTheme, private env: NodeJS.ProcessEnv = process.env,
+    private layout: { columns?: () => number; divider?: (divider: TranscriptDivider) => void } = {}) {}
   private safe(text: string) { return terminalText(redact(text, this.env)); }
+  private divider(label: string, edge: TranscriptDivider['edge'], style = this.theme.accent) {
+    const divider = { label: this.safe(label), edge, style };
+    if (this.layout.divider) this.layout.divider(divider);
+    else this.write(screenDivider(divider, Math.max(1, (this.layout.columns?.() || 80) - 1)));
+  }
   private line(text: string) {
     const safe = this.safe(text);
     if (/^\s*```/.test(safe)) { this.code = !this.code; this.write(this.theme.muted(safe)); }
@@ -160,11 +185,15 @@ export class ChatRenderer {
   finish() { this.flush(); }
   handle(output: ChatOutput) {
     if (output.type === 'start') {
-      this.pending = ''; this.segment = ''; this.code = false; this.streamed = 0;
-      this.write('\n' + this.theme.accent('Hermes') + this.theme.muted('  ·  ' + output.mode));
+      this.pending = ''; this.segment = ''; this.code = false; this.streamed = 0; this.replyOpen = true;
+      this.divider('◈ Onboarder · ' + output.mode, 'top');
       if (['implement', 'pr'].includes(output.mode)) this.write(this.theme.muted('Edits use an isolated workspace at committed HEAD. Source checkout edits are excluded.'));
-      this.write(this.theme.muted('Working…  /cancel or Ctrl-C to stop'));
-    } else if (output.type === 'message') { this.flush(); this.write(this.safe(output.text)); }
+    } else if (output.type === 'message') {
+      this.flush();
+      if (!this.replyOpen) this.divider('◈ Onboarder · Result', 'top');
+      this.write(this.safe(output.text));
+      if (!this.replyOpen) { this.divider('', 'bottom'); this.write(''); }
+    }
     else if (output.type === 'event') {
       const event = output.event;
       if (event.type === 'text' && event.text) {
@@ -192,10 +221,11 @@ export class ChatRenderer {
       } else { this.flush(); if (answer) this.write(answer.slice(0, 256000)); }
       if (this.streamed >= 256000 || answer.length > 256000) this.write(this.theme.muted('Display limited to 256000 characters. The full result is in agent show.'));
       const style = output.result.status === 'completed' ? this.theme.success : this.theme.error;
-      this.write('\n' + style(output.result.status) + this.theme.muted(`  ·  ${(output.elapsed / 1000).toFixed(1)}s  ·  run ${output.result.id}`));
+      const mark = output.result.status === 'completed' ? '✓' : output.result.status === 'cancelled' ? '■' : '!';
+      this.divider(`${mark} ${output.result.status} · ${(output.elapsed / 1000).toFixed(1)}s · /runs for details`, 'bottom', style);
       if (output.result.branch) this.write(this.theme.muted('Workspace: ' + this.safe(output.result.workspace) + '\nBranch: ' + this.safe(output.result.branch)));
       if (output.result.status === 'failed') this.write(this.theme.muted('Use /doctor to check the runtime or /model configure to select a model.'));
-      this.write(''); this.pending = ''; this.segment = ''; this.code = false;
+      this.write(''); this.pending = ''; this.segment = ''; this.code = false; this.replyOpen = false;
     }
   }
 }

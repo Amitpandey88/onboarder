@@ -17,7 +17,14 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 
 ---
 
-## What's new in 1.0.3
+## What's new in 1.0.4
+
+- **Find commands quickly.** Ctrl-P opens a searchable command palette. Choose a command, add any arguments, then run it. Your unfinished question and cursor position are kept.
+- **Explore files from chat.** Ctrl-O or `/open [query]` finds indexed code files and offers source, inspection, connections, graph, change-impact, and local-explanation actions. Browsing works offline and follows the active workspace.
+- **Resume without copying IDs.** Ctrl-R or `/resume` searches conversations saved for the current repository and keeps your current permissions.
+- **Clearer terminal conversations.** Separate You, Onboarder, and Result blocks have borders that resize with the terminal. A shaded model/status bar, labeled input, grouped help, and clear completion labels make the chat easier to follow. History stays in place while new output arrives; Ctrl-End returns to the latest output.
+
+### Included from 1.0.3
 
 - **Easier tree navigation.** Click a folder to expand or collapse it. Open all folders or collapse them from the toolbar; expansion keeps your zoom and position so large maps stay readable. **Fit** remains available when you want to see the whole map.
 - **Choose where a canvas file opens.** Pick **Deep Dive**, **Code**, or **Docs** after clicking a file on the map. The sidebar file list opens files directly.
@@ -50,11 +57,12 @@ One low-severity upstream KaTeX advisory remains in the official Mermaid bundle.
 
 **Terminal chat — repository tools, workflow skills, and a pinned composer.**
 
-![Onboarder 1.0.2 terminal chat with its code compass, tools, and workflow skills](https://raw.githubusercontent.com/Amitpandey88/onboarder/main/docs/images/terminal-chat.png)
+![Onboarder 1.0.4 terminal chat with distinct message blocks, a model/status bar, and a pinned composer](https://raw.githubusercontent.com/Amitpandey88/onboarder/main/docs/images/terminal-chat-1.0.4.png)
 
 The web images show the 1.0.2 interface and its published source. The terminal
-image is rendered from a real 1.0.2 terminal session running offline; AI model
-configuration is optional for repository browsing.
+image is captured from a real 1.0.4 terminal session using a controlled sample
+reply and the clearly labeled **Layout preview** model. AI model configuration
+is optional for repository browsing.
 
 ---
 
@@ -65,7 +73,7 @@ configuration is optional for repository browsing.
 npm install -g codebase-onboarder
 
 # Update an existing installation to this release
-npm install -g codebase-onboarder@1.0.3
+npm install -g codebase-onboarder@1.0.4
 
 # Open the repository chat harness in your terminal
 onboarder
@@ -99,6 +107,21 @@ Open **http://localhost:4310** in your browser (the CLI opens it for you).
 ## 🖥️ The terminal app
 
 Type `onboarder` to open the Hermes-powered chat interface for the current repository, or `onboarder chat ~/work/some-repo` to open another local checkout. An amber welcome screen shows the actual configured model, repository, permissions, six workflow skills, and 39 registered tools. The composer has a session status bar with recorded token usage, elapsed run time, and live tool activity. It keeps terminal scrollback and loads the browsing engine only when requested.
+
+### Navigate without memorizing commands
+
+| Shortcut or command | What it does |
+|---|---|
+| **Ctrl-P** | Search the command palette by name or topic. Enter inserts the command; a second Enter runs it. Escape returns to your draft. |
+| **Ctrl-O** or `/open [query]` | Search indexed code files, then choose **Read source**, **Inspect**, **Trace connections**, **Graph**, **Change impact**, or **Explain locally**. These actions work offline. |
+| **Ctrl-R** or `/resume` | Search saved conversations for the current repository. Your current permissions are retained. `/resume <ID>` still works. |
+| **PgUp / PgDn** | Read earlier output while keeping your input intact. New output is counted without moving your reading position. |
+| **Ctrl-End** | Jump back to the latest output. |
+| `/help` or `/help <command>` | Open a guide grouped by task, or see usage for one command. `/help all` prints the complete reference. |
+
+Menus keep unfinished input. If you choose a palette command while drafting a question, submitting the command restores the question and its cursor position. File navigation follows the active implementation workspace. Indexing happens when you browse; switching repositories hides completions from the previous repository until the new one is indexed.
+
+Chat uses separate **You**, **Onboarder**, and **Result** blocks with amber borders that resize with your terminal. Tool activity stays muted; completed, cancelled, and failed replies close with a clear status and elapsed time. A shaded status bar separates the conversation from the **Message** input, with the model, current activity, and permissions visible when space allows. Code indentation and pasted text are preserved.
 
 ```sh
 onboarder chat

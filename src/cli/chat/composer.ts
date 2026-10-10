@@ -1,9 +1,10 @@
 import readline from 'node:readline';
-import { terminalText } from '../agent/process.js';
+import { terminalText, redact } from '../agent/process.js';
 import { completeChat, suggestCommands } from './commands.js';
 import { cells, clusterCells, clip, graphemes } from './text.js';
 import { plainTheme, type ChatTheme } from './render.js';
-import { TerminalScreen, wrapScreenLine } from './screen.js';
+import { TerminalScreen, wrapScreenLine, screenDivider, type TranscriptDivider } from './screen.js';
+import { commandChoices, searchChoices, type SearchChoice } from './navigation.js';
 
 export interface ComposerOptions {
   input: NodeJS.ReadStream; output: NodeJS.WriteStream; theme?: ChatTheme;
@@ -13,8 +14,8 @@ export interface ComposerOptions {
   welcome?: (columns: number, rows: number) => string;
   header?: () => string;
 }
-export interface PickerChoice { value: string; label: string; detail?: string }
-export interface PickerOptions { title: string; hint?: string; choices: PickerChoice[]; selected?: string; signal?: AbortSignal }
+export interface PickerChoice extends SearchChoice {}
+export interface PickerOptions { title: string; hint?: string; choices: PickerChoice[]; selected?: string; signal?: AbortSignal; query?: string; fuzzy?: boolean }
 /** Raw-input composer with a full-screen viewport or an inline terminal footer. */
 export class TerminalComposer {
   value = '';
@@ -24,6 +25,7 @@ export class TerminalComposer {
   private history: string[] = [];
   private historyIndex = -1;
   private draft = '';
+  private actionDraft: { value: string; cursor: number } | null = null;
   private paste = false;
   private pasteCR = false;
   private suspended = true;
@@ -35,7 +37,7 @@ export class TerminalComposer {
   private theme: ChatTheme;
   private screen: TerminalScreen | null;
   private viewHeight = 1;
-  private picker: (PickerOptions & { query: string; index: number; finish: (value: string | null) => void }) | null = null;
+  private picker: (PickerOptions & { query: string; index: number; filteredQuery: string | null; filtered: PickerChoice[]; finish: (value: string | null) => void }) | null = null;
   private onKey = (text: string, key: readline.Key = {}) => this.key(text, key);
   private onResize = () => this.refresh();
   constructor(private options: ComposerOptions) { this.theme = options.theme || plainTheme; this.screen = options.fullscreen ? new TerminalScreen(options.output) : null; }
@@ -72,6 +74,17 @@ export class TerminalComposer {
     if (this.suspended) { this.options.output.write(text + '\n'); return; }
     this.erase(); this.options.output.write(text + '\n'); this.refresh();
   }
+  divider(divider: TranscriptDivider) {
+    if (this.screen) { this.screen.appendDivider(divider); this.refresh(); }
+    else this.print(screenDivider(divider, Math.max(1, (this.options.output.columns || 80) - 1)));
+  }
+  private question(text: string) {
+    this.print('');
+    this.divider({ label: 'You', edge: 'top', style: this.theme.accent });
+    this.print(this.theme.accent('● ') + terminalText(redact(text)));
+    this.divider({ label: '', edge: 'bottom', style: this.theme.accent });
+    this.print('');
+  }
   clear() { if (this.screen) { this.screen.clear(); this.refresh(); } else { this.erase(); this.options.output.write('\x1b[2J\x1b[H'); } }
   choose(options: PickerOptions): Promise<string | null> {
     this.picker?.finish(null);
@@ -83,14 +96,36 @@ export class TerminalComposer {
         if (this.picker?.finish !== finish) return;
         this.picker = null; this.paste = false; this.refresh(); resolve(value);
       };
-      this.picker = { ...options, query: '', index: Math.max(0, options.choices.findIndex(c => c.value === options.selected)), finish };
+      this.picker = { ...options, query: terminalText(options.query || '').replace(/[\r\n\t]/g, ' ').slice(0, 512), index: 0, filteredQuery: null, filtered: [], finish };
+      this.picker.index = Math.max(0, this.pickerChoices().findIndex(c => c.value === options.selected));
       options.signal?.addEventListener('abort', abort, { once: true });
       if (options.signal?.aborted) finish(null); else this.refresh();
     });
   }
   private pickerChoices() {
-    const query = this.picker?.query.toLowerCase() || '';
-    return this.picker?.choices.filter(c => !query || (c.label + ' ' + (c.detail || '')).toLowerCase().includes(query)) || [];
+    const picker = this.picker;
+    if (!picker) return [];
+    const query = picker.query.toLowerCase();
+    if (query !== picker.filteredQuery) {
+      picker.filtered = picker.fuzzy ? searchChoices(picker.choices, query)
+        : picker.choices.filter(c => !query || (c.label + ' ' + (c.detail || '')).toLowerCase().includes(query));
+      picker.filteredQuery = query;
+    }
+    return picker.filtered;
+  }
+  private async commandPalette() {
+    const selected = await this.choose({ title: 'Command palette', hint: 'Search a command or topic · choosing inserts it without running', choices: commandChoices(), fuzzy: true });
+    if (!selected || this.suspended) return;
+    if (this.value && !this.actionDraft) this.actionDraft = { value: this.value, cursor: this.cursor };
+    this.replace('/' + selected + (selected === 'model' ? '' : ' '));
+    this.dismissed = true; this.refresh();
+  }
+  private shortcut(command: string) {
+    const state = this.options.state();
+    if (state.busy || state.pasting) return;
+    this.screen?.latest();
+    this.question(command);
+    this.options.submit(command); this.refresh();
   }
   private pickerKey(text: string, key: readline.Key) {
     const picker = this.picker!;
@@ -144,7 +179,11 @@ export class TerminalComposer {
     }
     const suggestions = this.suggestions();
     if (key.ctrl) {
-      if (key.name === 'c') { this.replace(''); this.options.cancel(); }
+      if (key.name === 'p') { const state = this.options.state(); if (!state.busy && !state.pasting) void this.commandPalette(); }
+      else if (key.name === 'o') this.shortcut('/open');
+      else if (key.name === 'r') this.shortcut('/resume');
+      else if (key.name === 'end' && this.screen) this.screen.latest();
+      else if (key.name === 'c') { this.actionDraft = null; this.replace(''); this.options.cancel(); }
       else if (key.name === 'd') { if (!this.value) this.options.exit(); else this.deleteNext(); }
       else if (key.name === 'a') this.cursor = 0;
       else if (key.name === 'e') this.cursor = this.value.length;
@@ -153,7 +192,10 @@ export class TerminalComposer {
       else if (key.name === 'w') { const left = this.value.slice(0, this.cursor).replace(/\s*\S+\s*$/, ''); this.value = left + this.value.slice(this.cursor); this.cursor = left.length; }
       this.refresh(); return;
     }
-    if (key.name === 'escape') { this.dismissed = true; this.refresh(); return; }
+    if (key.name === 'escape') {
+      if (this.actionDraft) { const draft = this.actionDraft; this.actionDraft = null; this.replace(draft.value); this.cursor = draft.cursor; }
+      this.dismissed = true; this.refresh(); return;
+    }
     if ((key.name === 'up' || key.name === 'down') && suggestions.length) {
       this.selected = (this.selected + (key.name === 'up' ? -1 : 1) + suggestions.length) % suggestions.length;
     } else if (key.name === 'tab' || ((key.name === 'return' || key.name === 'enter') && suggestions.length &&
@@ -168,9 +210,10 @@ export class TerminalComposer {
       else {
         const message = this.value;
         if (message.trim()) { this.history = [message, ...this.history.filter(h => h !== message)].slice(0, 200); }
-        this.replace(''); this.historyIndex = -1;
-        if (this.screen) this.screen.append(this.theme.muted('you') + ' › ' + terminalText(message));
-        else { this.erase(); this.options.output.write(this.theme.muted('you') + ' › ' + terminalText(message) + '\n'); }
+        const draft = this.actionDraft; this.actionDraft = null;
+        this.replace(draft?.value || ''); if (draft) this.cursor = draft.cursor;
+        this.historyIndex = -1; this.screen?.latest();
+        this.question(message);
         this.options.submit(message);
       }
     } else if (key.name === 'up' || key.name === 'down') {
@@ -213,13 +256,15 @@ export class TerminalComposer {
     const inputLines = lines.slice(start, start + maxInput); cursorRow -= start;
     if (start === 0) inputLines[0] = this.theme.accent(lead) + inputLines[0]!.slice(lead.length);
     if (!value) inputLines[0] += this.theme.muted(clip(this.picker ? 'Type to search · arrows to choose' : 'Ask about the repo, or type / for commands…', Math.max(0, room - cells(lead))));
-    const rows = [(this.theme.status || this.theme.muted)(clip(state.status, room)), this.theme.accent('─'.repeat(room)), ...inputLines,
-      this.theme.accent('─'.repeat(room))];
+    const status = clip(state.status, room);
+    const rows = [(this.theme.status || this.theme.muted)(status + ' '.repeat(room - cells(status))),
+      screenDivider({ label: this.picker ? 'Search' : state.pasting ? 'Multiline message' : 'Message', edge: 'top', style: this.theme.accent }, room), ...inputLines,
+      screenDivider({ label: '', edge: 'bottom', style: this.theme.accent }, room)];
     cursorRow += 2;
     const suggestions = this.picker ? [] : this.suggestions();
     if (this.picker) {
       const picker = this.picker, choices = this.pickerChoices();
-      const count = Math.max(1, Math.min(8, (this.options.output.rows || 24) - rows.length - (this.screen ? 6 : 4)));
+      const count = Math.max(1, Math.min(8, (this.options.output.rows || 24) - rows.length - (this.screen ? 7 : 5)));
       const begin = Math.max(0, picker.index - count + 1);
       const inner = Math.max(0, room - 4);
       const box = (text: string) => { const shown = clip(text, inner); return room >= 6 ? '│ ' + shown + ' '.repeat(inner - cells(shown)) + ' │' : clip(text, room); };
@@ -230,8 +275,10 @@ export class TerminalComposer {
       choices.slice(begin, begin + count).forEach((choice, i) => {
         const chosen = begin + i === picker.index;
         const text = `${chosen ? '❯' : ' '} ${choice.label}${choice.detail ? '  ·  ' + choice.detail : ''}`;
-        rows.push((chosen ? this.theme.accent : this.theme.muted)(box(text)));
+        rows.push((chosen ? this.theme.selection || this.theme.accent : this.theme.muted)(box(text)));
       });
+      const detail = choices[picker.index]?.detail;
+      if (detail) rows.push(this.theme.strong(box(detail)));
       const hint = clip(` ↑/↓ select · Enter choose · Esc cancel · ${choices.length ? picker.index + 1 : 0}/${choices.length} `, Math.max(0, room - 4));
       rows.push(this.theme.accent(room >= 6 ? '╰─' + hint + '─'.repeat(room - 3 - cells(hint)) + '╯' : clip(hint, room)));
     } else if (suggestions.length) {
@@ -245,7 +292,7 @@ export class TerminalComposer {
         rows.push((chosen ? this.theme.accent : this.theme.muted)(shown + detail));
       });
       rows.push(this.theme.muted(clip(`↑/↓ select · Tab/Enter insert · Esc close · ${this.selected + 1}/${suggestions.length}`, room)));
-    } else rows.push(this.theme.muted(clip(state.busy ? 'Working · /cancel or Ctrl-C to stop' : state.pasting ? '/send submit · /discard cancel' : this.screen ? 'Type / for commands · PgUp/PgDn scroll · Alt-Enter newline · Ctrl-D exit' : 'Type / for commands · Alt-Enter newline · Ctrl-D exit', room)));
+    } else rows.push(this.theme.muted(clip(state.busy ? 'Working · /cancel or Ctrl-C to stop' : state.pasting ? '/send submit · /discard cancel' : this.actionDraft ? 'Enter runs this command · Esc returns to your draft' : 'Ctrl-P commands · Ctrl-O files · Ctrl-R resume · /help', room)));
     if (this.screen) {
       const height = Math.max(1, this.options.output.rows || 24);
       if (height < 3) {
@@ -263,7 +310,9 @@ export class TerminalComposer {
       this.viewHeight = height - footer.length - 1;
       const welcome = this.options.welcome?.(columns, this.viewHeight) || '';
       const content = this.screen.view(room, this.viewHeight, welcome);
-      const header = (this.options.header?.() || 'ONBOARDER') + (this.screen.scrolled ? ' · history · PgDn to return' : '');
+      const header = this.screen.scrolled
+        ? this.screen.unread ? `history · ${this.screen.unread} new lines · Ctrl-End latest · PgDn to return` : 'history · PgDn to return · Ctrl-End latest'
+        : (this.options.header?.() || 'ONBOARDER');
       const frame = [wrapScreenLine(header, room)[0]!, ...content,
         ...Array(Math.max(0, this.viewHeight - content.length)).fill(''), ...footer];
       this.screen.draw(frame, columns, height - footer.length + footerCursorRow, cursorCol);

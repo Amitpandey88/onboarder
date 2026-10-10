@@ -7,7 +7,10 @@ import { HermesModels } from './models.js';
 import { hermesInstalled, hermesInstallCommand, installHermes } from './runtime.js';
 import { ChatSources } from './source.js';
 import { ChatAnalysis } from './analysis.js';
-import { chatBanner, ChatRenderer, type ChatTheme } from './render.js';
+import { chatBanner, chatStatus, ChatRenderer, type ChatTheme } from './render.js';
+import { FILE_ACTIONS, fileChoices, type FileSelection } from './navigation.js';
+import { slashInput } from './commands.js';
+import { screenDivider } from './screen.js';
 import { AGENT_MODES, type AgentMode } from '../agent/contracts.js';
 import { agentCommand } from '../agent/command.js';
 import { terminalText, redact } from '../agent/process.js';
@@ -27,7 +30,9 @@ export const CHAT_HELP = `
   onboarder explore [folder|url]     Open the original offline explorer
 
   Type / to see live commands. ↑/↓ select; Tab or Enter inserts; Esc dismisses.
+  Ctrl-P opens the command palette. Ctrl-O browses files. Ctrl-R resumes a conversation.
   Chat fills the terminal and adjusts on resize. PgUp/PgDn scroll the conversation.
+  Ctrl-End returns to the latest output; new lines are counted while you read history.
   Alt-Enter adds a line. Pasted multiline messages stay in the composer.
   /review 42 · /triage 12 · /implement <task> · /pr <task> · /github <task>
   /model opens a searchable model picker. /model configure opens full Hermes setup.
@@ -51,29 +56,39 @@ interface ChatOptions { target?: string | null; flags?: Record<string, any>; out
 /** Analysis modules are loaded only when a browsing command actually needs them. */
 export function repositoryBrowser(flags: Record<string, any>, progress: (text: string) => void, version = '') {
   let cached: any = null;
+  const ensure = async (root: string, signal: AbortSignal, refresh = false) => {
+    signal.throwIfAborted();
+    if (!cached || cached.root !== root || refresh) {
+      const { openRepo } = await import('../explorer/session.js');
+      progress('Indexing repository…');
+      const repo = await openRepo(root, { ...scanOptionsFromFlags(flags), signal });
+      signal.throwIfAborted(); cached = repo;
+    }
+    return cached;
+  };
   return {
     get files(): string[] { return cached?.scan?.files?.map((f: any) => f.path) || []; },
+    filesFor(root: string): string[] { return cached?.root === root ? cached.scan.files.map((f: any) => f.path) : []; },
+    async listFiles(root: string, signal: AbortSignal): Promise<string[]> {
+      const repo = await ensure(root, signal);
+      return repo.scan.files.map((f: any) => f.path);
+    },
     invalidate() { cached = null; },
     async run(name: string, args: string[], root: string, signal: AbortSignal): Promise<string> {
-      const [{ openRepo }, { lookup }, { getGitDiff }, { formatDiff }] = await Promise.all([
-        import('../explorer/session.js'), import('../explorer/commands.js'), import('../../server/gitDiff.js'), import('../explorer/featureViews.js'),
+      const [repo, { lookup }, { getGitDiff }, { formatDiff }] = await Promise.all([
+        ensure(root, signal, name === 'rescan'), import('../explorer/commands.js'), import('../../server/gitDiff.js'), import('../explorer/featureViews.js'),
       ]);
       signal.throwIfAborted();
-      if (!cached || cached.root !== root || name === 'rescan') {
-        progress('Indexing repository…');
-        const repo = await openRepo(root, { ...scanOptionsFromFlags(flags), signal });
-        signal.throwIfAborted(); cached = repo;
-      }
       if (name === 'rescan') return 'Repository analysis refreshed.';
-      const ctx = { repo: cached, flags, version,
-        diff: async (base: string, head: string, file: string) => formatDiff(await getGitDiff(root, { base, head, file, signal }), cached.facts.importers || {}, cached.scan.files.length, file),
+      const ctx = { repo, flags, version,
+        diff: async (base: string, head: string, file: string) => formatDiff(await getGitDiff(root, { base, head, file, signal }), repo.facts.importers || {}, repo.scan.files.length, file),
         engines: async () => { const [{ toolsStatus }, { formatEngines }] = await Promise.all([import('../../server/tools/scan.js'), import('../explorer/featureViews.js')]); return formatEngines(toolsStatus()); },
         deep: async (tool: string) => {
           const [{ toolsStatus, runExternalAnalysis }, { formatDeepAnalysis }] = await Promise.all([import('../../server/tools/scan.js'), import('../explorer/featureViews.js')]);
           if (tool !== 'all' && !Object.hasOwn(toolsStatus(), tool)) throw new Error('Unknown analyzer. Use /engines.');
           return formatDeepAnalysis(await runExternalAnalysis(root, tool === 'all' ? { signal } : { signal, tools: [tool] }));
         },
-        web: async () => { const { startWeb } = await import('../explorer/app.js'); return (await startWeb({ flags, repo: cached })) + '\nRepository path: ' + root; },
+        web: async () => { const { startWeb } = await import('../explorer/app.js'); return (await startWeb({ flags, repo })) + '\nRepository path: ' + root; },
       };
       const command = lookup(name);
       if (!command) throw new Error('Unknown repository command.');
@@ -97,9 +112,15 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
   finally { process.off('SIGINT', cancelStartup); process.off('SIGTERM', cancelStartup); }
   const root = source.root;
   const theme: ChatTheme = { accent: text => paint(text, 'yellow', 'bold'), muted: dim, strong: bold, success: ok, error: bad,
-    status: text => colorEnabled() ? '\x1b[48;5;234m\x1b[38;5;220m' + text + '\x1b[0m' : text };
+    selection: text => colorEnabled() ? '\x1b[48;5;220m\x1b[38;5;232m' + text + '\x1b[0m' : text,
+    status: text => {
+      if (!colorEnabled()) return text;
+      const [lead, ...details] = text.split(' │ ');
+      return '\x1b[48;5;234m\x1b[38;5;220m\x1b[1m' + lead + '\x1b[22m'
+        + details.map(detail => '\x1b[38;5;240m │ \x1b[38;5;250m' + detail).join('') + '\x1b[0m';
+    } };
   let composer: TerminalComposer | null = null, handingOff = false, exiting = false, active: Promise<void> | null = null;
-  let display = await profileDisplay(), startedAt = 0, toolCalls = 0, lastTool = '', analysisRunning = false;
+  let display = await profileDisplay(), startedAt = 0, toolCalls = 0, lastTool = '', analysisRunning = false, activity = '';
   let resolveDone: () => void;
   const done = new Promise<void>(resolve => { resolveDone = resolve; });
   const safe = (text: string) => terminalText(redact(text));
@@ -107,7 +128,13 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
     if (composer && !handingOff && !exiting) composer.print(text); else out(text);
   };
   const browser = repositoryBrowser(flags, text => print(dim(text)), version);
-  const renderer = new ChatRenderer(print, theme);
+  const renderer = new ChatRenderer(print, theme, process.env, {
+    columns: () => process.stdout.columns || 80,
+    divider: divider => {
+      if (composer && !handingOff && !exiting) composer.divider(divider);
+      else print(screenDivider(divider, (process.stdout.columns || 80) - 1));
+    },
+  });
   const analysis = new ChatAnalysis({ progress: text => print(dim(safe(text))),
     choose: (choices, signal) => composer!.choose({ title: 'Deep Analysis — Select Engines',
       hint: 'Same engines as the web UI · /deep options <engine> for settings', choices, signal }),
@@ -219,6 +246,19 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
       finally { analysisRunning = false; }
     },
     chooseModel,
+    chooseFile: async (folder, query, signal) => {
+      const files = await browser.listFiles(folder, signal);
+      signal.throwIfAborted();
+      if (!files.length) { print(dim('No code files found. Use /repo <folder> to open another repository.')); return null; }
+      const file = await composer!.choose({ title: 'Open a code file', hint: `${files.length} code files · search a name or path · all actions work offline`, choices: fileChoices(files), query, fuzzy: true, signal });
+      if (!file) return null;
+      const action = await composer!.choose({ title: safe(file.split('/').at(-1) || 'File actions'), hint: safe(file), choices: [...FILE_ACTIONS], signal });
+      return action ? { path: file, action } as FileSelection : null;
+    },
+    chooseConversation: (records, signal) => composer!.choose({ title: 'Resume a conversation', hint: 'Saved conversations from this repository · current permissions are kept', fuzzy: true, signal,
+      choices: records.map(record => ({ value: record.id, label: safe(record.turns[0]?.prompt || 'Untitled conversation').replace(/\s+/g, ' ').slice(0, 120),
+        detail: `${record.settings.mode} · ${record.turns.length} turns · ${new Date(record.updatedAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })} · ${record.id.slice(0, 8)}` })),
+    }),
     browse: (name, args, folder, signal) => browser.run(name, args, folder, signal),
     utility: async (name, signal) => {
       if (name === 'model') {
@@ -237,8 +277,9 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
   } satisfies RunManifest).map(({ name, description }) => ({ name, description }));
   let bannerKey = '', bannerText = '';
   const banner = (columns: number, rows: number) => {
-    const key = JSON.stringify([controller.settings, display, columns, rows]);
-    if (key !== bannerKey) { bannerKey = key; bannerText = chatBanner(controller.settings, columns, theme, version, { ...display, tools: catalog.length, catalog, session: controller.record.id, rows, fullscreen: true }); }
+    const indexedFiles = browser.filesFor(controller.workspace).length;
+    const key = JSON.stringify([controller.settings, display, columns, rows, controller.record.id, indexedFiles]);
+    if (key !== bannerKey) { bannerKey = key; bannerText = chatBanner(controller.settings, columns, theme, version, { ...display, tools: catalog.length, catalog, session: controller.record.id, rows, fullscreen: true, indexedFiles }); }
     return bannerText;
   };
   composer = new TerminalComposer({ input: process.stdin, output: process.stdout, theme, fullscreen: true, welcome: banner,
@@ -247,13 +288,16 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
       const s = controller.settings, model = s.model || display.model || 'model not configured';
       const repo = s.sourceUrl?.split('/').at(-1) || path.basename(s.root);
       const tokens = controller.lastResult?.tokens?.total;
-      const status = [model, repo, s.mode, `${catalog.length} tools`, tokens === undefined ? 'tokens —' : `${tokens} tokens`,
-        controller.busy && startedAt ? `${Math.floor((Date.now() - startedAt) / 1000)}s · ${analysisRunning ? 'deep analysis' : `${toolCalls} calls${lastTool ? ' · ' + lastTool : ''}`}` : `${controller.record.turns.length} turns`].join(' │ ');
-      return { mode: s.mode, status: safe(status), busy: controller.busy, pasting: controller.pasting, files: browser.files };
+      const status = chatStatus(s, process.stdout.columns || 80, { model, repo, busy: controller.busy, elapsed: startedAt ? Date.now() - startedAt : 0,
+        activity: analysisRunning ? 'Deep analysis' : lastTool || activity, calls: toolCalls, tokens, turns: controller.record.turns.length, tools: catalog.length });
+      return { mode: s.mode, status: safe(status), busy: controller.busy, pasting: controller.pasting, files: browser.filesFor(controller.workspace) };
     },
     submit: line => {
       if (exiting) return;
       if (controller.busy) { void controller.accept(line); composer?.refresh(); return; }
+      startedAt = Date.now(); toolCalls = 0; lastTool = '';
+      const command = slashInput(line)?.name;
+      activity = command === 'open' ? 'Browsing files' : command === 'resume' ? 'Opening conversation' : command === 'repo' || command === 'clone' ? 'Loading repository' : command ? '/' + command : 'Thinking';
       // Only one task owns the controller; cancellation/exit remain available while it runs.
       const task = controller.accept(line); active = task;
       composer?.refresh();
@@ -270,7 +314,7 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
   });
   const terminate = () => controller.close();
   const interrupt = () => { if (controller.busy) controller.cancel(); else controller.close(); };
-  const ticker = setInterval(() => { if (controller.busy && !composer?.choosing) composer?.refresh(); }, 1000); ticker.unref();
+  const ticker = setInterval(() => { if (controller.busy && !composer?.choosing) composer?.refresh(); }, 250); ticker.unref();
   process.on('SIGTERM', terminate); process.on('SIGINT', interrupt);
   try {
     if (flags.resume) await controller.resume(flags.resume);

@@ -78,7 +78,7 @@ while time.monotonic() < end:
             os.write(master, b'\r'); stage = 1
         elif stage == 1 and b'MODEL_PROVIDER_WIZARD_READY' in data:
             os.write(master, b'fixture\n'); stage = 2
-        elif stage == 2 and b'configured-fixture' in data and data.rfind('Type / for commands · PgUp/PgDn scroll'.encode()) > data.rfind(b'MODEL_SAVED'):
+        elif stage == 2 and b'configured-fixture' in data and data.rfind('● Ready'.encode()) > data.rfind(b'MODEL_SAVED'):
             os.write(master, b'/model\r'); stage = 3
         elif stage == 3 and b'Model Picker' in data:
             os.write(master, b'\x1b'); stage = 4
