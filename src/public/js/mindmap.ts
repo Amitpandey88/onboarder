@@ -178,11 +178,6 @@ export function renderMindMap(container, layout, expanded, handlers) {
   svg.setAttribute('width', layout.width);
   svg.setAttribute('height', layout.height);
 
-  const edgePaths = new Map(); // edge -> svgPath
-  const cellElements = new Map(); // cellId -> domElement
-  const parentMap = new Map(); // cell -> { parentCell, edge }
-  const childMap = new Map(); // cell -> Array<{ childCell, edge }>
-
   for (const edge of layout.edges) {
     const x1 = edge.from.x + edge.from.w;
     const y1 = edge.from.y + edge.from.h / 2;
@@ -192,30 +187,41 @@ export function renderMindMap(container, layout, expanded, handlers) {
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`);
     path.setAttribute('class', 'mm-edge' + (edge.dashed ? ' is-dashed' : ''));
+    path.dataset.from = edge.from.id;
+    path.dataset.to = edge.to.id;
     svg.appendChild(path);
-    edgePaths.set(edge, path);
-
-    parentMap.set(edge.to, { parentCell: edge.from, edge });
-    if (!childMap.has(edge.from)) childMap.set(edge.from, []);
-    childMap.get(edge.from).push({ childCell: edge.to, edge });
   }
   wrap.appendChild(svg);
 
   for (const cell of layout.cells) {
     const el = document.createElement('div');
     el.className = 'mm-cell ' + (cell.cls || '') + ' kind-' + cell.kind;
+    el.dataset.cellId = cell.id;
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.setAttribute('aria-label', cell.nav || cell.name);
+    if (cell.kind === 'folder' || cell.kind === 'root') el.setAttribute('aria-expanded', String(expanded.has(cell.id)));
     el.style.left = cell.x + 'px';
     el.style.top = cell.y + 'px';
     el.style.width = cell.w + 'px';
     el.style.minHeight = cell.h + 'px';
-    cellElements.set(cell.id, el);
 
     const head = document.createElement('div');
     head.className = 'mm-head';
     if (cell.expandable) {
-      const caret = document.createElement('span');
+      const caret = document.createElement(cell.kind === 'file' ? 'button' : 'span');
       caret.className = 'mm-caret';
       caret.textContent = expanded.has(cell.id) ? '▾' : '▸';
+      if (cell.kind === 'file') {
+        caret.setAttribute('type', 'button');
+        caret.setAttribute('aria-label', 'Toggle connections for ' + cell.name);
+        caret.setAttribute('aria-expanded', String(expanded.has(cell.id)));
+        caret.addEventListener('click', (event) => {
+          event.stopPropagation();
+          handlers.onToggle(cell);
+        });
+        caret.addEventListener('keydown', (event) => event.stopPropagation());
+      }
       head.appendChild(caret);
     }
     const name = document.createElement('span');
@@ -232,50 +238,19 @@ export function renderMindMap(container, layout, expanded, handlers) {
       el.appendChild(sum);
     }
 
-    // Branch hover highlighting
-    el.addEventListener('mouseenter', () => {
-      wrap.classList.add('has-hover');
-      el.classList.add('is-active-branch');
-
-      // Trace ancestors up to root
-      let cur = cell;
-      while (parentMap.has(cur)) {
-        const { parentCell, edge } = parentMap.get(cur);
-        const edgePath = edgePaths.get(edge);
-        if (edgePath) edgePath.classList.add('is-active');
-        const pEl = cellElements.get(parentCell.id);
-        if (pEl) pEl.classList.add('is-active-branch');
-        cur = parentCell;
-      }
-
-      // Trace direct children
-      const kids = childMap.get(cell) || [];
-      for (const { childCell, edge } of kids) {
-        const edgePath = edgePaths.get(edge);
-        if (edgePath) edgePath.classList.add('is-active');
-        const cEl = cellElements.get(childCell.id);
-        if (cEl) cEl.classList.add('is-active-branch');
-      }
-    });
-
-    el.addEventListener('mouseleave', () => {
-      wrap.classList.remove('has-hover');
-      for (const edgePath of edgePaths.values()) {
-        edgePath.classList.remove('is-active');
-      }
-      for (const cellEl of cellElements.values()) {
-        cellEl.classList.remove('is-active-branch');
-      }
-    });
-
-    el.addEventListener('click', (event) => {
+    const activate = (event) => {
       event.stopPropagation();
-      if (cell.kind === 'ghost' || cell.kind === 'more') {
-        handlers.onNavigate(cell);
-      } else if (cell.expandable) {
+      if (cell.kind === 'folder' || cell.kind === 'root') {
         handlers.onToggle(cell);
       } else {
-        handlers.onNavigate(cell);
+        handlers.onNavigate(cell, el);
+      }
+    };
+    el.addEventListener('click', activate);
+    el.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        activate(event);
       }
     });
     wrap.appendChild(el);

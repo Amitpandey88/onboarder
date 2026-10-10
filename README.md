@@ -1,6 +1,7 @@
 # Onboarder 🧭
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/codebase-onboarder.svg)](https://www.npmjs.com/package/codebase-onboarder)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Zero Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-success.svg)](package.json)
 [![Tests](https://github.com/Amitpandey88/onboarder/actions/workflows/ci.yml/badge.svg)](https://github.com/Amitpandey88/onboarder/actions/workflows/ci.yml)
@@ -13,6 +14,17 @@
 Onboarder reads a software repository the way a senior engineer would: starting at the front door, tracing import graphs, mapping architectural layers, computing risk/health metrics, discovering dead exports and dependency drift, and charting Git hotspots — rendering everything as interactive, zoomable diagrams.
 
 **Local analysis**: Repository maps and the offline explorer run on your machine without an account. Optional AI chat sends task context and requested source to your configured model provider.
+
+---
+
+## What's new in 1.0.3
+
+- **Easier tree navigation.** Click a folder to expand or collapse it. Open all folders or collapse them from the toolbar; expansion keeps your zoom and position so large maps stay readable. **Fit** remains available when you want to see the whole map.
+- **Choose where a canvas file opens.** Pick **Deep Dive**, **Code**, or **Docs** after clicking a file on the map. The sidebar file list opens files directly.
+- **Trace and lock connections.** Hover or focus a node to highlight its connections and gently fade and blur the surrounding map. Use **Lock thread**, the Tree pin, or Shift-click to keep the highlight while panning and zooming. Escape unlocks it. Connection tracing works across all nine Explore views and the Graph tab.
+- **Stronger supply-chain checks.** npm installation runs no install hooks. Optional analyzer packages use exact versions; Hermes bootstrap scripts and Gitleaks downloads are checked against pinned hashes before execution. Browser assets have an integrity inventory, and CI audits both development tools and vendored libraries.
+
+One low-severity upstream KaTeX advisory remains in the official Mermaid bundle. Strict rendering and SVG sanitization mitigate the application path; the [security guide](docs/SUPPLY_CHAIN_SECURITY.md#known-upstream-advisory) records the remaining risk and review deadline.
 
 ---
 
@@ -52,6 +64,9 @@ configuration is optional for repository browsing.
 # Install from npm (Node 20+, zero runtime dependencies)
 npm install -g codebase-onboarder
 
+# Update an existing installation to this release
+npm install -g codebase-onboarder@1.0.3
+
 # Open the repository chat harness in your terminal
 onboarder
 
@@ -67,7 +82,8 @@ Or from source:
 ```bash
 git clone https://github.com/Amitpandey88/onboarder.git
 cd onboarder
-npm ci
+npm ci --ignore-scripts
+npm run build
 npm start
 ```
 
@@ -130,7 +146,7 @@ The screen paints only changed rows and batches streamed output. Drafts survive 
 
 `/model` opens a Hermes-style provider/model picker below the input. Type to filter, use ↑/↓ to select, and press Enter to choose. Available providers and models come from the installed Hermes catalog; selection uses Hermes' own credential resolution and saves the model to the dedicated Onboarder profile. Escape keeps your current model and conversation. Choose **Configure provider / authentication**, or run `/model configure`, for the full official Hermes configuration, including custom endpoints and provider login. Older Hermes installations can use this full wizard when the quick picker is unavailable. No model names or provider credentials are hardcoded into the picker.
 
-At startup, if Hermes is missing, chat shows **Hermes is not installed** with the official install command. Press **Enter** to install, then configure a provider and model, or choose **Continue offline**. `/model` and `/model configure` offer the same install prompt when Hermes is missing. With Hermes installed, an unconfigured profile offers **Choose a provider and model** or **Continue offline**; configured profiles start directly in chat. Offline commands work without Hermes. Conversation summaries are stored privately in `~/.config/onboarder/agent/chats`, alongside agent runs, and known environment credentials are redacted. `/resume` requires a conversation for the current repository and preserves your current permission choices. `onboarder chat --resume` takes a **conversation ID**; `onboarder agent … --resume` takes an **agent run ID**.
+At startup, if Hermes is missing, chat shows **Hermes is not installed** with a verified official installer pinned to a reviewed upstream commit. Press **Enter** to download and verify it before installation, then configure a provider and model, or choose **Continue offline**. `/model` and `/model configure` offer the same install prompt when Hermes is missing. With Hermes installed, an unconfigured profile offers **Choose a provider and model** or **Continue offline**; configured profiles start directly in chat. Offline commands work without Hermes. Conversation summaries are stored privately in `~/.config/onboarder/agent/chats`, alongside agent runs, and known environment credentials are redacted. `/resume` requires a conversation for the current repository and preserves your current permission choices. `onboarder chat --resume` takes a **conversation ID**; `onboarder agent … --resume` takes an **agent run ID**.
 
 To ask about a GitHub repository, launch `onboarder chat https://github.com/owner/repo`, use `/repo <URL>` or `/clone <URL>`, or simply paste the URL into chat. You can also paste `<URL> Explain this repository` to clone and ask in one message. HTTPS and GitHub SSH URLs work; private repositories use your existing Git credentials. Cloning shows progress and can be cancelled with Ctrl-C.
 
@@ -194,10 +210,11 @@ and Node 20+ keep their existing entry points. Edit `src/`, rather than generate
 files in `cli/`, `server/`, `shared/`, or `public/js/`.
 
 ```bash
-npm ci
+npm ci --ignore-scripts
 npm run dev        # rebuild on changes; restart after a successful compilation
 npm run build      # typecheck and generate the distributable files
-npm run check      # typecheck, tests, and generated-build consistency
+npm run check      # typecheck, tests, generated output, and supply-chain guard
+npm run security:audit  # audit development tools and vendored browser libraries
 ```
 
 `tsconfig.json` checks the whole application. The new portable contracts, scan
@@ -399,12 +416,13 @@ checks, this is a local pattern review workflow. It does not install a GitHub
 App, automatically post PR comments, apply fixes, execute repository scripts,
 or replace a human/security review.
 
-### 1. Explorer (One Canvas, 6 Modes)
+### 1. Explore (One Canvas, 9 Views)
 - **Tree**: Hierarchical expandable cell map of directories, files, hubs, and entry points with ghost connection cells.
 - **Files**: Intra-folder dependency graphs with deep-dive call inspections.
 - **Layers**: Stratified architecture layout from entry points down to foundation leaf files, highlighting circular dependency loops and unreachable code.
 - **Health**: Risk heat-map scoring every file (0–100) using PageRank centrality, blast radius (SCC condensation), cyclomatic complexity, and cycle participation.
 - **Security**: Built-in vulnerability scanner detecting hardcoded secrets, injection sinks (SQL, command, eval), XSS, insecure crypto, and quality smells across JS/TS, Python, Go, Java, and C/C++.
+- **History**: Git churn and recent activity connected to the source map.
 - **Services**: Automatic detection for `docker-compose.yml`, `Procfile`, and monorepo workspaces.
 - **Tour**: Curated step-by-step walkthrough of key architectural waypoints.
 - **Atlas**: Grid gallery of every pre-generated diagram across folders and components.
@@ -429,16 +447,16 @@ grade and finding list.
 
 | Engine | Finds | Install |
 |---|---|---|
-| [**Semgrep**](https://github.com/semgrep/semgrep) (or [Opengrep](https://github.com/opengrep/opengrep)) | SAST: injection, auth, crypto across 30+ languages | `pip install semgrep` |
+| [**Semgrep**](https://github.com/semgrep/semgrep) (or [Opengrep](https://github.com/opengrep/opengrep)) | SAST: injection, auth, crypto across 30+ languages | `pip install semgrep==1.180.0` |
 | [**Gitleaks**](https://github.com/gitleaks/gitleaks) | Committed secrets, keys, tokens | `brew install gitleaks` |
-| [**Knip**](https://github.com/webpro-nl/knip) | Dead JS/TS files, exports, dependencies | `npm i -g knip` |
-| [**Vulture**](https://github.com/jendrikseipp/vulture) | Dead Python code | `pip install vulture` |
-| [**Depcheck**](https://github.com/depcheck/depcheck) | Unused npm dependencies | `npm i -g depcheck` |
+| [**Knip**](https://github.com/webpro-nl/knip) | Dead JS/TS files, exports, dependencies | `npm i -g knip@6.41.0 --ignore-scripts` |
+| [**Vulture**](https://github.com/jendrikseipp/vulture) | Dead Python code | `pip install vulture==2.16` |
+| [**Depcheck**](https://github.com/depcheck/depcheck) | Unused npm dependencies | `npm i -g depcheck@1.4.7 --ignore-scripts` |
 
 **Nothing is required.** With no engines installed, the panel lists each one,
 says it is missing, and offers an **Install** button — the built-in scanner is
 the floor that never goes away. If you have `uvx` (from [uv](https://docs.astral.sh/uv/))
-or `npx`, Semgrep, Vulture, Knip and Depcheck run without a separate install.
+or `npx`, Semgrep, Vulture, Knip and Depcheck run through exact-version fallbacks without a separate global install. These runners may download packages; Semgrep registry rules also require network access. Knip 6.41.0 requires Node 20.19+ or 22.12+.
 In the Security view, click **Run deep analysis**.
 
 ### 1c. The Deep Analysis tab — the full report, with AI
@@ -472,9 +490,7 @@ Rules that keep this safe to self-host:
 - **Run, never eval.** Every engine is spawned with an argument array, never a
   shell, with a hard timeout and a capped buffer. A crafted filename is an
   argument; a hung analyzer is one failed pass.
-- **Nothing leaves the machine.** Engines run locally against the scanned root.
-  Gitleaks' report is read for existence only — the credential is never relayed
-  to the UI.
+- **Local analysis with explicit network boundaries.** Engines run against the scanned root. Package runners and registry rules may use the network; optional AI explanations send the requested report to your configured provider. Gitleaks reports are redacted before findings reach the UI.
 
 ### 2. Code Preview with Monaco Editor
 - Full read-only VS Code editor experience with native syntax highlighting for 70+ languages.
@@ -680,7 +696,7 @@ codebase-onboarder/
 │   │   ├── diagram/      # Mermaid and AI diagram generation
 │   │   └── search/       # Shared query language
 │   └── public/           # Browser application, views, components, integration types
-├── bin/                  # npm entry-point trampoline and postinstall note
+├── bin/                  # npm entry-point trampoline and source build helper
 ├── cli/                  # Generated terminal runtime and declarations
 ├── server/               # Generated server/MCP runtime and declarations
 ├── shared/               # Generated shared engine, served at /shared/
@@ -727,3 +743,9 @@ Test suites cover:
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE) — see the [LICENSE](LICENSE) file for details.
+
+## Supply-chain security
+
+The published package has no installation hooks and no runtime npm dependencies. Development dependencies use exact versions and lockfile integrity. Optional Hermes scripts and Gitleaks archives are verified before execution; analyzer installs use private working directories and an isolated environment. Vendored Mermaid and Monaco assets are checked against a versioned hash inventory, with separate advisory coverage.
+
+Run `npm run security:check` for offline integrity and package checks, and `npm run security:audit` for current advisory checks. The audit explicitly reports the known low-severity KaTeX advisory and rejects new findings or an expired exception. See the [supply-chain security guide](docs/SUPPLY_CHAIN_SECURITY.md) for trust boundaries and release verification. Report vulnerabilities using [SECURITY.md](SECURITY.md).

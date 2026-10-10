@@ -1601,13 +1601,84 @@ button.doc-entry-name:hover { text-decoration: underline; }
   transition: transform 0.06s ease, box-shadow 0.06s ease, opacity 0.12s ease;
 }
 .mm-cell:hover { transform: translate(-1px, -1px); box-shadow: var(--shadow); }
-
-.mm.has-hover .mm-cell {
-  opacity: 0.55;
+.mm-cell:focus-visible, .tree-file:focus-visible, .tree-dir-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
-.mm.has-hover .mm-cell.is-active-branch {
-  opacity: 1;
-  box-shadow: 0 0 0 1.5px var(--accent), var(--shadow);
+button.mm-caret {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  padding: 0 3px;
+  cursor: pointer;
+}
+.file-navigation {
+  position: fixed;
+  z-index: 150;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  padding: 12px;
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+}
+.file-navigation-title {
+  font: 12px var(--mono);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+  margin-bottom: 10px;
+  max-height: 4.5em;
+  overflow: auto;
+}
+.file-navigation-choices { display: flex; gap: 8px; flex-wrap: wrap; }
+.file-navigation-choices .btn { min-height: 36px; }
+
+.canvas-content .mm-cell, .canvas-content g.node,
+.canvas-content .mm-edge, .canvas-content path.flowchart-link,
+.canvas-content .edgeLabel { transition: opacity 140ms ease, filter 140ms ease; }
+.canvas-content.has-thread-focus .mm-cell:not(.is-thread-node),
+.canvas-content.has-thread-focus g.node:not(.is-thread-node) { opacity: 0.3; filter: blur(0.8px); }
+.canvas-content.has-thread-focus .mm-edge:not(.is-thread-edge),
+.canvas-content.has-thread-focus path.flowchart-link:not(.is-thread-edge),
+.canvas-content.has-thread-focus .edgeLabel:not(.is-thread-edge) { opacity: 0.12; }
+.canvas-content .mm-cell.is-thread-node { box-shadow: 0 0 0 1px var(--accent), var(--shadow-sm); }
+.canvas-content .mm-cell.is-thread-origin { outline: 2px solid var(--accent); outline-offset: 2px; }
+.canvas-content .mm-edge.is-thread-edge,
+.canvas-content path.flowchart-link.is-thread-edge { stroke: var(--accent) !important; stroke-width: 2.8px !important; opacity: 1 !important; }
+.canvas-content g.node.is-thread-origin > rect,
+.canvas-content g.node.is-thread-origin > polygon,
+.canvas-content g.node.is-thread-origin > circle,
+.canvas-content g.node.is-thread-node > rect { stroke: var(--accent) !important; stroke-width: 2px !important; }
+.thread-pin {
+  position: absolute; right: 4px; top: 3px;
+  display: grid; place-items: center;
+  width: 26px; height: 26px; padding: 3px;
+  border: 1px solid var(--line); border-radius: 4px;
+  color: var(--ink); background: var(--paper);
+  opacity: 0; cursor: pointer;
+}
+.thread-pin svg { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.mm-cell:hover .thread-pin, .mm-cell:focus-within .thread-pin,
+.mm-cell.is-thread-locked .thread-pin { opacity: 1; }
+.mm-cell:hover .mm-head, .mm-cell:focus-within .mm-head,
+.mm-cell.is-thread-locked .mm-head { padding-right: 24px; }
+.thread-pin[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.thread-controls {
+  position: absolute; z-index: 5; left: 12px; bottom: 12px;
+  display: flex; align-items: center; gap: 10px;
+  max-width: calc(100% - 24px); padding: 7px 10px;
+  border: 1px solid var(--ink); border-radius: 5px;
+  background: var(--card); box-shadow: var(--shadow-sm);
+}
+.thread-controls .btn { flex: none; min-height: 34px; }
+.thread-controls .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.thread-status { font: 11px var(--mono); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (hover: none) { .thread-pin { opacity: 1; } .mm-head { padding-right: 24px; } }
+@media (prefers-reduced-motion: reduce) {
+  .canvas-content .mm-cell, .canvas-content g.node,
+  .canvas-content .mm-edge, .canvas-content path.flowchart-link,
+  .canvas-content .edgeLabel { transition: none; }
 }
 
 .mm-head {

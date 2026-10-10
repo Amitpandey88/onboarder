@@ -50,6 +50,9 @@ export async function serveStatic(res, urlPath, dirs) {
     res.writeHead(200, {
         'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
         'cache-control': cacheControlFor(file),
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'no-referrer',
+        'content-security-policy': "script-src 'self' 'unsafe-eval'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
     });
     res.end(data);
 }

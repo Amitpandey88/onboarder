@@ -1,0 +1,10 @@
+{
+  "name": "onboarder-vendor-audit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Audit metadata for shipped browser libraries; never installed by Onboarder.",
+  "dependencies": {
+    "mermaid": "11.17.2",
+    "monaco-editor": "0.52.2"
+  }
+}

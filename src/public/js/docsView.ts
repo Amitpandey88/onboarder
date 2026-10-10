@@ -296,7 +296,7 @@ function renderDocStrip() {
   }
 }
 
-function openDocTab(kind, path) {
+export function openDocTab(kind, path) {
   const key = kind + ':' + path;
   if (!state.docs.tabs.has(key)) {
     const title = (path ? path.split('/').pop() : '(root)') + (kind === 'folder' ? '/' : '');
@@ -392,11 +392,13 @@ function scheduleDocPaneRefresh(entry) {
 
 async function generateDocTab(entry) {
   if (!llm.isConfigured()) {
-    entry.status = 'error';
-    entry.error = 'No AI connection configured — open the AI connection drawer, top right.';
+    entry.status = 'done';
+    entry.text = entry.kind === 'file'
+      ? staticDoc(entry.path)
+      : folderStaticDoc(entry.path, state.scan, state.facts, findNode(state.treeData, entry.path)?.dirs.size || 0);
+    entry.error = '';
     showActiveDoc();
     renderDocStrip();
-    hooks.onOpenSettings();
     return;
   }
   const settings = llm.getSettings();

@@ -24,6 +24,8 @@ export function initForceGraph(canvas, options) {
     let draggedNode = null;
     let hoveredNode = null;
     let selectedNode = null;
+    let lockedNode = null;
+    let lockCandidate = null;
     let highlightPath = null;
     let searchQuery = '';
     let compactLabels = new Set();
@@ -170,6 +172,11 @@ export function initForceGraph(canvas, options) {
             .slice(0, 8)
             .map((node) => node.path));
         const nodeByPath = new Map(nodes.map(n => [n.path, n]));
+        lockedNode = nodeByPath.get(lockedNode?.path) || null;
+        lockCandidate = nodeByPath.get(lockCandidate?.path) || null;
+        hoveredNode = nodeByPath.get(hoveredNode?.path) || null;
+        selectedNode = nodeByPath.get(selectedNode?.path) || null;
+        syncLockControl();
         edges = (newEdges || []).map(e => ({
             source: nodeByPath.get(e.from),
             target: nodeByPath.get(e.to),
@@ -262,7 +269,7 @@ export function initForceGraph(canvas, options) {
         ctx.translate(transform.x, transform.y);
         ctx.scale(transform.k, transform.k);
         const dark = isDarkTheme();
-        const activeNode = hoveredNode || selectedNode;
+        const activeNode = lockedNode || hoveredNode || selectedNode;
         const hasFocus = Boolean(activeNode || highlightPath || searchQuery);
         const inSet = activeNode ? inNeighbors.get(activeNode) : null;
         const outSet = activeNode ? outNeighbors.get(activeNode) : null;
@@ -271,6 +278,7 @@ export function initForceGraph(canvas, options) {
             const isOut = activeNode && e.source === activeNode;
             const isIn = activeNode && e.target === activeNode;
             const isConnected = isOut || isIn;
+            ctx.filter = hasFocus && !isConnected ? 'blur(0.7px)' : 'none';
             ctx.beginPath();
             ctx.moveTo(e.source.x, e.source.y);
             ctx.lineTo(e.target.x, e.target.y);
@@ -294,6 +302,7 @@ export function initForceGraph(canvas, options) {
             const isSearchMatch = searchQuery && n.path.toLowerCase().includes(searchQuery.toLowerCase());
             const isHighlighted = isTarget || isNeighbor || isPathMatch || isSearchMatch;
             const nodeAlpha = hasFocus ? (isHighlighted ? 1.0 : 0.18) : 0.92;
+            ctx.filter = hasFocus && !isHighlighted ? 'blur(0.7px)' : 'none';
             ctx.globalAlpha = nodeAlpha;
             // Node circle fill
             ctx.beginPath();
@@ -329,6 +338,7 @@ export function initForceGraph(canvas, options) {
             if (!shouldShowLabel)
                 continue;
             const isProminent = isTarget || isNeighbor || isPathMatch || isSearchMatch;
+            ctx.filter = hasFocus && !isProminent ? 'blur(0.7px)' : 'none';
             ctx.globalAlpha = hasFocus ? (isProminent ? 1.0 : 0.15) : 0.95;
             const fontSize = Math.max(10, Math.min(14, 11 / Math.sqrt(transform.k)));
             ctx.font = `${isProminent ? '600' : '500'} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace`;
@@ -483,6 +493,9 @@ export function initForceGraph(canvas, options) {
             const newHover = nodeAt(e);
             if (newHover !== hoveredNode) {
                 hoveredNode = newHover || null;
+                if (hoveredNode)
+                    lockCandidate = hoveredNode;
+                syncLockControl();
                 canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
                 updateTooltip(hoveredNode, e.clientX, e.clientY);
                 if (!animationFrameId)
@@ -520,6 +533,14 @@ export function initForceGraph(canvas, options) {
         lastClickTime = now;
         const clickedNode = nodeAt(e);
         if (clickedNode) {
+            if (e.shiftKey) {
+                lockCandidate = clickedNode;
+                lockedNode = lockedNode === clickedNode ? null : clickedNode;
+                syncLockControl();
+                if (!animationFrameId)
+                    render();
+                return;
+            }
             if (isDouble) {
                 flyToNode(clickedNode);
             }
@@ -544,6 +565,32 @@ export function initForceGraph(canvas, options) {
             render();
     });
     // Wire Controls HUD
+    const lockBtn = document.getElementById('graphLock');
+    function syncLockControl() {
+        if (!lockBtn)
+            return;
+        lockBtn.disabled = !lockedNode && !lockCandidate;
+        lockBtn.setAttribute('aria-pressed', String(Boolean(lockedNode)));
+        lockBtn.textContent = lockedNode ? 'Unlock thread' : 'Lock thread';
+        lockBtn.title = lockedNode ? 'Locked: ' + lockedNode.path : lockCandidate ? 'Lock: ' + lockCandidate.path : 'Hover a node to choose a thread';
+    }
+    if (lockBtn)
+        listen(lockBtn, 'click', () => {
+            lockedNode = lockedNode ? null : lockCandidate;
+            hoveredNode = null;
+            syncLockControl();
+            if (!animationFrameId)
+                render();
+        });
+    listen(document, 'keydown', e => {
+        if (e.key === 'Escape' && viewActive && lockedNode) {
+            lockedNode = null;
+            hoveredNode = null;
+            syncLockControl();
+            if (!animationFrameId)
+                render();
+        }
+    });
     const resetBtn = document.getElementById('graphReset');
     const zoomInBtn = document.getElementById('graphZoomIn');
     const zoomOutBtn = document.getElementById('graphZoomOut');

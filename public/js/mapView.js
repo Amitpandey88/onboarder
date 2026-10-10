@@ -5,11 +5,8 @@
 // graph's numbers become the one-line summaries under each name, which is the
 // whole value of the view and the reason this glue is worth its own module.
 //
-// Two behaviours worth knowing before changing anything. Expanding a folder
-// re-renders *without* re-fitting, because the map is meant to grow around where
-// the reader is looking rather than jump. And clicking a file "peeks" — it fills
-// the inspector and leaves the map where it is — while clicking a folder name
-// navigates away to the Files view. Both are deliberate.
+// Folder clicks expand in place. File clicks offer a destination; the small
+// file caret still expands connections. Layout changes preserve a visible cell.
 import { roleOf, factIndex } from '/shared/analyzer/graph.js';
 import { pathFilter } from '/shared/analyzer/pathUtil.js';
 import { buildSpecs, layoutMindMap, renderMindMap } from './mindmap.js';
@@ -19,7 +16,10 @@ import { state, focusFile, focusFolder } from './state.js';
 // frame. Past this many files the button refuses and says why.
 const OPEN_ALL_LIMIT = 700;
 let host = null; // #canvasContent
-let toggleBtn = null; // #mmToggleBtn — "Open folders" / "Close all"
+let toggleBtn = null; // #mmToggleBtn — opens every folder
+let collapseBtn = null;
+let lastLayout = null;
+let lastTree = null;
 let hooks = {
     onSyncInspector: (..._args) => { },
     onRenderSidebar: (..._args) => { },
@@ -27,17 +27,17 @@ let hooks = {
     onOpenFolder: (..._args) => { },
     onToast: (..._args) => { },
     onFit: (..._args) => { },
+    onReanchor: (..._args) => { },
+    onGetAnchor: () => null,
+    onFocusCell: (..._args) => { },
+    onRendered: (..._args) => { },
 };
 export function initMap(options) {
     host = options.host;
     toggleBtn = options.toggleBtn;
+    collapseBtn = options.collapseBtn;
     hooks = { ...hooks, ...options };
     toggleBtn.addEventListener('click', () => {
-        if (state.mm.expanded.size > 1) {
-            state.mm.expanded = new Set(['dir:']);
-            renderMap(true);
-            return;
-        }
         if (state.scan.allFiles.length > OPEN_ALL_LIMIT) {
             return hooks.onToast('Too many files to open at once — open folders as you go.');
         }
@@ -47,8 +47,17 @@ export function initMap(options) {
                 open(d);
         };
         open(state.treeData);
-        renderMap(true);
-        hooks.onToast('Every folder is open. Files stay shut until you click them.');
+        renderMap(false);
+        hooks.onRenderSidebar();
+        hooks.onToast('All folders are open. Drag the canvas to explore, or pick a folder in the sidebar.');
+    });
+    collapseBtn.addEventListener('click', () => {
+        state.mm.expanded = new Set(['dir:']);
+        renderMap(false, 'dir:');
+        const root = lastLayout.cells.find((cell) => cell.id === 'dir:');
+        if (root)
+            hooks.onFocusCell(root);
+        hooks.onRenderSidebar();
     });
 }
 // The filter as the map needs it: a folder whose own name matches keeps its whole
@@ -59,8 +68,14 @@ function visibleTree() {
     const matchesFolder = needle ? (p) => p.toLowerCase().includes(needle) : null;
     return pruneTree(state.treeData, include, matchesFolder);
 }
-export function renderMap(fit) {
+export function renderMap(fit, anchorId = null) {
     const { scan, facts } = state;
+    if (lastTree !== state.treeData) {
+        lastLayout = null;
+        lastTree = state.treeData;
+    }
+    const anchor = anchorId || hooks.onGetAnchor() || 'dir:';
+    const before = lastLayout?.cells.find((cell) => cell.id === anchor);
     const fileByPath = new Map(scan.files.map((f) => [f.path, f]));
     const rootSpec = buildSpecs({
         root: visibleTree(),
@@ -107,26 +122,45 @@ export function renderMap(fit) {
                 state.mm.expanded.delete(cell.id);
             else
                 state.mm.expanded.add(cell.id);
-            renderMap(false); // keep the pan position — the map grows around you
+            renderMap(false, cell.id);
             peek(cell);
+            hooks.onRenderSidebar();
+            host.querySelectorAll('[data-cell-id]').forEach((el) => {
+                if (el.dataset.cellId === cell.id)
+                    el.focus({ preventScroll: true });
+            });
         },
-        onNavigate: (cell) => {
-            if (cell.navFolder)
+        onNavigate: (cell, el) => {
+            if (cell.navFolder !== null)
                 hooks.onOpenFolder(cell.navFolder);
-            else if (cell.kind === 'ghost' || cell.kind === 'more') {
-                // A ghost stands for a file outside the current branch; there is nothing
-                // to expand, so the only sensible click is to go and open it.
-                if (cell.nav)
-                    hooks.onOpenFile(cell.nav);
-            }
             else if (cell.nav)
-                peek(cell);
+                hooks.onOpenFile(cell.nav, el);
         },
     });
-    // One button, two duties: it says what a click will do next.
-    toggleBtn.textContent = state.mm.expanded.size > 1 ? 'Close all' : 'Open folders';
+    lastLayout = layout;
+    hooks.onRendered();
+    const after = layout.cells.find((cell) => cell.id === anchor);
+    if (!fit && before && after)
+        hooks.onReanchor(before, after);
+    toggleBtn.textContent = 'Open all folders';
+    collapseBtn.disabled = state.mm.expanded.size <= 1;
     if (fit)
         hooks.onFit();
+}
+// Sidebar folder selection reveals its ancestors and brings that branch into view.
+export function toggleMapFolder(path, open) {
+    const parts = path.split('/');
+    state.mm.expanded.add('dir:');
+    for (let i = 1; i < parts.length; i++)
+        state.mm.expanded.add('dir:' + parts.slice(0, i).join('/'));
+    if (open)
+        state.mm.expanded.add('dir:' + path);
+    else
+        state.mm.expanded.delete('dir:' + path);
+    renderMap(false, 'dir:' + path);
+    const cell = lastLayout.cells.find((cell) => cell.id === 'dir:' + path);
+    if (cell)
+        hooks.onFocusCell(cell);
 }
 // Fills the inspector for a cell without leaving the map.
 function peek(cell) {

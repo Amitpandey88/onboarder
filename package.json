@@ -1,6 +1,6 @@
 {
   "name": "codebase-onboarder",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Drop a path. Get a map. A zero-dependency codebase visualizer with a CLI onboarding wizard, a web UI, and an optional key-gated self-hosted mode.",
   "type": "module",
   "bin": {
@@ -15,7 +15,9 @@
     "public",
     "docs/HERMES_RESEARCH.md",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/SUPPLY_CHAIN_SECURITY.md",
+    "SECURITY.md"
   ],
   "scripts": {
     "build": "npm run typecheck && tsc -p tsconfig.json",
@@ -23,13 +25,14 @@
     "start": "node server/index.js",
     "mcp": "node server/mcp/standalone.js",
     "test": "npm run build && node --test",
-    "postinstall": "node bin/postinstall.js",
-    "prepublishOnly": "npm test",
+    "prepublishOnly": "npm run check",
     "prestart": "node bin/build-if-source.js",
     "dev": "node scripts/dev.mjs",
     "build:check": "node scripts/check-build.mjs",
-    "check": "npm run typecheck && npm test && npm run build:check",
-    "prepare": "node bin/build-if-source.js"
+    "check": "npm run typecheck && npm test && npm run build:check && npm run security:check",
+    "prepack": "npm run build && npm run security:check",
+    "security:check": "node scripts/check-supply-chain.mjs",
+    "security:audit": "node scripts/audit-supply-chain.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -54,7 +57,7 @@
   "author": "Amit Pandey",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^26.6.3",
-    "typescript": "^7.0.2"
+    "@types/node": "26.6.3",
+    "typescript": "7.0.2"
   }
 }

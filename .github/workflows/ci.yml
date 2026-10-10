@@ -1,4 +1,4 @@
-name: Onboarder CI & Test Suite
+name: Onboarder CI & Security
 
 on:
   push:
@@ -7,32 +7,30 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
-    name: Run Test Suite
+    name: Tests and release guards
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         node: ['20', '22', '24']
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-      - name: Install development tools
-        run: npm ci
-      - name: Run Built-in Unit Tests
+      - name: Install locked development tools without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Test source, generated output, vendor integrity and package contents
         run: npm run check
-
-  security-audit:
-    name: Security & License Audit
-    needs: [test]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Verify zero runtime dependencies
-        run: node -e "const pkg = JSON.parse(require('fs').readFileSync('package.json')); if (pkg.dependencies && Object.keys(pkg.dependencies).length > 0) throw new Error('Runtime dependencies detected!');"
+      - name: Audit development and vendored browser dependencies
+        run: npm run security:audit

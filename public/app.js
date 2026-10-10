@@ -32,12 +32,14 @@ import { renderInto, validateDiagram, wireNodeClicks, makePanzoom, downloadSvg }
 import { setViewerTheme } from '/js/codeViewer.js';
 import * as llm from '/js/llm.js';
 import { buildTree, renderTree, resetOpenState, expandedToDepth } from '/js/tree.js';
-import { initMap, renderMap } from '/js/mapView.js';
+import { initMap, renderMap, toggleMapFolder } from '/js/mapView.js';
+import { createFileNavigation } from '/js/fileNavigation.js';
+import { createConnectionFocus } from '/js/connectionFocus.js';
 import { gatherFileContext } from '/js/repoFiles.js';
 import * as inspector from '/js/inspector.js';
 import { buildTourStops, describeStop } from '/js/tour.js';
 import { initAbout, renderAbout } from '/js/about.js';
-import { initDocs, renderDocs } from '/js/docsView.js';
+import { initDocs, renderDocs, openDocTab } from '/js/docsView.js';
 import { initCodeTab, renderCode, revealLineInCode } from '/js/codeTab.js';
 import { initAnalysisPanel, renderAnalysisPanel, subscribeAnalysis } from '/js/analysisPanel.js';
 import { initDeepAnalysis, renderDeepAnalysis } from '/js/deepAnalysisView.js';
@@ -62,7 +64,7 @@ const dom = {};
     'pickBtn', 'demoBtn', 'explorer', 'viewTabs', 'repoChip', 'newRepoBtn', 'settingsBtn',
     'treeFilter', 'fileTree', 'crumbs', 'copyMermaidBtn', 'svgBtn', 'fitBtn',
     'canvas', 'canvasContent', 'canvasEmpty', 'stageFoot', 'themeBtn', 'aiDrawBtn', 'docView', 'aboutView', 'codeView',
-    'mmToggleBtn', 'stageFilters', 'modeSwitch', 'nodeFilter', 'testsToggle', 'depthSelect',
+    'mmToggleBtn', 'mmCollapseBtn', 'threadControls', 'threadLockBtn', 'threadStatus', 'stageFilters', 'modeSwitch', 'nodeFilter', 'testsToggle', 'depthSelect',
     'tourbar', 'tourTitle', 'tourCount', 'tourPrev', 'tourNext', 'tourExit',
     'drawerScrim', 'settingsDrawer', 'drawerClose', 'setBaseUrl', 'setApiKey', 'setModel',
     'saveSettings', 'testSettings', 'settingsStatus', 'toast', 'brandNote', 'askBtn', 'askInput',
@@ -81,6 +83,7 @@ let heatmapCtl = null;
 let searchCtl = null;
 const state = appState;
 const panzoom = makePanzoom(dom.canvas, dom.canvasContent);
+const connectionFocus = createConnectionFocus({ host: dom.canvasContent, controls: dom.threadControls, lockButton: dom.threadLockBtn, status: dom.threadStatus });
 const mobilePanels = initMobilePanels();
 // ---------------------------------------------------------------- landing --
 let activeScan = null;
@@ -214,6 +217,7 @@ function enterExplorer(payload, opts) {
     });
     state.stack = analyzeStack(state.manifest, state.scan.stats.languages);
     resetOpenState();
+    connectionFocus.reset();
     state.treeData = buildTree(state.scan.allFiles);
     state.patterns = buildPatterns(state.scan, state.facts, state.manifest);
     state.health = analyzeHealth(state.scan, state.facts);
@@ -262,6 +266,7 @@ function buildPatterns(scan, facts, manifest) {
     };
 }
 dom.newRepoBtn.addEventListener('click', () => {
+    fileNavigation.close();
     stopAiDraft();
     stopReview();
     stopDiff();
@@ -285,6 +290,7 @@ dom.newRepoBtn.addEventListener('click', () => {
     graphScan = null;
     graphHealth = null;
     unloadRepo();
+    connectionFocus.reset();
     dom.explorer.hidden = true;
     dom.tourbar.hidden = true;
     dom.viewTabs.hidden = true;
@@ -300,11 +306,20 @@ function renderSidebar() {
         filter: dom.treeFilter.value,
         selected: state.selected,
         parsedPaths: state.scan.files.map((f) => f.path),
+        expanded: state.view === 'map' ? state.mm.expanded : null,
         onFile: openFile,
-        onFolder: (folder) => {
+        onFolder: (folder, open) => {
             focusFolder(folder);
             state.folder = folder;
             state.detail = null;
+            if (state.view === 'map') {
+                toggleMapFolder(folder, open);
+                renderSidebar();
+                for (const head of dom.fileTree.querySelectorAll('.tree-dir-head')) {
+                    if (head.dataset.path === folder)
+                        head.focus({ preventScroll: true });
+                }
+            }
             if (state.view === 'files')
                 renderCanvas();
             syncInspector();
@@ -352,6 +367,7 @@ function clearFocus() {
     syncInspector();
 }
 function setView(view) {
+    fileNavigation.close();
     if (view !== 'review')
         stopReview();
     if (view !== 'diff')
@@ -379,6 +395,7 @@ function setView(view) {
         showTourStop();
     else
         syncInspector();
+    renderSidebar();
 }
 function openFile(path) {
     focusFile(path);
@@ -414,6 +431,30 @@ function openDeepDive(path) {
     state.folder = dirOf(path);
     state.detail = path;
     setView('files');
+    renderSidebar();
+}
+const fileNavigation = createFileNavigation((path, target) => {
+    if (target === 'code')
+        openFileInCode(path, undefined);
+    else if (target === 'docs') {
+        focusFile(path);
+        state.code.path = path;
+        setView('docs');
+        openDocTab('file', path);
+    }
+    else
+        openDeepDive(path);
+    renderSidebar();
+});
+function chooseFileDestination(path, anchor) {
+    focusFile(path);
+    state.code.path = path;
+    syncInspector();
+    fileNavigation.show(path, anchor);
+    // Keep the source element alive so Escape can return keyboard focus to it.
+    for (const row of dom.fileTree.querySelectorAll('.tree-file')) {
+        row.classList.toggle('is-selected', row.dataset.path === path);
+    }
 }
 function onNodeClick(payload) {
     if (payload.kind === 'folder') {
@@ -465,6 +506,11 @@ async function renderCanvas() {
     const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isReview || isWorkflows || isSbom || isAnalysis;
     forceGraphCtl?.setActive(isGraph && !searchCtl?.isShowing());
     const isAtlasList = state.view === 'atlas' && !state.atlasOpen;
+    const focusSubject = state.view === 'files' ? state.detail ? 'file:' + state.detail : 'folder:' + state.folder
+        : state.view === 'tour' ? state.tour.idx
+            : state.view === 'atlas' ? state.atlasOpen?.path || state.atlasOpen?.title || '' : '';
+    const focusKey = [state.view, focusSubject, state.aiActiveKey === aiViewKey() ? state.aiActiveKey : ''].join('|');
+    connectionFocus.setContext(focusKey, !isPage && !isAtlasList);
     dom.canvas.hidden = isPage;
     dom.docView.hidden = !isDocs;
     dom.aboutView.hidden = !isAbout;
@@ -492,6 +538,7 @@ async function renderCanvas() {
     dom.fitBtn.hidden = isPage || isAtlasList;
     dom.stageFilters.hidden = isPage;
     dom.mmToggleBtn.hidden = isPage || state.view !== 'map';
+    dom.mmCollapseBtn.hidden = dom.mmToggleBtn.hidden;
     if (!isAtlasList)
         dom.canvasContent.classList.remove('atlas-mode');
     if (isPage) {
@@ -563,6 +610,7 @@ async function renderCanvas() {
     const showingSketch = state.aiActiveKey === key && Boolean(state.aiDiagrams[key]);
     dom.svgBtn.hidden = isPage || isAtlasList || (state.view === 'map' && !showingSketch);
     dom.mmToggleBtn.hidden = state.view !== 'map' || showingSketch;
+    dom.mmCollapseBtn.hidden = dom.mmToggleBtn.hidden;
     const filterable = ['map', 'files', 'patterns'].includes(state.view);
     dom.nodeFilter.hidden = showingSketch || (!filterable && state.view !== 'atlas');
     dom.testsToggle.hidden = showingSketch || (!filterable && state.view !== 'atlas');
@@ -590,6 +638,7 @@ async function renderCanvas() {
         dom.canvasEmpty.hidden = true;
         try {
             await renderInto(dom.canvasContent, source);
+            connectionFocus.bind();
             wireAIClicks();
             requestAnimationFrame(() => panzoom.fit());
         }
@@ -610,6 +659,7 @@ async function renderCanvas() {
     const nothing = nothingToShow();
     if (nothing) {
         dom.canvasContent.innerHTML = '';
+        connectionFocus.bind();
         dom.canvasEmpty.textContent = nothing;
         dom.canvasEmpty.hidden = false;
         state.currentDiagram = { source: '', nodes: {} };
@@ -649,6 +699,7 @@ async function renderCanvas() {
     dom.canvasEmpty.hidden = true;
     try {
         await renderInto(dom.canvasContent, d.source);
+        connectionFocus.bind(d.nodes);
         wireNodeClicks(dom.canvasContent, d.nodes, onNodeClick);
         requestAnimationFrame(() => panzoom.fit());
     }
@@ -735,8 +786,10 @@ dom.depthSelect.addEventListener('change', () => {
     state.filters.depth = Number(dom.depthSelect.value);
     if (state.filters.depth > 0)
         state.mm.expanded = expandedToDepth(state.treeData, state.filters.depth);
-    if (state.view === 'map')
-        renderMap(true);
+    if (state.view === 'map') {
+        renderMap(false);
+        renderSidebar();
+    }
 });
 // ---------------------------------------------------------- crumbs & foot --
 function renderCrumbs() {
@@ -941,9 +994,10 @@ initAtlas({
 initMap({
     host: dom.canvasContent,
     toggleBtn: dom.mmToggleBtn,
+    collapseBtn: dom.mmCollapseBtn,
     onSyncInspector: syncInspector,
     onRenderSidebar: renderSidebar,
-    onOpenFile: openFile,
+    onOpenFile: chooseFileDestination,
     onOpenFolder: (folder) => {
         state.folder = folder;
         state.detail = null;
@@ -951,6 +1005,10 @@ initMap({
     },
     onToast: toast,
     onFit: () => requestAnimationFrame(() => panzoom.fit()),
+    onReanchor: panzoom.reanchor,
+    onGetAnchor: panzoom.visibleAnchor,
+    onFocusCell: panzoom.focusPoint,
+    onRendered: () => connectionFocus.bind(),
 });
 function repoOverview() {
     return explainOverview(state.scan, state.facts, state.manifest).replace(/[*`]/g, '');

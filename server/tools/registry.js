@@ -4,6 +4,7 @@
 // every entry is well-formed, and the UI renders it as the "available tools"
 // list. A new analyzer is a new entry here and a new parser in `parse.js`;
 // nothing else should have to know about it.
+import { TOOL_VERSIONS } from './versions.js';
 import os from 'node:os';
 import path from 'node:path';
 import { parseDepcheck, parseGitleaks, parseKnip, parseSemgrep, parseVulture, } from './parse.js';
@@ -36,7 +37,7 @@ export const TOOL_DEFS = [
         commands: [
             { kind: 'direct', bin: 'semgrep' },
             { kind: 'direct', bin: 'opengrep' }, // the OSS fork, drop-in compatible
-            { kind: 'uvx', pkg: 'semgrep', bin: 'semgrep' },
+            { kind: 'uvx', pkg: `semgrep==${TOOL_VERSIONS.semgrep}`, bin: 'semgrep' },
         ],
         install: ['Install with: pip install semgrep  (or: brew install semgrep, or uv tool install semgrep).'],
         options: [
@@ -44,7 +45,7 @@ export const TOOL_DEFS = [
                 key: 'config', label: 'Rule set', type: 'enum',
                 values: ['p/default', 'p/security-audit', 'p/secrets', 'p/ci', 'auto'],
                 default: 'p/default',
-                hint: '“auto” downloads the recommended set — it needs network access.',
+                hint: 'Rule sets are fetched from the Semgrep registry and need network access.',
             },
             {
                 key: 'severity', label: 'Minimum severity', type: 'enum',
@@ -53,8 +54,7 @@ export const TOOL_DEFS = [
                 hint: 'ERROR only keeps the findings Semgrep itself calls errors.',
             },
         ],
-        // `--config auto` needs network; the offline path is `--config p/default`.
-        // We run offline by default: self-host means the box may not be online.
+        // Registry rule sets (including p/default) require network access.
         argv: (root, options = {}) => {
             const args = ['scan', '--json', '--quiet', '--no-git-ignore', '--timeout', '60',
                 '--config', options.config || 'p/default'];
@@ -106,7 +106,7 @@ export const TOOL_DEFS = [
         purpose: 'Dead code for JS/TS — unused files, exports and dependencies.',
         commands: [
             { kind: 'direct', bin: 'knip' },
-            { kind: 'npx', pkg: 'knip' },
+            { kind: 'npx', pkg: `knip@${TOOL_VERSIONS.knip}`, bin: 'knip' },
         ],
         install: ['Install with: npm install -g knip  (or run it through npx, which this will do for you).'],
         options: [
@@ -133,7 +133,7 @@ export const TOOL_DEFS = [
         purpose: 'Dead code for Python — unused functions, classes, variables.',
         commands: [
             { kind: 'direct', bin: 'vulture' },
-            { kind: 'uvx', pkg: 'vulture', bin: 'vulture' },
+            { kind: 'uvx', pkg: `vulture==${TOOL_VERSIONS.vulture}`, bin: 'vulture' },
         ],
         install: ['Install with: pip install vulture  (or run it through uvx, which this will do for you).'],
         options: [
@@ -158,7 +158,7 @@ export const TOOL_DEFS = [
         purpose: 'Unused npm dependencies (a narrower, faster slice of Knip).',
         commands: [
             { kind: 'direct', bin: 'depcheck' },
-            { kind: 'npx', pkg: 'depcheck' },
+            { kind: 'npx', pkg: `depcheck@${TOOL_VERSIONS.depcheck}`, bin: 'depcheck' },
         ],
         install: ['Install with: npm install -g depcheck  (or run it through npx).'],
         options: [
@@ -169,12 +169,11 @@ export const TOOL_DEFS = [
             },
         ],
         argv: (root, options = {}) => {
-            const args = ['--json'];
+            const args = [root, '--json'];
             if (options.skipMissing)
                 args.push('--skip-missing=true');
             return args;
         },
-        cwd: true, // depcheck reads the package.json in its working directory
         parse: (text) => parseDepcheck(JSON.parse(text)),
     },
 ];

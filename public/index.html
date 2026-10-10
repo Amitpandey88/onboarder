@@ -139,7 +139,8 @@
       </div>
       <div class="crumbs" id="crumbs"></div>
       <div class="stage-actions">
-        <button class="btn btn-ghost btn-sm" id="mmToggleBtn" hidden>Open folders</button>
+        <button class="btn btn-ghost btn-sm" id="mmToggleBtn" title="Expand every folder and keep the current zoom" hidden>Open all folders</button>
+        <button class="btn btn-ghost btn-sm" id="mmCollapseBtn" title="Return to the top-level folders" hidden>Collapse folders</button>
         <button class="btn btn-ghost btn-sm" id="aiDrawBtn">AI sketch</button>
         <button class="btn btn-ghost btn-sm" id="copyMermaidBtn">Copy Mermaid</button>
         <button class="btn btn-ghost btn-sm" id="svgBtn">Save SVG</button>
@@ -187,6 +188,7 @@
         <button class="btn btn-ghost" id="graphZoomIn" title="Zoom in">+</button>
         <button class="btn btn-ghost" id="graphZoomOut" title="Zoom out">−</button>
         <button class="btn btn-ghost" id="graphFit" title="Fit graph to screen">Fit</button>
+        <button class="btn btn-ghost" id="graphLock" type="button" aria-pressed="false" title="Hover a node, then lock its connections; Shift-click also locks" disabled>Lock thread</button>
       </div>
       <div class="graph-tooltip" id="graphTooltip" hidden></div>
     </section>
@@ -197,6 +199,10 @@
     <div class="canvas" id="canvas">
       <div class="canvas-content" id="canvasContent"></div>
       <div class="canvas-empty" id="canvasEmpty" hidden></div>
+      <div class="thread-controls" id="threadControls" hidden>
+        <button class="btn btn-ghost btn-sm" id="threadLockBtn" type="button" aria-pressed="false" disabled>Lock thread</button>
+        <span class="thread-status" id="threadStatus" role="status"></span>
+      </div>
     </div>
     <div class="stage-foot" id="stageFoot"></div>
   </section>
@@ -442,8 +448,8 @@
 <div class="toast" id="toast" hidden></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="/vendor/monaco/vs/loader.js"></script>
-<script src="/vendor/mermaid.min.js"></script>
+<script src="/vendor/mermaid.min.js?v=11.17.2" integrity="sha384-EOXBFmc3gx5mb+vn0vPvvGqACToJD24hhacX5Yx+8NUUQrHIle/Qi5Bg9o3zKwW2" crossorigin="anonymous"></script>
+<script src="/vendor/monaco/vs/loader.js?v=0.52.2" integrity="sha384-pHG02SG8pId94Np3AbPmBEJ1yPqaH0IkJGLSNGXYmuGhkazT8Lr/57WYpbkGjJtu" crossorigin="anonymous"></script>
 <script type="module" src="/js/components/RiskBadge.js"></script>
 <script type="module" src="/js/components/MetricSparkline.js"></script>
 <script type="module" src="/js/components/FileChip.js"></script>

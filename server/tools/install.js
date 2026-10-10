@@ -8,11 +8,14 @@
 // spawned without a shell, exactly like the analyzers themselves.
 //
 // Plans are ordered by preference and each names the launcher it needs
-// (`brew`, `pip`, `npm`, `winget`, `curl`, …). At install time the first plan
+// (`brew`, `pip`, `npm`, `winget`, `tar`, …). At install time the first plan
 // whose launcher is found on PATH runs; the rest are skipped. That is what
 // makes one codebase serve all three platforms — a Mac with Homebrew, a
-// Windows box with winget, and a bare Linux server with nothing but curl all
+// Windows box with winget, and a bare Linux server with a tar extractor all
 // get a working path, and the log says plainly which one was taken.
+import { verifiedDownload } from '../security/download.js';
+import { isolatedEnvironment } from '../security/environment.js';
+import { TOOL_VERSIONS } from './versions.js';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -23,12 +26,24 @@ import { clearDetectionCache } from '../tools.js';
 // official release asset, fetched over TLS from GitHub and unpacked into
 // ~/.onboarder/bin — a directory `findOnPath` already checks. The version is
 // pinned on purpose: a moving "latest" URL is a supply-chain surprise.
-const GITLEAKS_VERSION = '8.24.3';
-function gitleaksAsset(platform, arch) {
+const GITLEAKS_VERSION = TOOL_VERSIONS.gitleaks;
+// From the official v8.24.3 checksums.txt; reviewed pins, never a runtime checksum download.
+const GITLEAKS_HASHES = {
+    darwin_x64: '41c44ae8ad1d6eef57d4526ad0fd67d8129eee9a856f55c2b3b9395fd3d9ec0f',
+    darwin_arm64: 'b90f13bb8c90ab72083d9b0c842e39dafb82c0e5c3f872f407366b7a58909013',
+    linux_x64: '9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c',
+    linux_arm64: '5f2edbe1f49f7b920f9e06e90759947d3c5dfc16f752fb93aaafc17e9d14cf07',
+    win32_x64: '3f1a35578631dbfe633cc5b49e6c906e55ff14a4bfd7336a10fb27fe33b6dcd2',
+};
+export function gitleaksAsset(platform, arch) {
+    const sha256 = GITLEAKS_HASHES[`${platform}_${arch}`];
+    if (!sha256)
+        throw new Error(`No verified Gitleaks release for ${platform}/${arch}. Install it manually.`);
     const osPart = { darwin: 'darwin', linux: 'linux', win32: 'windows' }[platform];
     const archPart = arch === 'arm64' ? 'arm64' : 'x64';
     const ext = platform === 'win32' ? 'zip' : 'tar.gz';
     return {
+        sha256, maxBytes: 32 * 1024 * 1024, redirectOrigins: ['https://release-assets.githubusercontent.com'],
         url: `https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${osPart}_${archPart}.${ext}`,
         file: `gitleaks.${ext}`,
         binary: platform === 'win32' ? 'gitleaks.exe' : 'gitleaks',
@@ -41,33 +56,33 @@ const INSTALL_PLANS = {
         { id: 'brew', label: 'Homebrew', needs: 'brew', platforms: ['darwin'],
             steps: (bin) => [[bin, ['install', 'semgrep']]] },
         { id: 'pipx', label: 'pipx', needs: 'pipx',
-            steps: (bin) => [[bin, ['install', 'semgrep']]] },
+            steps: (bin) => [[bin, ['install', `semgrep==${TOOL_VERSIONS.semgrep}`]]] },
         { id: 'uv', label: 'uv', needs: 'uv',
-            steps: (bin) => [[bin, ['tool', 'install', 'semgrep']]] },
+            steps: (bin) => [[bin, ['tool', 'install', '--no-config', '--default-index', 'https://pypi.org/simple', `semgrep==${TOOL_VERSIONS.semgrep}`]]] },
         { id: 'pip', label: 'pip (user site)', needs: 'python3', platforms: ['darwin', 'linux'],
-            steps: (bin) => [[bin, ['-m', 'pip', 'install', '--user', 'semgrep']]] },
+            steps: (bin) => [[bin, ['-m', 'pip', 'install', '--user', '--only-binary=:all:', `semgrep==${TOOL_VERSIONS.semgrep}`]]] },
         { id: 'pip', label: 'pip (user site)', needs: 'python', platforms: ['win32'],
-            steps: (bin) => [[bin, ['-m', 'pip', 'install', '--user', 'semgrep']]] },
+            steps: (bin) => [[bin, ['-m', 'pip', 'install', '--user', '--only-binary=:all:', `semgrep==${TOOL_VERSIONS.semgrep}`]]] },
     ],
     vulture: [
         { id: 'brew', label: 'Homebrew', needs: 'brew', platforms: ['darwin'],
             steps: (bin) => [[bin, ['install', 'vulture']]] },
         { id: 'pipx', label: 'pipx', needs: 'pipx',
-            steps: (bin) => [[bin, ['install', 'vulture']]] },
+            steps: (bin) => [[bin, ['install', `vulture==${TOOL_VERSIONS.vulture}`]]] },
         { id: 'uv', label: 'uv', needs: 'uv',
-            steps: (bin) => [[bin, ['tool', 'install', 'vulture']]] },
+            steps: (bin) => [[bin, ['tool', 'install', '--no-config', '--default-index', 'https://pypi.org/simple', `vulture==${TOOL_VERSIONS.vulture}`]]] },
         { id: 'pip', label: 'pip (user site)', needs: 'python3', platforms: ['darwin', 'linux'],
-            steps: (bin) => [[bin, ['-m', 'pip', 'install', '--user', 'vulture']]] },
+            steps: (bin) => [[bin, ['-m', 'pip', 'install', '--user', '--only-binary=:all:', `vulture==${TOOL_VERSIONS.vulture}`]]] },
         { id: 'pip', label: 'pip (user site)', needs: 'python', platforms: ['win32'],
-            steps: (bin) => [[bin, ['-m', 'pip', 'install', '--user', 'vulture']]] },
+            steps: (bin) => [[bin, ['-m', 'pip', 'install', '--user', '--only-binary=:all:', `vulture==${TOOL_VERSIONS.vulture}`]]] },
     ],
     knip: [
         { id: 'npm', label: 'npm (global)', needs: 'npm',
-            steps: (bin) => [[bin, ['install', '-g', 'knip']]] },
+            steps: (bin) => [[bin, ['install', '-g', '--ignore-scripts', '--registry=https://registry.npmjs.org/', `knip@${TOOL_VERSIONS.knip}`]]] },
     ],
     depcheck: [
         { id: 'npm', label: 'npm (global)', needs: 'npm',
-            steps: (bin) => [[bin, ['install', '-g', 'depcheck']]] },
+            steps: (bin) => [[bin, ['install', '-g', '--ignore-scripts', '--registry=https://registry.npmjs.org/', `depcheck@${TOOL_VERSIONS.depcheck}`]]] },
     ],
     gitleaks: [
         { id: 'brew', label: 'Homebrew', needs: 'brew', platforms: ['darwin'],
@@ -75,22 +90,35 @@ const INSTALL_PLANS = {
         { id: 'winget', label: 'winget', needs: 'winget', platforms: ['win32'],
             steps: (bin) => [[bin, ['install', '--id', 'Gitleaks.Gitleaks', '-e',
                         '--accept-package-agreements', '--accept-source-agreements']]] },
-        { id: 'download', label: 'GitHub release download', needs: 'curl',
+        { id: 'download', label: 'GitHub release download', needs: 'tar',
             steps: (bin, ctx) => {
                 const asset = gitleaksAsset(ctx.platform, ctx.arch);
                 const archive = path.join(ctx.tmpDir, asset.file);
                 return [
-                    [bin, ['-fSL', '-o', archive, asset.url]],
                     // bsdtar ships with Windows 10+ and reads zip; GNU tar reads tar.gz.
                     // One command shape serves both.
-                    ['tar', ['-xf', archive, '-C', ctx.binDir]],
+                    [bin, ['-xf', archive, '-C', ctx.tmpDir, asset.binary]],
                 ];
             },
             after: (ctx) => {
                 const asset = gitleaksAsset(ctx.platform, ctx.arch);
+                const source = path.join(ctx.tmpDir, asset.binary);
+                const stat = fs.lstatSync(source);
+                if (!stat.isFile() || stat.size < 1 || stat.size > 64 * 1024 * 1024)
+                    throw new Error('Archive did not contain a regular Gitleaks binary.');
                 const binPath = path.join(ctx.binDir, asset.binary);
-                if (ctx.platform !== 'win32')
-                    fs.chmodSync(binPath, 0o755);
+                fs.mkdirSync(ctx.binDir, { recursive: true });
+                // Atomic replacement; never follow an existing target symlink.
+                const staging = fs.mkdtempSync(path.join(ctx.binDir, '.gitleaks-'));
+                try {
+                    const staged = path.join(staging, asset.binary);
+                    fs.copyFileSync(source, staged, fs.constants.COPYFILE_EXCL);
+                    fs.chmodSync(staged, 0o755);
+                    fs.renameSync(staged, binPath);
+                }
+                finally {
+                    fs.rmSync(staging, { recursive: true, force: true });
+                }
                 return binPath;
             },
         },
@@ -125,12 +153,12 @@ const STEP_TIMEOUT_MS = 10 * 60 * 1000; // pip on a slow link is still finite
 // Spawn one step, forwarding output line by line. Resolves with the exit
 // status; never rejects — a failed plan is data for the next plan, and the
 // whole log goes to the GUI either way.
-function runStep(command, args, onLog) {
+function runStep(command, args, onLog, ctx) {
     const { command: cmd, args: argv } = spawnArgv([command, ...args]);
     return new Promise((resolve) => {
         let child;
         try {
-            child = spawn(cmd, argv, { stdio: ['ignore', 'pipe', 'pipe'] });
+            child = spawn(cmd, argv, { stdio: ['ignore', 'pipe', 'pipe'], cwd: ctx.tmpDir, env: isolatedEnvironment(process.env, [], ctx.tmpDir), detached: process.platform !== 'win32' });
         }
         catch (err) {
             onLog(`could not start ${cmd}: ${err.message}`);
@@ -140,6 +168,8 @@ function runStep(command, args, onLog) {
         let pending = '';
         const feed = (chunk) => {
             pending += chunk.toString();
+            if (pending.length > 64 * 1024)
+                pending = pending.slice(-64 * 1024);
             const lines = pending.split(/\r?\n/);
             pending = lines.pop();
             for (const line of lines)
@@ -149,7 +179,19 @@ function runStep(command, args, onLog) {
         child.stdout.on('data', feed);
         child.stderr.on('data', feed);
         const timer = setTimeout(() => {
-            child.kill('SIGKILL');
+            if (process.platform === 'win32' && child.pid) {
+                const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+                killer.on('error', () => child.kill());
+                killer.unref();
+            }
+            else {
+                try {
+                    process.kill(-child.pid, 'SIGKILL');
+                }
+                catch {
+                    child.kill('SIGKILL');
+                }
+            }
             onLog(`${cmd} took too long and was stopped.`);
         }, STEP_TIMEOUT_MS);
         child.on('error', (err) => {
@@ -180,12 +222,13 @@ export async function installTool(toolId, onEvent = (..._args) => { }) {
     if (installing.has(toolId)) {
         return finish({ ok: false, error: `${toolId} is already being installed.` });
     }
+    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'onboarder-tool-install-'));
     installing.add(toolId);
     try {
         const ctx = {
             platform: process.platform,
             arch: process.arch,
-            tmpDir: os.tmpdir(),
+            tmpDir: temporary,
             binDir: onboarderBinDir(),
         };
         let attempted = 0;
@@ -198,12 +241,21 @@ export async function installTool(toolId, onEvent = (..._args) => { }) {
             attempted += 1;
             onEvent({ type: 'plan', id: plan.id, label: plan.label });
             log(`Installing ${toolId} with ${plan.label}…`);
-            if (plan.id === 'download')
-                fs.mkdirSync(ctx.binDir, { recursive: true });
+            if (plan.id === 'download') {
+                try {
+                    const asset = gitleaksAsset(ctx.platform, ctx.arch);
+                    log('Downloading and verifying the pinned release…');
+                    fs.writeFileSync(path.join(ctx.tmpDir, asset.file), await verifiedDownload(asset), { mode: 0o600 });
+                }
+                catch (err) {
+                    log(`✗ verification failed: ${err.message}`);
+                    continue;
+                }
+            }
             let failed = false;
             for (const [command, args] of plan.steps(launcher, ctx)) {
                 log(`$ ${command} ${args.join(' ')}`);
-                const status = await runStep(command, args, log);
+                const status = await runStep(command, args, log, ctx);
                 if (status !== 0) {
                     log(`✗ that step exited ${status}.`);
                     failed = true;
@@ -231,6 +283,7 @@ export async function installTool(toolId, onEvent = (..._args) => { }) {
         return finish({ ok: false, error: why });
     }
     finally {
+        fs.rmSync(temporary, { recursive: true, force: true });
         installing.delete(toolId);
     }
 }

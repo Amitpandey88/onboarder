@@ -46,7 +46,7 @@ export const CHAT_HELP = `
          --timeout, --max-turns, --resume, --base, --no-color
   For scripts: onboarder agent <workflow> --task "..." --json
 `;
-interface ChatOptions { target?: string | null; flags?: Record<string, any>; out?: (text: string) => void; err?: (text: string) => void; version?: string }
+interface ChatOptions { target?: string | null; flags?: Record<string, any>; out?: (text: string) => void; err?: (text: string) => void; version?: string; runtimeInstaller?: typeof installHermes }
 
 /** Analysis modules are loaded only when a browsing command actually needs them. */
 export function repositoryBrowser(flags: Record<string, any>, progress: (text: string) => void, version = '') {
@@ -81,7 +81,7 @@ export function repositoryBrowser(flags: Record<string, any>, progress: (text: s
     },
   };
 }
-export async function runChat({ target = null, flags = {}, out = console.log, err = console.error, version = '' }: ChatOptions = {}): Promise<number> {
+export async function runChat({ target = null, flags = {}, out = console.log, err = console.error, version = '', runtimeInstaller = installHermes }: ChatOptions = {}): Promise<number> {
   if (flags.help) { out(CHAT_HELP); return 0; }
   if (!process.stdin.isTTY || !process.stdout.isTTY) { out('The chat harness needs an interactive terminal. For scripts use onboarder agent <workflow> --task "..." --json.'); return 0; }
   if (flags.task || flags.json || flags.dryRun) throw new Error('Use onboarder agent <workflow> --task "..." for one-shot or JSON requests.');
@@ -118,7 +118,7 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
     const command = hermesInstallCommand();
     print(dim('Hermes is not installed. Install Hermes to configure a provider and use AI chat.\n' + command));
     const answer = await composer!.choose({ title: 'Hermes is not installed',
-      hint: 'Press Enter to run the official Hermes install command, or continue offline.', signal,
+      hint: 'Press Enter to run the official, verified Hermes installer, or continue offline.', signal,
       choices: [{ value: 'install', label: 'Install Hermes', detail: command },
         { value: 'offline', label: 'Continue offline', detail: '/map · /tree · /find · install later with /model' }] });
     if (answer !== 'install' || exiting) return false;
@@ -126,13 +126,13 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
     let failure: unknown;
     try {
       out('Installing Hermes…\n' + command);
-      await installHermes(signal);
+      await runtimeInstaller(signal);
     } catch (e) {
       signal.throwIfAborted();
       failure = e;
     } finally { handingOff = false; if (!exiting) composer?.start(); }
     if (failure) {
-      print(bad(safe(failure instanceof Error ? failure.message : String(failure))) + '\nInstall manually with:\n' + command);
+      print(bad(safe(failure instanceof Error ? failure.message : String(failure))) + '\nInstallation stopped safely. Retry with /model after checking the error.');
       return false;
     }
     if (!await hermesInstalled()) {

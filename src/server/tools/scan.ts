@@ -9,6 +9,7 @@
 // layer over it, exactly the way `collectHistory` treats git.
 
 import fs from 'node:fs';
+import { isolatedEnvironment } from '../security/environment.js';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -50,55 +51,61 @@ async function runOneTool(def, root, toolOptions: Record<string, any> = {}, sign
   // A tool that reports through a file (gitleaks) gets a per-run temp path —
   // never /dev/stdout, which does not exist on Windows, and never a fixed
   // name, so two concurrent runs cannot read each other's report.
-  const ctx: Record<string, any> = {};
-  if (def.usesReportFile) {
-    ctx.reportPath = path.join(os.tmpdir(), `onboarder-${def.id}-${Date.now()}-${Math.floor(Math.random() * 1e6)}.json`);
-  }
-
-  const resolved = toolArgv(def, root, toolOptions, ctx);
-  if (!resolved) {
-    return emptyPass(def.id, def.label, unavailableReason(def));
-  }
-
-  const started = Date.now();
-  const result = await runTool(resolved.argv, {
-    cwd: def.cwd ? root : undefined,
-    timeout: TOOL_TIMEOUT_MS,
-    signal,
-  });
-
-  // Read and remove the report file whatever happened above.
-  let reportText = null;
-  if (ctx.reportPath) {
-    try {
-      reportText = fs.readFileSync(ctx.reportPath, 'utf8');
-    } catch {
-      reportText = null; // a crashed tool may never have written it
-    }
-    try { fs.unlinkSync(ctx.reportPath); } catch { /* already gone */ }
-  }
-
-  if (result.timedOut) return { ...emptyPass(def.id, def.label, result.error), available: true };
-  if (!result.ok) {
-    return { ...emptyPass(def.id, def.label, result.error || 'The tool could not be run.'), available: true };
-  }
-  if (def.usesReportFile && reportText === null) return { ...emptyPass(def.id, def.label, result.stderr || 'The analyzer did not create its report.'), available: true };
-
-  const stdout = (def.usesReportFile ? (reportText || '') : (result.stdout || '')).trim();
-  if (!stdout) {
-    if (result.status !== 0) return { ...emptyPass(def.id, def.label, `Exited ${result.status}: ${result.stderr || 'No readable report.'}`), available: true };
-    // A clean pass: the tool ran and found nothing. That is a real answer, and
-    // worth saying — "Gitleaks: no secrets" is the outcome a self-hosting user
-    // runs the tool to hear.
-    return passResult(def, resolved, [], started);
-  }
-
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'onboarder-analysis-'));
   try {
-    const findings = def.parse(stdout, root);
-    return passResult(def, resolved, findings, started);
-  } catch (err) {
-    return { ...emptyPass(def.id, def.label, 'Its output could not be read: ' + err.message), available: true };
-  }
+    const ctx: Record<string, any> = {};
+    if (def.usesReportFile) {
+      ctx.reportDir = temporary;
+      ctx.reportPath = path.join(ctx.reportDir, 'report.json');
+    }
+
+    const resolved = toolArgv(def, root, toolOptions, ctx);
+    if (!resolved) {
+      return emptyPass(def.id, def.label, unavailableReason(def));
+    }
+
+    const started = Date.now();
+    const result = await runTool(resolved.argv, {
+      cwd: temporary,
+      timeout: TOOL_TIMEOUT_MS,
+      signal,
+      env: isolatedEnvironment(process.env, [], temporary),
+    });
+
+    // Read and remove the report file whatever happened above.
+    let reportText = null;
+    if (ctx.reportPath) {
+      try {
+        const stat = fs.lstatSync(ctx.reportPath);
+        if (!stat.isFile() || stat.size > 16 * 1024 * 1024) throw new Error('Invalid analyzer report.');
+        reportText = fs.readFileSync(ctx.reportPath, 'utf8');
+      } catch {
+        reportText = null; // a crashed tool may never have written it
+      }
+    }
+
+    if (result.timedOut) return { ...emptyPass(def.id, def.label, result.error), available: true };
+    if (!result.ok) {
+      return { ...emptyPass(def.id, def.label, result.error || 'The tool could not be run.'), available: true };
+    }
+    if (def.usesReportFile && reportText === null) return { ...emptyPass(def.id, def.label, result.stderr || 'The analyzer did not create its report.'), available: true };
+
+    const stdout = (def.usesReportFile ? (reportText || '') : (result.stdout || '')).trim();
+    if (!stdout) {
+      if (result.status !== 0) return { ...emptyPass(def.id, def.label, `Exited ${result.status}: ${result.stderr || 'No readable report.'}`), available: true };
+      // A clean pass: the tool ran and found nothing. That is a real answer, and
+      // worth saying — "Gitleaks: no secrets" is the outcome a self-hosting user
+      // runs the tool to hear.
+      return passResult(def, resolved, [], started);
+    }
+
+    try {
+      const findings = def.parse(stdout, root);
+      return passResult(def, resolved, findings, started);
+    } catch (err) {
+      return { ...emptyPass(def.id, def.label, 'Its output could not be read: ' + err.message), available: true };
+    }
+  } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
 }
 
 function passResult(def, resolved, findings, started) {

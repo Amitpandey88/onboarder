@@ -103,6 +103,10 @@ export interface AppElements {
   'mcpTabToml': HTMLButtonElement;
   'mcpToolsHint': HTMLElement;
   'mmToggleBtn': HTMLButtonElement;
+  'mmCollapseBtn': HTMLButtonElement;
+  'threadControls': HTMLDivElement;
+  'threadLockBtn': HTMLButtonElement;
+  'threadStatus': HTMLSpanElement;
   'mobileDetailsBtn': HTMLButtonElement;
   'mobileDetailsClose': HTMLButtonElement;
   'mobileFilesBtn': HTMLButtonElement;

@@ -1,0 +1,2 @@
+# Preserve exact upstream release bytes, including whitespace inside bundled templates.
+public/vendor/mermaid.min.js -whitespace

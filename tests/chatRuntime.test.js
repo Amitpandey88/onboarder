@@ -1,10 +1,14 @@
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { hermesInstalled, hermesInstallCommand, installHermes } from '../cli/chat/runtime.js';
+import { hermesInstalled, hermesInstallCommand, installHermes, hermesInstaller } from '../cli/chat/runtime.js';
 import { runProcess } from '../cli/agent/process.js';
+
+const installerText = 'fixture installer';
+const fixtureArtifact = { url: 'https://raw.githubusercontent.com/fixture/install.sh', sha256: createHash('sha256').update(installerText).digest('hex'), maxBytes: 1024 };
 
 async function fixture(t) {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), 'onboarder-chat-runtime-'));
@@ -24,21 +28,24 @@ test('Hermes detection respects explicit paths, permissions, and PATH without la
   await fs.chmod(binary, 0o700);
   assert.equal(await hermesInstalled(env), true);
   assert.equal(await hermesInstalled({ ...env, ONBOARDER_HERMES_BIN: 'hermes', PATH: home }), true);
-  assert.match(hermesInstallCommand('darwin'), /^curl -fsSL https:\/\/hermes-agent.nousresearch.com\/install.sh \| bash$/);
+  assert.match(hermesInstallCommand('darwin'), /Verified official Hermes install.sh/);
+  assert.match(hermesInstaller().url, /[a-f0-9]{40}\/scripts\/install/);
   assert.match(hermesInstallCommand('win32'), /install.ps1/);
 });
 
-test('installer downloads the official script, keeps installation environment and cleans up after execution', async t => {
+test('installer downloads the official script, isolates installation environment and cleans up after execution', async t => {
   const { env } = await fixture(t);
   let scriptFile;
   await installHermes(new AbortController().signal, env, {
+    artifact: fixtureArtifact,
     download: async url => {
-      assert.equal(url, 'https://hermes-agent.nousresearch.com/install' + (process.platform === 'win32' ? '.ps1' : '.sh'));
+      assert.equal(url, fixtureArtifact.url);
       return new Response('fixture installer');
     },
     execute: async (command, args, childEnv) => {
       assert.equal(command, process.platform === 'win32' ? 'powershell.exe' : 'bash');
-      scriptFile = args.at(-1);
+      scriptFile = args[process.platform === 'win32' ? 4 : 0];
+      assert.ok(args.includes(process.platform === 'win32' ? '-Commit' : '--commit'));
       assert.equal(await fs.readFile(scriptFile, 'utf8'), 'fixture installer');
       assert.equal(childEnv.HERMES_HOME, env.HERMES_HOME);
       return 0;
@@ -55,7 +62,8 @@ test('download errors and installer failures do not report installation success'
   }), /HTTP 503/);
   assert.equal(executed, false);
   await assert.rejects(installHermes(new AbortController().signal, env, {
-    download: async () => new Response('fixture installer'), execute: async (_command, args) => { file = args.at(-1); return 7; },
+    artifact: fixtureArtifact,
+    download: async () => new Response('fixture installer'), execute: async (_command, args) => { file = args[process.platform === 'win32' ? 4 : 0]; return 7; },
   }), /exit 7/);
   assert.equal(await fs.access(file).then(() => true).catch(() => false), false);
 });
@@ -64,7 +72,7 @@ async function terminal(env, steps) {
   const driver = String.raw`import os, pty, select, subprocess, sys, time, json, signal
 master, slave = pty.openpty()
 # Mock only the download; the actual installer process and model wizard own the TTY.
-wrapper = "import fs from 'node:fs'; import { runChat } from './cli/chat/app.js'; globalThis.fetch = async () => new Response(fs.readFileSync(process.env.FIXTURE_INSTALL_SCRIPT, 'utf8')); process.exitCode = await runChat({ flags: { model: process.env.FIXTURE_MODEL } });"
+wrapper = "import fs from 'node:fs'; import { createHash } from 'node:crypto'; import { runChat } from './cli/chat/app.js'; import { installHermes, runInteractive } from './cli/chat/runtime.js'; const runtimeInstaller = signal => { const text = fs.readFileSync(process.env.FIXTURE_INSTALL_SCRIPT); return installHermes(signal, process.env, { artifact: { url: 'https://fixture.invalid/install.sh', sha256: createHash('sha256').update(text).digest('hex'), maxBytes: 65536 }, download: async () => new Response(text), execute: (cmd, args, env, signal, cwd) => runInteractive(cmd, [args[0]], { ...env, ONBOARDER_HERMES_BIN: process.env.ONBOARDER_HERMES_BIN }, signal, cwd) }); }; process.exitCode = await runChat({ flags: { model: process.env.FIXTURE_MODEL }, runtimeInstaller });"
 child = subprocess.Popen([sys.argv[1], '--input-type=module', '-e', wrapper], stdin=slave, stdout=slave, stderr=slave)
 os.close(slave)
 steps = json.loads(sys.argv[2]); stage = 0; data = b''; pending = b''

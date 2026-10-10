@@ -93,7 +93,7 @@ export function resetOpenState() {
 }
 
 export function renderTree(container, tree, ctx) {
-  const { facts, filter = '', selected, onFile, onFolder } = ctx;
+  const { facts, filter = '', selected, onFile, onFolder, expanded } = ctx;
   container.innerHTML = '';
   const parsedSet = new Set(ctx.parsedPaths || []);
   const hubSet = new Set((facts?.hubs || []).filter((h) => h.fanIn >= 4).map((h) => h.path));
@@ -111,17 +111,28 @@ export function renderTree(container, tree, ctx) {
       if (needle && !subtreeHas(child, needle)) continue;
 
       const wrap = document.createElement('div');
-      wrap.className = 'tree-dir' + (openState.has(child.path) || needle ? ' is-open' : '');
+      const isOpen = expanded ? expanded.has('dir:' + child.path) : openState.has(child.path);
+      wrap.className = 'tree-dir' + (isOpen || needle ? ' is-open' : '');
 
       const head = document.createElement('div');
       head.className = 'tree-dir-head';
+      head.dataset.path = child.path;
+      head.tabIndex = 0;
+      head.setAttribute('role', 'button');
+      head.setAttribute('aria-expanded', String(Boolean(isOpen || needle)));
       const count = countFiles(child);
       head.innerHTML = `<span class="tree-caret">▸</span><span>${escapeHtml(name)}/</span><span class="tree-count">${count}</span>`;
-      head.addEventListener('click', () => {
-        if (openState.has(child.path)) openState.delete(child.path);
+      const toggle = () => {
+        const nextOpen = !wrap.classList.contains('is-open');
+        if (!nextOpen) openState.delete(child.path);
         else openState.add(child.path);
-        wrap.classList.toggle('is-open');
-        onFolder?.(child.path);
+        wrap.classList.toggle('is-open', nextOpen);
+        head.setAttribute('aria-expanded', String(nextOpen));
+        onFolder?.(child.path, nextOpen);
+      };
+      head.addEventListener('click', toggle);
+      head.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); }
       });
       wrap.appendChild(head);
 
@@ -138,6 +149,9 @@ export function renderTree(container, tree, ctx) {
       const el = document.createElement('div');
       el.className = 'tree-file' + (path === selected ? ' is-selected' : '');
       el.dataset.path = path;
+      el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', path);
 
       const dot = document.createElement('span');
       dot.className = 'tree-dot';
@@ -154,7 +168,10 @@ export function renderTree(container, tree, ctx) {
       } else if (hubSet.has(path)) {
         el.appendChild(badge('hub', 'is-hub'));
       }
-      el.addEventListener('click', () => onFile?.(path));
+      el.addEventListener('click', () => onFile?.(path, el));
+      el.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onFile?.(path, el); }
+      });
       parent.appendChild(el);
     }
   };

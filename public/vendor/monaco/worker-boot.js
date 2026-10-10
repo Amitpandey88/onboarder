@@ -1,9 +1,18 @@
-// Worker bootstrap for the vendored Monaco build. The language workers
-// (tsWorker & friends) are AMD modules, so they need the loader inside the
-// worker first; the module to run arrives as the query string:
-//   worker-boot.js?vs/language/typescript/tsWorker
+// Select only shipped language workers. Their AMD modules are loaded through
+// Monaco's standard worker handshake, which is required for diagnostics.
+const allowedWorkers = new Set([
+  'vs/language/typescript/tsWorker',
+  'vs/language/json/jsonWorker',
+  'vs/language/css/cssWorker',
+  'vs/language/html/htmlWorker',
+]);
+const mod = new URLSearchParams(location.search).get('module') || decodeURIComponent(location.search.slice(1));
+if (!allowedWorkers.has(mod)) throw new Error('Unsupported Monaco worker module.');
 self.MonacoEnvironment = { baseUrl: location.origin + '/vendor/monaco/' };
-importScripts(location.origin + '/vendor/monaco/vs/loader.js');
-require.config({ paths: { vs: location.origin + '/vendor/monaco/vs' } });
-const mod = decodeURIComponent(location.search.slice(1));
-require([mod], () => {}, (err) => { throw err; });
+importScripts(location.origin + '/vendor/monaco/vs/base/worker/workerMain.js');
+const initialize = self.onmessage;
+self.onmessage = event => {
+  if (event.data !== 'vs/base/common/worker/simpleWorker') throw new Error('Unsupported Monaco worker bootstrap.');
+  self.onmessage = initialize;
+  initialize(event);
+};

@@ -21,9 +21,8 @@
 //
 //   * **Detect, never install.** We look for tools on PATH (plus a few named
 //     fallbacks — `uvx`, `npx`, `opengrep` — the ways these tools are actually
-//     distributed) and report what is there. We do not download or `pip install`
-//     anything behind a scan; the person self-hosting this decides what to put
-//     on the machine.
+//     distributed) and report what is there. Runner fallbacks can fetch pinned packages from public registries;
+//     direct tools use the versions the person has installed.
 //
 //   * **Run, never eval.** Every tool is spawned with an argument array — never
 //     a shell — the same discipline `gitClone.js` uses, so a crafted path or a
@@ -117,10 +116,10 @@ function resolveTool(def, runners) {
                 return { how: 'path', display: cmd.bin, prefix: [found] };
         }
         else if (cmd.kind === 'uvx' && runners.uvx) {
-            return { how: 'uvx', display: `uvx ${cmd.pkg}`, prefix: [runners.uvx, '--from', cmd.pkg, cmd.bin] };
+            return { how: 'uvx', display: `uvx ${cmd.pkg}`, prefix: [runners.uvx, '--no-config', '--default-index', 'https://pypi.org/simple', '--from', cmd.pkg, cmd.bin] };
         }
         else if (cmd.kind === 'npx' && runners.npx) {
-            return { how: 'npx', display: `npx ${cmd.pkg}`, prefix: [runners.npx, '--yes', cmd.pkg] };
+            return { how: 'npx', display: `npx ${cmd.pkg}`, prefix: [runners.npx, '--yes', '--ignore-scripts', '--registry=https://registry.npmjs.org/', '--package=' + cmd.pkg, '--', cmd.bin] };
         }
     }
     return null;

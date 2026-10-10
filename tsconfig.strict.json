@@ -40,6 +40,9 @@
     "src/cli/explorer/report.ts",
     "src/cli/explorer/wrap.ts",
     "src/public/js/codeViewer.ts",
-    "src/shared/analyzer/jsonConfig.ts"
+    "src/shared/analyzer/jsonConfig.ts",
+    "src/server/security/download.ts",
+    "src/server/security/environment.ts",
+    "src/cli/chat/runtime.ts"
   ]
 }

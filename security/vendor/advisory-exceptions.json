@@ -1,0 +1,10 @@
+[
+  {
+    "package": "katex",
+    "version": "0.16.47",
+    "url": "https://github.com/advisories/GHSA-238p-pmpm-9mq7",
+    "severity": "low",
+    "expires": "2026-11-09",
+    "reason": "The official Mermaid 11.17.2 bundle still embeds KaTeX 0.16.47. This advisory requires pre-existing prototype pollution or attacker-controlled renderer options and unsanitized output. Patched Mermaid runs in strict mode, protects security/CSS configuration, and sanitizes its SVG output. Browser regression checks exercise polluted trust and hostile diagram overrides. Retain the finding until upstream ships a compatible patched bundle; do not claim it is fixed or change audit metadata to a version the bundle does not contain."
+  }
+]

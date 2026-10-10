@@ -95,13 +95,14 @@ export function initViewer(container: HTMLElement, theme: string): Promise<boole
     window.require.config({ paths: { vs: '/vendor/monaco/vs' } });
     self.MonacoEnvironment = {
       // Language workers are AMD modules — they boot through worker-boot.js,
-      // which loads the AMD loader inside the worker first.
+      // which validates the selector and uses Monaco's standard handshake.
       getWorkerUrl: (workerId, label) => {
         const boot = '/vendor/monaco/worker-boot.js';
-        if (label === 'typescript' || label === 'javascript') return `${boot}?vs/language/typescript/tsWorker`;
-        if (label === 'json') return `${boot}?vs/language/json/jsonWorker`;
-        if (label === 'css' || label === 'scss' || label === 'less') return `${boot}?vs/language/css/cssWorker`;
-        if (label === 'html' || label === 'handlebars' || label === 'razor') return `${boot}?vs/language/html/htmlWorker`;
+        const worker = (module: string) => `${boot}?module=${encodeURIComponent(module)}&v=3`;
+        if (label === 'typescript' || label === 'javascript') return worker('vs/language/typescript/tsWorker');
+        if (label === 'json') return worker('vs/language/json/jsonWorker');
+        if (label === 'css' || label === 'scss' || label === 'less') return worker('vs/language/css/cssWorker');
+        if (label === 'html' || label === 'handlebars' || label === 'razor') return worker('vs/language/html/htmlWorker');
         return '/vendor/monaco/vs/base/worker/workerMain.js'; // standalone editor worker
       },
     };

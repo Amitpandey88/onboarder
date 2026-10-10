@@ -8,7 +8,10 @@ function ensureMermaid() {
         return;
     window.mermaid.initialize({
         startOnLoad: false,
-        securityLevel: 'loose', // labels are escaped upstream; local tool, local data
+        securityLevel: 'strict',
+        // Repository labels and AI diagrams cannot relax these global policies.
+        secure: ['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'suppressErrorRendering',
+            'maxEdges', 'themeCSS', 'fontFamily', 'altFontFamily', 'themeVariables'],
         flowchart: { htmlLabels: false },
     });
     initialized = true;
@@ -41,7 +44,7 @@ export async function validateDiagram(source) {
 // file or folder payload.
 export function wireNodeClicks(contentEl, nodes, onClick) {
     for (const g of contentEl.querySelectorAll('g.node')) {
-        const m = (g.id || '').match(/^flowchart-([A-Za-z0-9]+)-\d+$/);
+        const m = (g.id || '').match(/(?:^|-)flowchart-([A-Za-z0-9_]+)-\d+$/);
         if (!m || !nodes[m[1]])
             continue;
         g.style.cursor = 'pointer';
@@ -64,6 +67,8 @@ export function makePanzoom(canvas, content) {
     canvas.addEventListener('pointerdown', (event) => {
         if (content.classList.contains('atlas-mode'))
             return; // the atlas list takes its own clicks
+        if (event.button !== 0 || event.target.closest('.mm-cell, g.node, .thread-controls, button'))
+            return;
         dragging = true;
         lastX = event.clientX;
         lastY = event.clientY;
@@ -99,7 +104,10 @@ export function makePanzoom(canvas, content) {
         scale = next;
         apply();
     }, { passive: false });
-    canvas.addEventListener('dblclick', () => fit());
+    canvas.addEventListener('dblclick', (event) => {
+        if (!event.target.closest('.mm-cell, g.node, .thread-controls, button'))
+            fit();
+    });
     function fit() {
         const first = content.firstElementChild;
         if (!first)
@@ -126,8 +134,19 @@ export function makePanzoom(canvas, content) {
         const cw = canvas.clientWidth - 48;
         const ch = canvas.clientHeight - 48;
         scale = Math.min(cw / w, ch / h, 1.15);
+        // A large tree remains readable; pan to explore the rest of the branches.
+        const isTree = first.classList.contains('mm');
+        if (isTree)
+            scale = Math.max(0.9, scale);
         tx = (canvas.clientWidth - w * scale) / 2;
         ty = (canvas.clientHeight - h * scale) / 2;
+        if (isTree && (w * scale > cw || h * scale > ch)) {
+            const root = first.querySelector('.kind-root');
+            if (root) {
+                tx = 24 - root.offsetLeft * scale;
+                ty = canvas.clientHeight / 2 - (root.offsetTop + root.offsetHeight / 2) * scale;
+            }
+        }
         apply();
     }
     // Back to the un-zoomed, un-panned resting position (the atlas list wants
@@ -138,7 +157,33 @@ export function makePanzoom(canvas, content) {
         ty = 0;
         apply();
     }
-    return { fit, reset: fit, home };
+    function reanchor(before, after) {
+        tx += (before.x - after.x) * scale;
+        ty += (before.y - after.y) * scale;
+        apply();
+    }
+    function visibleAnchor() {
+        const bounds = canvas.getBoundingClientRect();
+        let best = null;
+        let distance = Infinity;
+        for (const cell of content.querySelectorAll('.mm-cell')) {
+            const box = cell.getBoundingClientRect();
+            if (box.right < bounds.left || box.left > bounds.right || box.bottom < bounds.top || box.top > bounds.bottom)
+                continue;
+            const d = Math.abs((box.top + box.bottom) / 2 - (bounds.top + bounds.bottom) / 2);
+            if (d < distance) {
+                best = cell.dataset.cellId;
+                distance = d;
+            }
+        }
+        return best;
+    }
+    function focusPoint(cell) {
+        tx = canvas.clientWidth / 2 - (cell.x + cell.w / 2) * scale;
+        ty = canvas.clientHeight / 2 - (cell.y + cell.h / 2) * scale;
+        apply();
+    }
+    return { fit, reset: fit, home, reanchor, visibleAnchor, focusPoint };
 }
 export function downloadSvg(contentEl, name) {
     const svg = contentEl.querySelector('svg');
