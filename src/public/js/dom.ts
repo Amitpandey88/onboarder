@@ -1,5 +1,9 @@
 /** Element types for the app shell and view templates. */
 export interface AppElements {
+  graphSummary: HTMLElement;
+  saveViewBtn: HTMLButtonElement;
+  savedViewsBtn: HTMLButtonElement;
+  intelligenceView: HTMLElement;
   reviewView: HTMLElement;
   cancelScanBtn: HTMLButtonElement;
   scanProgress: HTMLProgressElement;
@@ -102,6 +106,10 @@ export interface AppElements {
   'mcpTabJson': HTMLButtonElement;
   'mcpTabToml': HTMLButtonElement;
   'mcpToolsHint': HTMLElement;
+  'mcpToolSearch': HTMLInputElement;
+  'mcpCatalog': HTMLElement;
+  'mcpCapabilities': HTMLElement;
+  'readableZoomBtn': HTMLButtonElement;
   'mmToggleBtn': HTMLButtonElement;
   'mmCollapseBtn': HTMLButtonElement;
   'threadControls': HTMLDivElement;

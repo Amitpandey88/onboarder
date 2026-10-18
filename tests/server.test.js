@@ -149,7 +149,7 @@ test('every route answers its own method, and shared paths are deliberate', () =
   // GET and PUT both live on /api/settings (read the public view vs patch it),
   // so "no other method matches" has to mean "no other *route*" — a different
   // handler on the same path is a design decision, listed here:
-  const sharedPaths = new Set(['/api/settings']);
+  const sharedPaths = new Set(['/api/settings', '/api/team/comments']);
   for (const route of routes) {
     const urlPath = route.path || route.prefix + 'x';
     assert.ok(matchRoute(route.method, urlPath), route.method + ' ' + urlPath);

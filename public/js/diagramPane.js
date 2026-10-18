@@ -1,20 +1,22 @@
 // Mermaid rendering plus the canvas furniture: click wiring, pan & zoom,
 // fit-to-view, SVG export. Mermaid comes from the vendored UMD build and
 // stays a global; everything interactive happens here.
-let initialized = false;
+import { diagramThemeConfig, getDiagramTheme } from '../../shared/diagram/mermaid.js';
+let initializedTheme = '';
 let renderSeq = 0;
 function ensureMermaid() {
-    if (initialized)
+    const theme = getDiagramTheme();
+    if (initializedTheme === theme)
         return;
     window.mermaid.initialize({
+        ...diagramThemeConfig(),
         startOnLoad: false,
         securityLevel: 'strict',
         // Repository labels and AI diagrams cannot relax these global policies.
         secure: ['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'suppressErrorRendering',
-            'maxEdges', 'themeCSS', 'fontFamily', 'altFontFamily', 'themeVariables'],
-        flowchart: { htmlLabels: false },
+            'maxEdges', 'theme', 'themeCSS', 'fontFamily', 'altFontFamily', 'themeVariables'],
     });
-    initialized = true;
+    initializedTheme = theme;
 }
 export async function renderInto(contentEl, source) {
     ensureMermaid();
@@ -108,7 +110,7 @@ export function makePanzoom(canvas, content) {
         if (!event.target.closest('.mm-cell, g.node, .thread-controls, button'))
             fit();
     });
-    function fit() {
+    function fit({ readable = false } = {}) {
         const first = content.firstElementChild;
         if (!first)
             return;
@@ -148,7 +150,25 @@ export function makePanzoom(canvas, content) {
             }
         }
         apply();
+        if (readable && !isTree && scale < 0.85)
+            readAtActualSize();
     }
+    // Focus a real node at a readable size instead of shrinking a huge graph
+    // into a strip. Fit still offers the complete map; wheel/pan explore it.
+    function readAtActualSize() {
+        const node = content.querySelector('.is-thread-origin, .kind-root')
+            || content.querySelector('g.node.self, g.node.entry') || content.querySelector('g.node');
+        const bounds = canvas.getBoundingClientRect();
+        const box = node?.getBoundingClientRect();
+        const x = ((box ? (box.left + box.right) / 2 : bounds.left + bounds.width / 2) - bounds.left - tx) / scale;
+        const y = ((box ? (box.top + box.bottom) / 2 : bounds.top + bounds.height / 2) - bounds.top - ty) / scale;
+        scale = 1;
+        tx = canvas.clientWidth / 2 - x;
+        ty = canvas.clientHeight / 2 - y;
+        apply();
+    }
+    function snapshot() { return { scale, tx, ty }; }
+    function restore(viewport) { ({ scale, tx, ty } = viewport); apply(); }
     // Back to the un-zoomed, un-panned resting position (the atlas list wants
     // this — it is a document, not a diagram).
     function home() {
@@ -183,7 +203,7 @@ export function makePanzoom(canvas, content) {
         ty = canvas.clientHeight / 2 - (cell.y + cell.h / 2) * scale;
         apply();
     }
-    return { fit, reset: fit, home, reanchor, visibleAnchor, focusPoint };
+    return { fit, reset: fit, home, reanchor, visibleAnchor, focusPoint, readAtActualSize, snapshot, restore };
 }
 export function downloadSvg(contentEl, name) {
     const svg = contentEl.querySelector('svg');

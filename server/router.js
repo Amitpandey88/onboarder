@@ -1,3 +1,4 @@
+import path from 'node:path';
 // The route table and the gates in front of it.
 //
 // Everything arrives here: one function decides whether a request is allowed to
@@ -21,6 +22,14 @@ import { handleSearch } from './apiSearch.js';
 import { handleBlame } from './apiGitBlame.js';
 import { handleDiff, handleDiffRefs } from './apiDiff.js';
 import { handleReview } from './apiReview.js';
+import { handleIntelligence } from './apiIntelligence.js';
+import { TeamDirectory, memberCookie, authorizeMember } from './intelligence/team.js';
+import { IntelligenceStore } from './intelligence/store.js';
+import { handleTeamComments } from './apiTeam.js';
+import { getSession } from './sessions.js';
+import { GithubAutomation, handleGithubWebhook } from './intelligence/githubAutomation.js';
+import { handleFix } from './apiFix.js';
+import { safeRelative } from '../cli/agent/files.js';
 import { handleToolsInstall, handleToolsRun, handleToolsStatus } from './apiTools.js';
 import { handleMcpStart, handleMcpStatus, handleMcpStop, handleMcpCommand } from './apiMcp.js';
 import { handleGetSettings, handleRotateAccessKey, handleUpdateSettings } from './apiSettings.js';
@@ -28,6 +37,19 @@ import { handleAuthStatus, handleLogin, handleLogout } from './apiAuth.js';
 import { accessKeysMatch, allowedHosts, authReason, bearerToken, DEFAULT_SETTINGS } from './config.js';
 import { hasValidSession } from './auth.js';
 const ROUTES = [
+    { method: 'POST', path: '/api/intelligence/fix', body: true, run: ({ res, body, config }) => handleFix(res, body, config.runAgent) },
+    { method: 'POST', path: '/api/github/webhook', body: true, raw: true, run: ({ req, res, config }) => handleGithubWebhook(req, res, config.githubAutomation) },
+    { method: 'GET', path: '/api/github/automation', sameOrigin: true, run: async ({ res, config }) => sendJSON(res, 200, {
+            configured: Boolean(config.githubAutomation), jobs: config.githubAutomation ? (await config.githubAutomation.jobs()).slice(0, 20).map(({ id, repository, number, head, status, updatedAt, error, checkId }) => ({ id, repository, number, head, status, updatedAt, error, checkId })) : []
+        }) },
+    { method: 'POST', path: '/api/intelligence', body: true, run: ({ res, body, member, config }) => handleIntelligence(res, body, member
+            ? new IntelligenceStore(path.join(path.dirname(config.teamFile || process.env.ONBOARDER_TEAM_FILE), 'member-workspaces', member.id))
+            : new IntelligenceStore()) },
+    { method: 'GET', path: '/api/team/me', sameOrigin: true, run: ({ res, member, config }) => sendJSON(res, 200, {
+            enabled: Boolean(config.teamFile || process.env.ONBOARDER_TEAM_FILE), name: member?.name || 'Repository owner', role: member?.role || 'owner'
+        }) },
+    { method: 'GET', path: '/api/team/comments', sameOrigin: true, run: ({ res, url, config, member }) => handleTeamComments(res, url.searchParams.get('scan'), null, config.teamFile || process.env.ONBOARDER_TEAM_FILE, member) },
+    { method: 'POST', path: '/api/team/comments', body: true, run: ({ res, body, config, member }) => handleTeamComments(res, body.scanId, body, config.teamFile || process.env.ONBOARDER_TEAM_FILE, member) },
     { method: 'POST', path: '/api/review', body: true, run: ({ res, body }) => handleReview(res, body) },
     {
         method: 'GET', path: '/api/diff/refs', sameOrigin: true,
@@ -182,6 +204,13 @@ async function liveSettings(config) {
     }
 }
 export function createRouter(config) {
+    const githubAutomation = config.githubAutomation || (process.env.ONBOARDER_GITHUB_CONFIG_FILE && process.env.ONBOARDER_GITHUB_WEBHOOK_SECRET
+        ? new GithubAutomation(process.env.ONBOARDER_GITHUB_CONFIG_FILE, process.env.ONBOARDER_GITHUB_WEBHOOK_SECRET) : null);
+    config = { ...config, githubAutomation };
+    if (githubAutomation)
+        void githubAutomation.start().catch(() => { }); // The protected status/webhook request reports configuration failures.
+    const teamFile = config.teamFile || process.env.ONBOARDER_TEAM_FILE;
+    const team = teamFile ? new TeamDirectory(teamFile) : null;
     return async function handleRequest(req, res) {
         try {
             const url = new URL(req.url, 'http://127.0.0.1');
@@ -197,7 +226,7 @@ export function createRouter(config) {
                 return sendError(res, 403, scope + wrongHost);
             }
             const found = matchRoute(req.method, url.pathname);
-            const publicAuthRoute = ['/api/health', '/api/auth/status', '/api/auth/login', '/api/auth/logout'].includes(url.pathname);
+            const publicAuthRoute = ['/api/health', '/api/auth/status', '/api/auth/login', '/api/auth/logout', '/api/github/webhook'].includes(url.pathname);
             if (req.method !== 'GET' || found?.route.sameOrigin) {
                 const foreign = crossOriginReason(req);
                 if (foreign) {
@@ -207,10 +236,13 @@ export function createRouter(config) {
             // Bearer clients keep their existing API contract. A browser gets a signed,
             // HttpOnly session from the login form instead of storing the raw key.
             const bearerClient = accessKeysMatch(settings.accessKey, bearerToken(req));
+            const member = team ? await team.fromRequest(req, settings.accessKey) : null;
+            if (String(bearerToken(req) || '').startsWith('ob_member_') && !member)
+                return sendError(res, 401, 'Member credential is invalid or revoked.');
             const browserAuthenticated = hasValidSession(req, settings);
             const authDenied = authReason(req, settings);
             const locallyExempt = !authDenied;
-            const authenticated = bearerClient || browserAuthenticated || locallyExempt;
+            const authenticated = bearerClient || browserAuthenticated || locallyExempt || Boolean(member);
             const remoteSelfHosted = settings.mode === 'self-hosted' && Boolean(authDenied);
             if (remoteSelfHosted && !authenticated && !publicAuthRoute) {
                 // API callers keep a machine-readable 401. A browser navigation gets the
@@ -227,8 +259,36 @@ export function createRouter(config) {
                 return handleLogout(req, res);
             }
             if (found) {
-                const body = found.route.body ? await readBody(req) : null;
-                return await found.route.run({ req, res, url, body, rest: found.rest, config, settings });
+                const body = found.route.body && !found.route.raw ? await readBody(req) : null;
+                const bodyObject = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
+                if (url.pathname === '/api/auth/login' && team && settings.accessKey && typeof bodyObject.accessKey === 'string' && bodyObject.accessKey.startsWith('ob_member_')) {
+                    const signingIn = await team.authenticate(bodyObject.accessKey);
+                    if (!signingIn)
+                        return sendError(res, 401, 'Member credential is invalid or revoked.');
+                    return sendJSON(res, 200, { ok: true }, { 'cache-control': 'no-store', 'set-cookie': memberCookie(signingIn, settings.accessKey, Boolean(req.socket.encrypted) || String(req.headers['x-forwarded-proto']).split(',')[0] === 'https') });
+                }
+                if (member) {
+                    try {
+                        await authorizeMember(member, url.pathname, bodyObject, url.searchParams, id => getSession(id)?.root);
+                    }
+                    catch (error) {
+                        return sendError(res, 403, error.message);
+                    }
+                    if (['/api/file', '/api/blame'].includes(url.pathname)) {
+                        const file = url.searchParams.get('path') || '';
+                        try {
+                            safeRelative(file);
+                        }
+                        catch {
+                            return sendError(res, 403, 'This file is outside the shared source scope.');
+                        }
+                        if (!getSession(url.searchParams.get('scan'))?.files?.has(file) || /(?:^|\/)(?:AGENTS|PROJECT_MEMORY)\.md$/.test(file))
+                            return sendError(res, 403, 'Only files accepted by this repository scan are shared.');
+                    }
+                    if (url.pathname === '/api/auth/status')
+                        return sendJSON(res, 200, { authenticated: true, configured: true, name: member.name, role: member.role });
+                }
+                return await found.route.run({ req, res, url, body, rest: found.rest, config, settings, member });
             }
             if (req.method === 'GET')
                 return await serveStatic(res, url.pathname, config);

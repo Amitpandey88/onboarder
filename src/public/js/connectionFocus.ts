@@ -78,10 +78,10 @@ export function createConnectionFocus(options) {
     lockButton.textContent = current.locked ? 'Unlock thread' : 'Lock thread';
     const name = label(current.locked || hovered || current.candidate);
     status.textContent = current.locked
-      ? (visible ? 'Locked: ' : 'Locked thread outside this view: ') + name
-      : hovered ? 'Tracing: ' + name
-      : current.candidate ? 'Lock ' + name + ' to keep its connections visible'
-      : 'Hover a node to trace connections · Shift-click to lock';
+      ? (visible ? 'Locked: ' : 'Locked thread outside this view: ') + name + ' · Esc to unlock'
+      : hovered ? 'Tracing: ' + name + ' · Shift-click to lock thread'
+      : current.candidate ? 'Shift-click ' + name + ' to lock its thread'
+      : 'Hover a node to trace connections · Shift-click to lock thread';
     status.title = status.textContent;
   };
   const label = (id) => {

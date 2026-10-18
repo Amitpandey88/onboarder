@@ -31,6 +31,9 @@ const HELP = `
     onboarder chat [folder|url]     Clone/open a repo and chat (alias: tui)
     onboarder explore [folder|url]  Open the offline repository explorer
     onboarder report [folder|url]   One-shot summary for terminals and scripts (--json)
+    onboarder team <action>          Manage named repository-scoped members
+    onboarder intelligence <action>  Evidence, rules, coverage, journeys, history and live refresh
+      onboarder intelligence --help    Intelligence command reference
     onboarder review [folder]       Review local changes (--json for scripts)
       --base <ref> --head <ref>     Compare branches from their merge base
       --staged                    Review only staged changes
@@ -38,6 +41,8 @@ const HELP = `
       --fail-on high|medium|low|critical|info  Exit 1 for findings at this level or above
     onboarder agent <workflow>      Hermes: ask, review, triage, implement, pr, github
       onboarder agent --help        Agent setup, permissions, and examples
+    onboarder mcp                  Connect an AI client over stdio
+      onboarder mcp --help          Configuration, catalog and connection check
     onboarder start               Start the web UI in the foreground (Ctrl-C stops it)
     onboarder start background    Start detached — keeps running after you close the terminal
     onboarder start startup       Run automatically at login [install|remove|status]
@@ -143,6 +148,9 @@ const OPTIONS = {
     staged: { type: 'boolean' },
     profile: { type: 'string' },
     'fail-on': { type: 'string' },
+    sarif: { type: 'boolean' },
+    semantic: { type: 'boolean' },
+    role: { type: 'string' },
 };
 // parseArgs speaks kebab-case; the wizard's flags speak camelCase.
 function normalizeFlags(values) {
@@ -205,7 +213,7 @@ export async function main(argv = process.argv.slice(2)) {
         console.log(CHAT_HELP);
         return 0;
     }
-    if (flags.help && positionals[0] !== 'agent') {
+    if (flags.help && !['agent', 'mcp', 'intelligence', 'team'].includes(positionals[0])) {
         console.log(HELP);
         return 0;
     }
@@ -216,6 +224,18 @@ export async function main(argv = process.argv.slice(2)) {
     const [cmd, sub, ...rest] = positionals;
     try {
         switch (cmd) {
+            case 'team': {
+                const { teamCommand } = await import('./team.js');
+                return teamCommand(sub, rest, flags);
+            }
+            case 'intelligence': {
+                const { intelligenceCommand } = await import('./intelligence.js');
+                return intelligenceCommand(sub, rest, flags);
+            }
+            case 'mcp': {
+                const { mcpCommand } = await import('./mcp.js');
+                return mcpCommand(sub, rest, flags);
+            }
             case 'agent': {
                 if (sub === 'chat') {
                     if (rest.length > 1)
@@ -268,7 +288,8 @@ export async function main(argv = process.argv.slice(2)) {
                 if (flags.failOn && !Object.hasOwn(SEVERITY_RANK, flags.failOn))
                     throw new Error('Choose a valid --fail-on severity: critical, high, medium, low, or info.');
                 const report = await runReview(expandHome(sub || '.'), { base: flags.base || 'HEAD', head: flags.head || '', mode: flags.staged ? 'staged' : flags.head ? 'range' : 'working', profile: flags.profile ? reviewProfile(flags.profile) : undefined });
-                console.log(flags.json ? JSON.stringify(report, null, 2) : reviewMarkdown(report));
+                const { reviewSarif } = await import('../shared/review/sarif.js');
+                console.log(flags.sarif ? JSON.stringify(reviewSarif(report), null, 2) : flags.json ? JSON.stringify(report, null, 2) : reviewMarkdown(report));
                 return flags.failOn && report.findings.some(f => SEVERITY_RANK[f.severity] >= SEVERITY_RANK[flags.failOn]) || report.checks.some(c => c.id === 'conflicts' && c.status === 'fail') ? 1 : 0;
             }
             case 'web':

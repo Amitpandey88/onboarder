@@ -63,6 +63,7 @@ export async function getGitDiff(root: string, options: DiffOptions = {}): Promi
     baseHash = EMPTY_TREE;
   }
   const headHash = mode === 'range' ? await resolveRef(root, head, signal) : '';
+  if (headHash) baseHash = (await git(root, ['merge-base', baseHash, headHash], signal)).trim();
   const args = ['diff', '--no-color', '--no-ext-diff', '--no-textconv', '-U3'];
   if (mode === 'staged') args.push('--cached');
   args.push(headHash ? `${baseHash}...${headHash}` : baseHash, '--');

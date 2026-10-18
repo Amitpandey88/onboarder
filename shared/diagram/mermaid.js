@@ -16,7 +16,7 @@ export function getDiagramTheme() {
 const PALETTES = {
     light: {
         background: '#f7f4ed', node: '#fffdf7', border: '#3d3a33', text: '#2a2721',
-        line: '#8a8577', cluster: '#efe9dc66', clusterBorder: '#8a8577',
+        line: '#8a8577', cluster: '#efe9dc', clusterBorder: '#8a8577',
         entry: 'fill:#dce8d8,stroke:#2e5d43,stroke-width:2px,color:#1d3a2a',
         hub: 'fill:#f3e3c8,stroke:#8a5a1d,stroke-width:2px,color:#5c3a10',
         cycle: 'fill:#f3d4c8,stroke:#a4442a,stroke-width:2px,color:#6e2c17',
@@ -32,7 +32,7 @@ const PALETTES = {
     },
     dark: {
         background: '#211e19', node: '#2b2721', border: '#b8b0a0', text: '#ece7db',
-        line: '#8a8577', cluster: '#2b272166', clusterBorder: '#6b6558',
+        line: '#b8b0a0', cluster: '#292520', clusterBorder: '#6b6558',
         entry: 'fill:#243d2c,stroke:#8fbd9f,stroke-width:2px,color:#cfe6d6',
         hub: 'fill:#463617,stroke:#d9a75f,stroke-width:2px,color:#f0d9ae',
         cycle: 'fill:#472418,stroke:#d97b5a,stroke-width:2px,color:#f3c4ae',
@@ -47,26 +47,27 @@ const PALETTES = {
         r3: 'fill:#472418,stroke:#d97b5a,stroke-width:2px,color:#f3c4ae',
     },
 };
-function themeBlock() {
+// The browser installs this trusted palette globally. Theme variables are
+// protected against repository/AI directives, so a per-diagram init alone
+// cannot configure them there. Node exports still embed the same settings.
+export function diagramThemeConfig() {
     const p = PALETTES[currentTheme];
-    return `%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'background': '${p.background}',
-    'primaryColor': '${p.node}',
-    'primaryBorderColor': '${p.border}',
-    'primaryTextColor': '${p.text}',
-    'lineColor': '${p.line}',
-    'secondaryColor': '${p.node}',
-    'tertiaryColor': '${p.node}',
-    'clusterBkg': '${p.cluster}',
-    'clusterBorder': '${p.clusterBorder}',
-    'edgeLabelBackground': '${p.background}',
-    'fontFamily': 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    'fontSize': '13px'
-  },
-  'flowchart': { 'curve': 'basis', 'htmlLabels': false, 'nodeSpacing': 42, 'rankSpacing': 52 }
-}}%%`;
+    return {
+        theme: 'base',
+        themeVariables: {
+            darkMode: currentTheme === 'dark', background: p.background,
+            primaryColor: p.node, primaryBorderColor: p.border, primaryTextColor: p.text,
+            secondaryColor: p.node, secondaryTextColor: p.text, tertiaryColor: p.node,
+            tertiaryTextColor: p.text, textColor: p.text, lineColor: p.line,
+            clusterBkg: p.cluster, clusterBorder: p.clusterBorder,
+            titleColor: p.text, nodeTextColor: p.text, edgeLabelBackground: p.background,
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '13px',
+        },
+        flowchart: { curve: 'basis', htmlLabels: false, nodeSpacing: 42, rankSpacing: 52 },
+    };
+}
+function themeBlock() {
+    return `%%{init: ${JSON.stringify(diagramThemeConfig())}}%%`;
 }
 // AI-generated diagrams get our theme injected after the fact, so a model's
 // sketch is indistinguishable from the hand-drawn ones.

@@ -1,0 +1,1 @@
+(()=>{'use strict';document.documentElement.classList.add('js-enabled');let theme;try{theme=document.cookie.split('; ').find(v=>v.startsWith('im-theme='))?.split('=')[1]||localStorage.getItem('im-theme');}catch{}if(theme!=='light'&&theme!=='dark')theme=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.dataset.theme=theme;})();

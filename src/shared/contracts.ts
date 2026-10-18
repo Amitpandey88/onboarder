@@ -29,6 +29,8 @@ export type ScanProgress =
   | { phase: 'complete'; files: number; edges: number };
 
 export interface ScanOptions {
+  /** Internal, workspace-scoped parse reuse. Import resolution always reruns. */
+  analysisCache?: Map<string, { text: string; analysis: FileAnalysis }>;
   maxFiles?: number;
   /** UTF-8 bytes, rather than JavaScript string length. */
   maxFileSize?: number;

@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/workbench.css">
 <link rel="stylesheet" href="/search.css">
+<link rel="stylesheet" href="/intelligence.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f7f4ed'/%3E%3Ccircle cx='9' cy='16' r='4' fill='none' stroke='%232a2721' stroke-width='2'/%3E%3Ccircle cx='24' cy='8' r='3.2' fill='none' stroke='%232e5d43' stroke-width='2'/%3E%3Ccircle cx='24' cy='24' r='3.2' fill='none' stroke='%232a2721' stroke-width='2'/%3E%3Cpath d='M13 14 L21 9 M13 18 L21 23' stroke='%232a2721' stroke-width='1.6'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -20,6 +21,7 @@
     <button class="view-tab is-active" data-view="explorer">Explore</button>
     <button class="view-tab" data-view="analysis">Deep Analysis</button>
     <button class="view-tab" data-view="review">Review</button>
+    <button class="view-tab" data-view="intelligence">Intelligence</button>
     <button class="view-tab" data-view="graph">Graph</button>
     <button class="view-tab" data-view="heatmap">Heatmap</button>
     <button class="view-tab" data-view="insights">Insights</button>
@@ -64,6 +66,7 @@
       navigate, then explore, understand, and review every change.
     </p>
 
+    <label class="repository-goal" for="repositoryGoal">What would you like to do? <select id="repositoryGoal"><option value="resume">Resume the previous workspace</option><option value="understand">Understand this repository</option><option value="review">Review changes</option><option value="investigate">Investigate an issue</option><option value="implement">Plan and implement a task</option></select></label>
     <div class="load-grid">
       <section class="load-card">
         <h2 class="load-card-title">A folder on this machine</h2>
@@ -144,7 +147,10 @@
         <button class="btn btn-ghost btn-sm" id="aiDrawBtn">AI sketch</button>
         <button class="btn btn-ghost btn-sm" id="copyMermaidBtn">Copy Mermaid</button>
         <button class="btn btn-ghost btn-sm" id="svgBtn">Save SVG</button>
-        <button class="btn btn-ghost btn-sm" id="fitBtn">Fit</button>
+        <button class="btn btn-ghost btn-sm" id="readableZoomBtn" title="Read nodes at 100% zoom">100%</button>
+        <button class="btn btn-ghost btn-sm" id="fitBtn" title="Fit the full map in the canvas">Fit</button>
+        <button class="btn btn-ghost btn-sm" id="saveViewBtn">Save view</button>
+        <button class="btn btn-ghost btn-sm" id="savedViewsBtn">Saved views</button>
       </div>
     </div>
     <div class="stage-filters" id="stageFilters" hidden>
@@ -181,14 +187,18 @@
       <div class="docview code-docview" id="codeView"></div>
     </div>
     <section class="graph-view" id="graphView" hidden style="flex:1; position:relative;">
-      <canvas class="graph-canvas" id="graphCanvas"></canvas>
+      <canvas class="graph-canvas" id="graphCanvas" aria-label="Repository dependency graph"></canvas>
+      <div class="graph-caption">
+        <p class="graph-summary" id="graphSummary" role="status" aria-live="polite"></p>
+        <p class="graph-hint">Shift-click a node to lock its thread · Esc to unlock</p>
+      </div>
       <div class="graph-controls" id="graphControls">
         <input type="search" class="graph-search-input" id="graphSearchInput" placeholder="Filter graph nodes…" style="font-family:var(--mono);font-size:11px;padding:4px 8px;border:1.5px solid var(--ink);border-radius:4px;background:var(--card);color:var(--ink);width:130px;" />
         <button class="btn btn-ghost" id="graphReset" title="Reset layout">Reset</button>
         <button class="btn btn-ghost" id="graphZoomIn" title="Zoom in">+</button>
         <button class="btn btn-ghost" id="graphZoomOut" title="Zoom out">−</button>
         <button class="btn btn-ghost" id="graphFit" title="Fit graph to screen">Fit</button>
-        <button class="btn btn-ghost" id="graphLock" type="button" aria-pressed="false" title="Hover a node, then lock its connections; Shift-click also locks" disabled>Lock thread</button>
+        <button class="btn btn-ghost" id="graphLock" type="button" aria-pressed="false" title="Shift-click a node to lock its thread. Press Esc to unlock." disabled>Lock thread</button>
       </div>
       <div class="graph-tooltip" id="graphTooltip" hidden></div>
     </section>
@@ -196,6 +206,7 @@
       <canvas class="heatmap-canvas" id="heatmapCanvas"></canvas>
       <div class="heatmap-tooltip" id="heatmapTooltip" hidden></div>
     </section>
+    <div class="intelligence-view" id="intelligenceView" hidden></div>
     <div class="canvas" id="canvas">
       <div class="canvas-content" id="canvasContent"></div>
       <div class="canvas-empty" id="canvasEmpty" hidden></div>
@@ -283,12 +294,12 @@
     <input type="text" id="setBaseUrl" class="text-input" placeholder="https://api.openai.com/v1" spellcheck="false">
   </label>
   <label class="field">
-    <span class="field-label">API key</span>
-    <input type="password" id="setApiKey" class="text-input" placeholder="sk-… or leave empty for local servers">
+    <span class="field-label">API key · kept only in this tab’s memory</span>
+    <input type="password" id="setApiKey" autocomplete="off" class="text-input" placeholder="sk-… or leave empty for local servers">
   </label>
   <label class="field">
     <span class="field-label">Model</span>
-    <input type="text" id="setModel" class="text-input" placeholder="gpt-4o-mini" spellcheck="false">
+    <input type="text" id="setModel" class="text-input" placeholder="Your provider’s model ID" spellcheck="false">
   </label>
   </div>
   <div class="drawer-actions">
@@ -297,9 +308,8 @@
   </div>
   <p class="drawer-status" id="settingsStatus"></p>
   <p class="drawer-fine" id="aiConnectionNote">
-    Stored in this browser’s localStorage, forwarded through your local server,
-    never written to disk or logged. Close the tab and it stays here; clear site
-    data and it’s gone.
+    Connection preferences are stored in this browser. API keys stay in this tab’s memory and are forwarded through your local server,
+    without being persisted by Onboarder. Enter the key again after reloading or closing this tab. Hermes uses its existing server-side login.
   </p>
 </aside>
 
@@ -313,16 +323,16 @@
   shape, not a subject.
 -->
 <div class="drawer-scrim" id="mcpScrim" hidden></div>
-<aside class="drawer" id="mcpDrawer" hidden>
+<aside class="drawer" id="mcpDrawer" aria-label="MCP server setup" hidden>
   <header class="drawer-head">
     <h2>MCP server</h2>
     <button class="btn btn-ghost btn-sm" id="mcpClose">Close</button>
   </header>
   <p class="drawer-note">
     Runs Onboarder as a Model Context Protocol server, so any AI agent or harness
-    on this machine can ask it about a repository — its structure, architecture,
-    health, security, history, and every file in it — by talking to it. The server
-    reads repositories and never writes to them.
+    on this machine can explore repository structure, architecture, health and
+    source. Built-in analysis reads files. Optional external analyzers may execute
+    repository configuration. Your agent starts its own connection using the config below.
   </p>
 
   <div class="mcp-state" id="mcpStateRow">
@@ -331,24 +341,32 @@
   </div>
 
   <div class="drawer-actions">
-    <button class="btn btn-ink" id="mcpStart">Start server</button>
-    <button class="btn btn-outline" id="mcpStop" disabled>Stop</button>
+    <button class="btn btn-ink" id="mcpStart">Check server</button>
+    <button class="btn btn-outline" id="mcpStop" disabled>Stop check</button>
   </div>
   <p class="drawer-status" id="mcpStatus"></p>
 
-  <div class="mcp-config" id="mcpConfig" hidden>
+  <div class="mcp-config" id="mcpConfig">
     <span class="field-label">Configure your agent with</span>
     <div class="mcp-config-row">
-      <input type="text" class="text-input mcp-config-input" id="mcpCommandInput" readonly spellcheck="false">
-      <button class="btn btn-ghost btn-sm" id="mcpCopy" title="Copy this command">Copy</button>
+      <input type="text" class="text-input mcp-config-input" id="mcpCommandInput" aria-label="MCP server entry point" readonly spellcheck="false">
+      <button class="btn btn-ghost btn-sm" id="mcpCopy" title="Copy the selected configuration">Copy config</button>
     </div>
     <div class="mcp-tabs" role="tablist" aria-label="Configuration format">
       <button class="mcp-tab is-on" id="mcpTabJson" role="tab" aria-selected="true">JSON</button>
       <button class="mcp-tab" id="mcpTabToml" role="tab" aria-selected="false">TOML</button>
     </div>
-    <pre class="mcp-config-block" id="mcpConfigBlock"></pre>
-    <p class="drawer-fine" id="mcpToolsHint"></p>
+    <pre class="mcp-config-block" id="mcpConfigBlock" tabindex="0" aria-label="Agent configuration"></pre>
+    <p class="drawer-fine">Setup works while this check is stopped. Use the exact Node path shown here. Each AI client starts its own connection; stopping this check does not stop your clients.</p>
   </div>
+  <section class="mcp-discovery" aria-label="Available MCP capabilities">
+    <h3>What your agent can use</h3>
+    <p class="drawer-fine" id="mcpCapabilities"></p>
+    <label class="field-label" for="mcpToolSearch">Find a tool</label>
+    <input class="text-input" id="mcpToolSearch" type="search" placeholder="Search tools by name or purpose…">
+    <p class="drawer-fine" id="mcpToolsHint" role="status"></p>
+    <div class="mcp-catalog" id="mcpCatalog"></div>
+  </section>
 </aside>
 
 <!-- ============================ SERVER ============================ -->

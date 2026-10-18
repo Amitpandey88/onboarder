@@ -1,6 +1,9 @@
 // AI connection settings and prompt assembly. Hermes resolves its login on
 // the server; API mode forwards the browser's key to the chosen endpoint.
 const STORE_KEY = 'onboarder.llm.v1';
+// Credentials live only in this tab. First access removes legacy saved keys.
+let sessionApiKey = '';
+let memorySettings = {};
 // No endpoint, model, or key ships with the repo. Anything saved in the
 // connection drawer overrides these defaults; without a connection the app
 // stays on the offline graph explanations. Old settings remain in API mode.
@@ -12,25 +15,40 @@ export const DEFAULT_SETTINGS = {
     hermesModel: '',
 };
 export function getSettings(displayModel = true) {
+    let stored = memorySettings;
     try {
-        const s = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORE_KEY) || '{}') };
-        s.connection = s.connection === 'hermes' ? 'hermes' : 'api';
-        if (displayModel && s.connection === 'hermes')
-            s.model = s.hermesModel || 'Hermes';
-        return s;
+        stored = JSON.parse(localStorage.getItem(STORE_KEY) || 'null') || memorySettings;
+        if (!stored || typeof stored !== 'object' || Array.isArray(stored))
+            stored = {};
+        if (stored.apiKey) {
+            sessionApiKey ||= String(stored.apiKey);
+            delete stored.apiKey;
+            // Removing first also migrates keys when the storage quota is full.
+            localStorage.removeItem(STORE_KEY);
+            localStorage.setItem(STORE_KEY, JSON.stringify(stored));
+        }
     }
-    catch {
-        return { ...DEFAULT_SETTINGS };
-    }
+    catch { /* Connection preferences remain usable in memory without storage. */ }
+    memorySettings = { ...stored };
+    delete memorySettings.apiKey;
+    const s = { ...DEFAULT_SETTINGS, ...memorySettings, apiKey: sessionApiKey };
+    s.connection = s.connection === 'hermes' ? 'hermes' : 'api';
+    if (displayModel && s.connection === 'hermes')
+        s.model = s.hermesModel || 'Hermes';
+    return s;
 }
 export function saveSettings(settings) {
-    localStorage.setItem(STORE_KEY, JSON.stringify({
+    sessionApiKey = settings.apiKey || '';
+    memorySettings = {
         connection: settings.connection === 'hermes' ? 'hermes' : 'api',
         hermesModel: settings.hermesModel || '',
         baseUrl: (settings.baseUrl || '').trim().replace(/\/+$/, ''),
-        apiKey: settings.apiKey || '',
         model: (settings.model || '').trim(),
-    }));
+    };
+    try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(memorySettings));
+    }
+    catch { /* This tab retains its connection without persisting a credential. */ }
 }
 export function isConfigured() {
     const s = getSettings();

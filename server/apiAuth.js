@@ -24,7 +24,7 @@ export function handleLogin(req, res, body, settings) {
 export function handleLogout(req, res) {
     sendJSON(res, 200, { ok: true }, {
         'cache-control': 'no-store',
-        'set-cookie': sessionCookie(req, {}, { clear: true }),
+        'set-cookie': [sessionCookie(req, {}, { clear: true }), 'onboarder_member=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'],
     });
 }
 //# sourceMappingURL=apiAuth.js.map

@@ -15,6 +15,8 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mcpStatus } from './tools.js';
+import { PROTOCOL_VERSION, PACKAGE_VERSION } from './protocol.js';
+import { resourceTemplates, promptDefinitions } from './context.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 // server/mcp/ -> server/ -> repository root
 export const REPO_ROOT = path.resolve(here, '..', '..');
@@ -129,6 +131,7 @@ export class McpRunner {
         child.stdout.on('data', (..._args) => { });
         child.stderr.on('data', (chunk) => this.note(String(chunk).trimEnd()));
         const exited = new Promise((resolve) => {
+            child.once('error', (error) => resolve({ error }));
             child.once('exit', (code, signal) => {
                 const wasStopping = this.state === 'stopping';
                 this.child = null;
@@ -198,7 +201,17 @@ export class McpRunner {
                         const msg = JSON.parse(line);
                         if (msg?.id === 'onboarder-probe' && msg.result?.serverInfo?.name === 'onboarder') {
                             child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
-                            finish(true);
+                            child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 'onboarder-catalog-probe', method: 'tools/list' }) + '\n');
+                        }
+                        else if (msg?.id === 'onboarder-catalog-probe') {
+                            const names = new Set((msg.result?.tools || []).map(tool => tool.name));
+                            const expected = mcpStatus().tools;
+                            if (expected.every(name => names.has(name)))
+                                finish(true);
+                            else {
+                                this.lastError = 'The MCP handshake succeeded but its tool catalog is incomplete.';
+                                finish(false);
+                            }
                             return;
                         }
                     }
@@ -222,9 +235,9 @@ export class McpRunner {
                 id: 'onboarder-probe',
                 method: 'initialize',
                 params: {
-                    protocolVersion: '2025-06-18',
+                    protocolVersion: PROTOCOL_VERSION,
                     capabilities: {},
-                    clientInfo: { name: 'onboarder-ui', version: '1.0.0' },
+                    clientInfo: { name: 'onboarder-ui', version: PACKAGE_VERSION },
                 },
             }) + '\n');
         });
@@ -252,6 +265,10 @@ export class McpRunner {
     status() {
         return {
             ...mcpStatus(),
+            version: PACKAGE_VERSION,
+            protocolVersion: PROTOCOL_VERSION,
+            resources: resourceTemplates(),
+            prompts: promptDefinitions(),
             state: this.state,
             running: this.running,
             pid: this.child?.pid ?? null,

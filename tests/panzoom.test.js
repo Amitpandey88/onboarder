@@ -70,3 +70,29 @@ test('double-clicking a tree cell does not reset its zoom', () => {
   events.get('dblclick')({ target: { closest: () => null } });
   assert.equal(transform().scale, 0.9);
 });
+
+test('large SVGs open around an entry at readable size and still offer a full fit', () => {
+  const { controller, content, transform } = fixture();
+  content.firstElementChild = Object.assign(new globalThis.SVGElement(), {
+    getBBox: () => ({ width: 20000, height: 6000 }), classList: { contains: () => false },
+  });
+  const entry = { getBoundingClientRect: () => {
+    const { x, y, scale } = transform();
+    return { left: x + 1000 * scale, right: x + 1100 * scale, top: y + 200 * scale, bottom: y + 250 * scale };
+  } };
+  content.querySelector = selector => selector.includes('g.node.entry') ? entry : null;
+  controller.fit({ readable: true });
+  assert.equal(transform().scale, 1);
+  assert.ok(Math.abs(transform().x + 1050 - 300) < 0.000001);
+  assert.ok(Math.abs(transform().y + 225 - 200) < 0.000001);
+  controller.fit(); assert.ok(transform().scale < 0.1);
+  controller.readAtActualSize(); assert.equal(transform().scale, 1);
+});
+
+test('theme redraw can restore the exact viewport after rendering', () => {
+  const { controller, transform } = fixture();
+  controller.fit(); controller.focusPoint({ x: 700, y: 800, w: 100, h: 40 });
+  const before = transform(), viewport = controller.snapshot();
+  controller.home(); controller.restore(viewport);
+  assert.deepEqual(transform(), before);
+});

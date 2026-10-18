@@ -1,664 +1,442 @@
-// High-performance, interactive force-directed graph canvas engine.
-// Implements Barnes-Hut physics, neighbor subgraph highlighting,
-// theme-aware crisp text rendering, and rich interactive controls.
+// Lightweight dependency canvas: stable layout, bounded scene, event-driven paints.
+// No continuous physics loop or per-item GPU filters.
+import { GraphIndex } from './graphScene.js';
+import { escapeHtml } from './html.js';
 export function initForceGraph(canvas, options) {
     const opts = options || {};
     const ctx = canvas.getContext('2d');
     const interactions = new AbortController();
-    const listen = (target, type, handler, options = {}) => {
-        target.addEventListener(type, handler, { ...options, signal: interactions.signal });
-    };
-    let animationFrameId = null;
+    const listen = (target, type, handler, settings = {}) => target.addEventListener(type, handler, { ...settings, signal: interactions.signal });
+    let frame = null;
     let viewActive = true;
     let active = !document.hidden;
     let destroyed = false;
-    let nodes = [];
-    let edges = [];
-    let communities = {};
+    let width = 0, height = 0, pixelRatio = 1;
     let transform = { x: 0, y: 0, k: 1 };
-    let width = canvas.width;
-    let height = canvas.height;
-    let alpha = 1.0;
-    const alphaDecay = 0.985;
-    const alphaMin = 0.001;
-    let draggedNode = null;
-    let hoveredNode = null;
-    let selectedNode = null;
-    let lockedNode = null;
-    let lockCandidate = null;
-    let highlightPath = null;
-    let searchQuery = '';
-    let compactLabels = new Set();
-    // Adjacency maps for fast interactive neighbor highlighting
-    let inNeighbors = new Map(); // node -> Set of source nodes
-    let outNeighbors = new Map(); // node -> Set of target nodes
-    let nodeEdges = new Map(); // node -> Set of edges
-    function resize() {
+    let nodes = [], edges = [];
+    let inNeighbors = new Map(), outNeighbors = new Map();
+    let index = new GraphIndex([], []);
+    let sceneKey = '';
+    let hovered = null, selected = null, locked = null, candidate = null;
+    let dragged = null, panning = false, moved = false;
+    let startX = 0, startY = 0, downX = 0, downY = 0;
+    let searchQuery = '', highlightPath = '';
+    let searchTimer;
+    let clickTimer;
+    let tooltipNode = null;
+    let needsFit = true;
+    let fitOnResize = true;
+    let paints = 0;
+    const lockBtn = document.getElementById('graphLock');
+    function requestPaint() {
+        if (!active || destroyed || frame !== null)
+            return;
+        frame = requestAnimationFrame(() => { frame = null; paint(); });
+    }
+    function syncLock() {
+        if (!lockBtn)
+            return;
+        lockBtn.disabled = !locked && !candidate;
+        lockBtn.setAttribute('aria-pressed', String(Boolean(locked)));
+        lockBtn.textContent = locked ? 'Unlock thread' : 'Lock thread';
+        lockBtn.title = locked ? 'Locked: ' + locked.path + ' · Esc to unlock' : (candidate ? 'Lock: ' + candidate.path + ' · ' : '') + 'Shift-click a node to lock its thread';
+    }
+    function sizeCanvas() {
         if (!active || destroyed)
-            return;
-        const parent = canvas.parentElement;
-        if (!parent)
-            return;
-        const rect = parent.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0)
-            return;
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
-        ctx.scale(dpr, dpr);
+            return false;
+        const rect = canvas.parentElement?.getBoundingClientRect();
+        if (!rect || rect.width <= 0 || rect.height <= 0)
+            return false;
+        // Bound the backing buffer even on Retina/4K displays. CSS size stays exact.
+        const ratio = Math.min(window.devicePixelRatio || 1, 1.5, 4096 / rect.width, 4096 / rect.height, Math.sqrt(2_000_000 / (rect.width * rect.height)));
+        const w = Math.max(1, Math.floor(rect.width * ratio)), h = Math.max(1, Math.floor(rect.height * ratio));
+        const previousWidth = width, previousHeight = height;
+        const changed = width !== rect.width || height !== rect.height;
+        if (canvas.width !== w || canvas.height !== h) {
+            canvas.width = w;
+            canvas.height = h;
+        }
         width = rect.width;
         height = rect.height;
-        if (nodes.length > 0 && transform.k === 1 && transform.x === 0 && transform.y === 0) {
-            fitToScreen();
-        }
-        else {
-            render();
-        }
-    }
-    // Quadtree spatial index for Barnes-Hut O(N log N) repulsion
-    class QuadTree {
-        x;
-        y;
-        w;
-        h;
-        nodes;
-        mass;
-        cx;
-        cy;
-        children;
-        constructor(x, y, w, h) {
-            this.x = x;
-            this.y = y;
-            this.w = w;
-            this.h = h;
-            this.nodes = [];
-            this.mass = 0;
-            this.cx = 0;
-            this.cy = 0;
-            this.children = null;
-        }
-        insert(node) {
-            if (this.children) {
-                const i = (node.x > this.x + this.w / 2 ? 1 : 0) + (node.y > this.y + this.h / 2 ? 2 : 0);
-                this.children[i].insert(node);
-            }
+        pixelRatio = ratio;
+        if (changed) {
+            if (needsFit || fitOnResize)
+                fitTransform();
             else {
-                this.nodes.push(node);
-                if (this.nodes.length > 1 && this.w > 4) {
-                    this.subdivide();
-                }
-            }
-            this.mass += 1;
-            this.cx = (this.cx * (this.mass - 1) + node.x) / this.mass;
-            this.cy = (this.cy * (this.mass - 1) + node.y) / this.mass;
-        }
-        subdivide() {
-            const hw = this.w / 2;
-            const hh = this.h / 2;
-            this.children = [
-                new QuadTree(this.x, this.y, hw, hh),
-                new QuadTree(this.x + hw, this.y, hw, hh),
-                new QuadTree(this.x, this.y + hh, hw, hh),
-                new QuadTree(this.x + hw, this.y + hh, hw, hh)
-            ];
-            const oldNodes = this.nodes;
-            this.nodes = [];
-            for (const n of oldNodes) {
-                const i = (n.x > this.x + hw ? 1 : 0) + (n.y > this.y + hh ? 2 : 0);
-                this.children[i].insert(n);
+                transform.x += (width - previousWidth) / 2;
+                transform.y += (height - previousHeight) / 2;
             }
         }
-        applyForce(node, theta = 0.85) {
-            if (this.mass === 0)
-                return;
-            const dx = this.cx - node.x;
-            const dy = this.cy - node.y;
-            const distSq = dx * dx + dy * dy;
-            if (this.w / Math.sqrt(distSq || 1) < theta || !this.children) {
-                if (distSq > 0.01) {
-                    const dist = Math.sqrt(distSq);
-                    // Scale repulsion force inversely proportional to distance
-                    const f = -120 * this.mass / (distSq + 100);
-                    node.vx += (dx / dist) * f;
-                    node.vy += (dy / dist) * f;
-                }
-            }
-            else {
-                for (const child of this.children) {
-                    child.applyForce(node, theta);
-                }
-            }
-        }
+        return true;
     }
-    function buildAdjacency() {
-        inNeighbors = new Map();
-        outNeighbors = new Map();
-        nodeEdges = new Map();
-        for (const n of nodes) {
-            inNeighbors.set(n, new Set());
-            outNeighbors.set(n, new Set());
-            nodeEdges.set(n, new Set());
+    function resize() { if (sizeCanvas())
+        requestPaint(); }
+    function fitTransform() {
+        if (!width || !height)
+            return;
+        if (!nodes.length) {
+            transform = { x: width / 2, y: height / 2, k: 1 };
+            needsFit = false;
+            return;
         }
-        for (const e of edges) {
-            if (e.source && e.target) {
-                outNeighbors.get(e.source)?.add(e.target);
-                inNeighbors.get(e.target)?.add(e.source);
-                nodeEdges.get(e.source)?.add(e);
-                nodeEdges.get(e.target)?.add(e);
-            }
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const node of nodes) {
+            minX = Math.min(minX, node.x - node.r);
+            maxX = Math.max(maxX, node.x + node.r);
+            minY = Math.min(minY, node.y - node.r);
+            maxY = Math.max(maxY, node.y + node.r);
         }
+        const k = Math.max(0.03, Math.min((width - 64) / Math.max(80, maxX - minX), (height - 100) / Math.max(80, maxY - minY), 2));
+        transform = { k, x: width / 2 - (minX + maxX) / 2 * k, y: height / 2 - (minY + maxY) / 2 * k };
+        needsFit = false;
     }
-    function update(newNodes, newEdges, newComms) {
-        communities = newComms || {};
-        const posMap = new Map(nodes.map(n => [n.path, { x: n.x, y: n.y, vx: n.vx, vy: n.vy }]));
-        nodes = newNodes.map((n, i) => {
-            const p = posMap.get(n.path);
-            const angle = (i / Math.max(1, newNodes.length)) * Math.PI * 2;
-            const dist = Math.min(width, height) * 0.35;
-            return {
-                ...n,
-                x: p ? p.x : Math.cos(angle) * dist + (Math.random() - 0.5) * 40,
-                y: p ? p.y : Math.sin(angle) * dist + (Math.random() - 0.5) * 40,
-                vx: p ? p.vx : 0,
-                vy: p ? p.vy : 0,
-                r: Math.max(5, Math.min(24, 4 + Math.sqrt(n.fanIn || 0) * 2.5)),
-                basename: n.path.split('/').pop() || n.path
-            };
+    function placeNodes() {
+        // Deterministic phyllotaxis spreads nodes without a costly settling simulation.
+        const angle = Math.PI * (3 - Math.sqrt(5));
+        nodes.forEach((node, i) => {
+            const radius = 26 * Math.sqrt(i);
+            node.x = Math.cos(i * angle) * radius;
+            node.y = Math.sin(i * angle) * radius;
         });
-        compactLabels = new Set([...nodes]
-            .sort((a, b) => b.fanIn - a.fanIn)
-            .slice(0, 8)
-            .map((node) => node.path));
-        const nodeByPath = new Map(nodes.map(n => [n.path, n]));
-        lockedNode = nodeByPath.get(lockedNode?.path) || null;
-        lockCandidate = nodeByPath.get(lockCandidate?.path) || null;
-        hoveredNode = nodeByPath.get(hoveredNode?.path) || null;
-        selectedNode = nodeByPath.get(selectedNode?.path) || null;
-        syncLockControl();
-        edges = (newEdges || []).map(e => ({
-            source: nodeByPath.get(e.from),
-            target: nodeByPath.get(e.to),
-            from: e.from,
-            to: e.to
-        })).filter(e => e.source && e.target);
-        buildAdjacency();
-        alpha = 1.0;
-        if (active && !destroyed && !animationFrameId)
-            animationFrameId = requestAnimationFrame(tick);
     }
-    function tick() {
-        if (!active || destroyed) {
-            animationFrameId = null;
+    function applyScene(fit = false) {
+        if (destroyed)
+            return;
+        const result = index.select(searchQuery, highlightPath);
+        opts.onStatus?.(result.nodes.length + ' of ' + result.totalFiles + ' files · ' + result.edges.length + ' of ' + result.totalEdges + ' connections' +
+            (searchQuery ? ' · ' + result.matches + (result.matches === 1 ? ' match' : ' matches') : result.limited ? ' · Search to find other files' : ''));
+        const key = JSON.stringify([result.nodes.map(n => [n.path, n.fanIn, n.fanOut, n.community, n.risk]), result.edges]);
+        if (key === sceneKey) {
+            requestPaint();
             return;
         }
-        if (alpha > alphaMin) {
-            alpha *= alphaDecay;
-            // Repulsion via Quadtree
-            if (nodes.length > 0) {
-                let minX = nodes[0].x, maxX = nodes[0].x;
-                let minY = nodes[0].y, maxY = nodes[0].y;
-                for (const n of nodes) {
-                    if (n.x < minX)
-                        minX = n.x;
-                    if (n.x > maxX)
-                        maxX = n.x;
-                    if (n.y < minY)
-                        minY = n.y;
-                    if (n.y > maxY)
-                        maxY = n.y;
-                }
-                const span = Math.max(maxX - minX, maxY - minY, 100);
-                const qt = new QuadTree(minX - 20, minY - 20, span + 40, span + 40);
-                for (const n of nodes)
-                    qt.insert(n);
-                for (const n of nodes)
-                    qt.applyForce(n);
-            }
-            // Hooke's Law Edge Springs
-            for (const e of edges) {
-                const dx = e.target.x - e.source.x;
-                const dy = e.target.y - e.source.y;
-                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-                const targetDist = 45 + (e.source.r + e.target.r) * 1.5;
-                const f = (dist - targetDist) * 0.04 * alpha;
-                const fx = (dx / dist) * f;
-                const fy = (dy / dist) * f;
-                e.source.vx += fx;
-                e.source.vy += fy;
-                e.target.vx -= fx;
-                e.target.vy -= fy;
-            }
-            // Center Gravity
-            for (const n of nodes) {
-                n.vx -= n.x * 0.015 * alpha;
-                n.vy -= n.y * 0.015 * alpha;
-            }
-            // Velocity Verlet update
-            for (const n of nodes) {
-                if (n !== draggedNode) {
-                    n.vx *= 0.65;
-                    n.vy *= 0.65;
-                    n.x += n.vx;
-                    n.y += n.vy;
-                }
-            }
+        clearTimeout(clickTimer);
+        sceneKey = key;
+        const previous = new Map(nodes.map(node => [node.path, node]));
+        const first = nodes.length === 0;
+        nodes = result.nodes.map((node, i) => {
+            const old = previous.get(node.path);
+            const angle = i * Math.PI * (3 - Math.sqrt(5));
+            const radius = 26 * Math.sqrt(i);
+            return { ...node, x: old?.x ?? Math.cos(angle) * radius, y: old?.y ?? Math.sin(angle) * radius,
+                r: Math.max(4, Math.min(15, 4 + Math.sqrt(Number(node.fanIn) || 0) * 1.7)),
+                basename: node.path.split('/').pop() || node.path, lowerPath: node.path.toLowerCase() };
+        });
+        const byPath = new Map(nodes.map(node => [node.path, node]));
+        const keep = (node) => byPath.get(node?.path) || null;
+        hovered = keep(hovered);
+        selected = keep(selected);
+        locked = keep(locked);
+        candidate = keep(candidate);
+        dragged = null;
+        panning = false;
+        updateTooltip(null);
+        syncLock();
+        edges = result.edges.map(link => ({ source: byPath.get(link.from), target: byPath.get(link.to) }));
+        inNeighbors = new Map(nodes.map(node => [node, new Set()]));
+        outNeighbors = new Map(nodes.map(node => [node, new Set()]));
+        for (const edge of edges) {
+            outNeighbors.get(edge.source).add(edge.target);
+            inNeighbors.get(edge.target).add(edge.source);
         }
-        render();
-        if (alpha > alphaMin || draggedNode) {
-            animationFrameId = requestAnimationFrame(tick);
+        if (fit || first) {
+            needsFit = true;
+            fitOnResize = true;
+            sizeCanvas();
+            fitTransform();
         }
-        else {
-            animationFrameId = null;
-        }
+        requestPaint();
     }
-    function reheat() {
-        alpha = 0.5;
-        if (active && !destroyed && !animationFrameId)
-            animationFrameId = requestAnimationFrame(tick);
-    }
-    function isDarkTheme() {
-        return document.documentElement.dataset.theme === 'dark';
-    }
-    function render() {
-        if (!active || destroyed)
+    function update(files, links) { if (destroyed)
+        return; index = new GraphIndex(files, links || []); applyScene(); }
+    function paint() {
+        if (!active || destroyed || !width || !height)
             return;
-        ctx.save();
+        paints++;
+        ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
         ctx.clearRect(0, 0, width, height);
+        ctx.save();
         ctx.translate(transform.x, transform.y);
         ctx.scale(transform.k, transform.k);
-        const dark = isDarkTheme();
-        const activeNode = lockedNode || hoveredNode || selectedNode;
-        const hasFocus = Boolean(activeNode || highlightPath || searchQuery);
-        const inSet = activeNode ? inNeighbors.get(activeNode) : null;
-        const outSet = activeNode ? outNeighbors.get(activeNode) : null;
-        // Draw Edges
-        for (const e of edges) {
-            const isOut = activeNode && e.source === activeNode;
-            const isIn = activeNode && e.target === activeNode;
-            const isConnected = isOut || isIn;
-            ctx.filter = hasFocus && !isConnected ? 'blur(0.7px)' : 'none';
+        const dark = document.documentElement.dataset.theme === 'dark';
+        const focus = locked || hovered || selected;
+        const hasFocus = Boolean(focus || highlightPath || searchQuery);
+        const incoming = inNeighbors.get(focus), outgoing = outNeighbors.get(focus);
+        const prominent = (node) => node === focus || incoming?.has(node) || outgoing?.has(node) ||
+            node.path === highlightPath || Boolean(searchQuery && node.lowerPath.includes(searchQuery));
+        const left = -transform.x / transform.k, right = (width - transform.x) / transform.k;
+        const top = -transform.y / transform.k, bottom = (height - transform.y) / transform.k;
+        const visible = (node) => node.x + node.r >= left && node.x - node.r <= right && node.y + node.r >= top && node.y - node.r <= bottom;
+        const visibleEdge = (edge) => !(Math.max(edge.source.x, edge.target.x) < left || Math.min(edge.source.x, edge.target.x) > right ||
+            Math.max(edge.source.y, edge.target.y) < top || Math.min(edge.source.y, edge.target.y) > bottom);
+        // One path per edge style instead of a separate GPU operation per connection.
+        for (let layer = 0; layer < 3; layer++) {
             ctx.beginPath();
-            ctx.moveTo(e.source.x, e.source.y);
-            ctx.lineTo(e.target.x, e.target.y);
-            if (isConnected) {
-                ctx.strokeStyle = isOut ? '#f43f5e' : '#38bdf8'; // Outbound (rose) vs Inbound (cyan)
-                ctx.lineWidth = 2.4 / transform.k;
-                ctx.globalAlpha = 0.95;
+            for (const edge of edges) {
+                const kind = focus && edge.source === focus ? 1 : focus && edge.target === focus ? 2 : 0;
+                if (kind !== layer || !visibleEdge(edge))
+                    continue;
+                ctx.moveTo(edge.source.x, edge.source.y);
+                ctx.lineTo(edge.target.x, edge.target.y);
             }
-            else {
-                ctx.strokeStyle = dark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(30, 41, 59, 0.22)';
-                ctx.lineWidth = 1 / transform.k;
-                ctx.globalAlpha = hasFocus ? 0.04 : 0.45;
-            }
+            ctx.strokeStyle = layer === 1 ? '#f43f5e' : layer === 2 ? '#38bdf8' : dark ? '#ece7db' : '#57503f';
+            ctx.lineWidth = (layer ? 1.8 : 0.7) / transform.k;
+            ctx.globalAlpha = layer ? 0.9 : hasFocus ? 0.06 : 0.19;
             ctx.stroke();
         }
-        // Draw Nodes
-        for (const n of nodes) {
-            const isTarget = n === activeNode;
-            const isNeighbor = activeNode && (inSet?.has(n) || outSet?.has(n));
-            const isPathMatch = highlightPath && n.path === highlightPath;
-            const isSearchMatch = searchQuery && n.path.toLowerCase().includes(searchQuery.toLowerCase());
-            const isHighlighted = isTarget || isNeighbor || isPathMatch || isSearchMatch;
-            const nodeAlpha = hasFocus ? (isHighlighted ? 1.0 : 0.18) : 0.92;
-            ctx.filter = hasFocus && !isHighlighted ? 'blur(0.7px)' : 'none';
-            ctx.globalAlpha = nodeAlpha;
-            // Node circle fill
+        const visibleNodes = nodes.filter(visible);
+        for (const node of visibleNodes) {
+            const important = prominent(node);
+            ctx.globalAlpha = hasFocus && !important ? 0.22 : 0.95;
             ctx.beginPath();
-            ctx.arc(n.x, n.y, n.r, 0, 2 * Math.PI);
-            const hue = n.community ? (n.community * 137.5) % 360 : ((n.fanIn * 37) % 360);
-            ctx.fillStyle = `hsl(${hue}, 75%, ${dark ? '55%' : '45%'})`;
+            ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
+            ctx.fillStyle = 'hsl(' + ((Number(node.community) || Number(node.fanIn) || 0) * 137.5 % 360) + ',60%,' + (dark ? '64' : '42') + '%)';
             ctx.fill();
-            // Outer border / glow ring
-            if (isHighlighted) {
-                ctx.lineWidth = (isTarget ? 3.5 : 2) / transform.k;
-                ctx.strokeStyle = isTarget ? (dark ? '#ffffff' : '#0f172a') : (inSet?.has(n) ? '#38bdf8' : '#f43f5e');
-                ctx.stroke();
+        }
+        // Highlight rings are batched too, including a hub with hundreds of neighbors.
+        for (const target of [false, true]) {
+            let count = 0;
+            ctx.beginPath();
+            for (const node of visibleNodes) {
+                if (!prominent(node) || (node === focus) !== target)
+                    continue;
+                ctx.moveTo(node.x + node.r, node.y);
+                ctx.arc(node.x, node.y, node.r, 0, Math.PI * 2);
+                count++;
             }
-            else {
-                ctx.lineWidth = 1 / transform.k;
-                ctx.strokeStyle = dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.2)';
+            if (count) {
+                ctx.globalAlpha = 0.95;
+                ctx.strokeStyle = target ? (dark ? '#ffffff' : '#2a2721') : '#38bdf8';
+                ctx.lineWidth = 2 / transform.k;
                 ctx.stroke();
             }
         }
-        // Draw Crisp Theme-Aware Text Labels (with dark/light halo outline)
-        ctx.textAlign = 'left';
+        // A fixed label budget avoids hundreds of outlined glyphs on every move.
+        const labelLimit = width < 600 ? 20 : 48;
+        const prioritized = visibleNodes.filter(prominent);
+        if (focus)
+            prioritized.sort((a, b) => Number(b === focus) - Number(a === focus));
+        const labels = [...prioritized, ...visibleNodes.filter(node => !prominent(node))];
+        const labelBoxes = [];
+        ctx.font = (11 / transform.k) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", monospace';
         ctx.textBaseline = 'middle';
-        for (const n of nodes) {
-            const isTarget = n === activeNode;
-            const isNeighbor = activeNode && (inSet?.has(n) || outSet?.has(n));
-            const isPathMatch = highlightPath && n.path === highlightPath;
-            const isSearchMatch = searchQuery && n.path.toLowerCase().includes(searchQuery.toLowerCase());
-            const shouldShowLabel = width < 600
-                ? isTarget || isNeighbor || isPathMatch || isSearchMatch ||
-                    (compactLabels.has(n.path) && transform.k >= 0.4) || transform.k >= 1.8
-                : isTarget || isNeighbor || isPathMatch || isSearchMatch ||
-                    (n.fanIn >= 2 && transform.k >= 0.4) || transform.k >= 1.1;
-            if (!shouldShowLabel)
+        ctx.textAlign = 'left';
+        for (const node of labels) {
+            if (!prominent(node) && transform.k < 0.32)
                 continue;
-            const isProminent = isTarget || isNeighbor || isPathMatch || isSearchMatch;
-            ctx.filter = hasFocus && !isProminent ? 'blur(0.7px)' : 'none';
-            ctx.globalAlpha = hasFocus ? (isProminent ? 1.0 : 0.15) : 0.95;
-            const fontSize = Math.max(10, Math.min(14, 11 / Math.sqrt(transform.k)));
-            ctx.font = `${isProminent ? '600' : '500'} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace`;
-            const textX = n.x + n.r + 4 / transform.k;
-            const textY = n.y;
-            const label = n.basename;
-            // Stroke halo background for contrast against any background
-            ctx.lineWidth = 3.5 / transform.k;
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = dark ? 'rgba(10, 14, 23, 0.92)' : 'rgba(255, 255, 255, 0.95)';
-            ctx.strokeText(label, textX, textY);
-            // Bright / High-contrast foreground text
-            if (isTarget) {
-                ctx.fillStyle = dark ? '#38bdf8' : '#0284c7';
-            }
-            else if (isProminent) {
-                ctx.fillStyle = dark ? '#f8fafc' : '#0f172a';
-            }
-            else {
-                ctx.fillStyle = dark ? '#cbd5e1' : '#334155';
-            }
-            ctx.fillText(label, textX, textY);
+            if (labelBoxes.length >= labelLimit)
+                break;
+            let x = transform.x + node.x * transform.k + node.r * transform.k + 4;
+            const y = transform.y + node.y * transform.k;
+            const textWidth = Math.min(node.basename.length, 35) * 6.5;
+            if (x + textWidth > width - 4)
+                x = transform.x + node.x * transform.k - node.r * transform.k - textWidth - 4;
+            x = Math.max(4, x);
+            if (labelBoxes.some(box => Math.abs(y - box.y) < 15 && x < box.x + box.width + 5 && x + textWidth + 5 > box.x))
+                continue;
+            labelBoxes.push({ x, y, width: textWidth });
+            ctx.globalAlpha = hasFocus && !prominent(node) ? 0.3 : 1;
+            ctx.fillStyle = dark ? '#ece7db' : '#2a2721';
+            const label = node.basename.length > 35 ? node.basename.slice(0, 32) + '…' : node.basename;
+            ctx.fillText(label, (x - transform.x) / transform.k, node.y);
         }
         ctx.restore();
     }
-    function fitToScreen() {
-        if (nodes.length === 0) {
-            transform = { x: width / 2, y: height / 2, k: 1 };
-            render();
-            return;
-        }
-        let minX = nodes[0].x, maxX = nodes[0].x;
-        let minY = nodes[0].y, maxY = nodes[0].y;
-        for (const n of nodes) {
-            if (n.x - n.r < minX)
-                minX = n.x - n.r;
-            if (n.x + n.r > maxX)
-                maxX = n.x + n.r;
-            if (n.y - n.r < minY)
-                minY = n.y - n.r;
-            if (n.y + n.r > maxY)
-                maxY = n.y + n.r;
-        }
-        const spanW = Math.max(40, maxX - minX);
-        const spanH = Math.max(40, maxY - minY);
-        const padding = 60;
-        const k = Math.min((width - padding * 2) / spanW, (height - padding * 2) / spanH, 2.0);
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        transform.k = Math.max(0.2, k);
-        transform.x = width / 2 - cx * transform.k;
-        transform.y = height / 2 - cy * transform.k;
-        render();
+    function fit() { needsFit = true; fitOnResize = true; sizeCanvas(); fitTransform(); requestPaint(); }
+    function reset() { placeNodes(); fit(); }
+    function zoom(factor, x = width / 2, y = height / 2) {
+        fitOnResize = false;
+        const k = Math.max(0.03, Math.min(5, transform.k * factor));
+        transform.x = x - (x - transform.x) * k / transform.k;
+        transform.y = y - (y - transform.y) * k / transform.k;
+        transform.k = k;
+        requestPaint();
     }
-    function resetLayout() {
-        const dist = Math.min(width, height) * 0.35;
-        nodes.forEach((n, i) => {
-            const angle = (i / Math.max(1, nodes.length)) * Math.PI * 2;
-            n.x = Math.cos(angle) * dist + (Math.random() - 0.5) * 30;
-            n.y = Math.sin(angle) * dist + (Math.random() - 0.5) * 30;
-            n.vx = 0;
-            n.vy = 0;
-        });
-        fitToScreen();
-        alpha = 1.0;
-        if (active && !destroyed && !animationFrameId)
-            animationFrameId = requestAnimationFrame(tick);
+    function nodeAt(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (event.clientX - rect.left - transform.x) / transform.k, y = (event.clientY - rect.top - transform.y) / transform.k;
+        const slop = Math.min(14, 5 / transform.k);
+        return nodes.find(node => (node.x - x) ** 2 + (node.y - y) ** 2 <= (node.r + slop) ** 2) || null;
     }
-    function flyToNode(node) {
-        if (!node)
-            return;
-        const targetK = Math.max(1.2, transform.k);
-        transform.k = targetK;
-        transform.x = width / 2 - node.x * targetK;
-        transform.y = height / 2 - node.y * targetK;
-        selectedNode = node;
-        render();
-    }
-    function updateTooltip(node, clientX, clientY) {
+    function updateTooltip(node, x = 0, y = 0) {
         const tooltip = document.getElementById('graphTooltip');
         if (!tooltip)
             return;
         if (!node) {
             tooltip.hidden = true;
+            tooltipNode = null;
             return;
         }
-        const inCount = inNeighbors.get(node)?.size || node.fanIn || 0;
-        const outCount = outNeighbors.get(node)?.size || node.fanOut || 0;
-        tooltip.innerHTML = `
-      <div style="font-weight:600; font-size:13px; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:hsl(${(node.community * 137.5) % 360}, 75%, 50%);"></span>
-        ${node.basename}
-      </div>
-      <div style="font-size:11px; color:var(--faint); margin-bottom:8px; word-break:break-all;">${node.path}</div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap; font-size:11px;">
-        <span class="role-chip" style="background:var(--accent-soft); color:var(--accent);"><b>${inCount}</b> dependents</span>
-        <span class="role-chip" style="background:var(--card);"><b>${outCount}</b> imports</span>
-        ${node.risk ? `<span class="role-chip is-cycle">risk <b>${node.risk}</b></span>` : ''}
-      </div>
-      <div style="font-size:10px; color:var(--faint); margin-top:6px; font-style:italic;">Click to open · Double-click to center</div>
-    `;
-        tooltip.style.left = Math.min(clientX + 14, window.innerWidth - 260) + 'px';
-        tooltip.style.top = Math.min(clientY + 14, window.innerHeight - 160) + 'px';
+        if (tooltipNode !== node) {
+            tooltipNode = node;
+            tooltip.innerHTML = '<strong>' + escapeHtml(node.basename) + '</strong><p>' + escapeHtml(node.path) + '</p><p>' +
+                (node.fanIn || 0) + ' dependents · ' + (node.fanOut || 0) + ' imports</p><small>Click to open · Double-click to center · Shift-click to lock thread</small>';
+        }
+        tooltip.style.left = Math.max(8, Math.min(x + 14, window.innerWidth - 270)) + 'px';
+        tooltip.style.top = Math.max(8, Math.min(y + 14, window.innerHeight - 160)) + 'px';
         tooltip.hidden = false;
     }
-    // --- Interaction Event Handlers ---
-    let isPanning = false;
-    let startX = 0, startY = 0;
-    let lastClickTime = 0;
-    const nodeAt = e => {
-        const rect = canvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left - transform.x) / transform.k;
-        const my = (e.clientY - rect.top - transform.y) / transform.k;
-        return nodes.find(n => {
-            const dx = n.x - mx;
-            const dy = n.y - my;
-            return Math.sqrt(dx * dx + dy * dy) <= (n.r + 4);
-        });
-    };
-    listen(canvas, 'pointerdown', e => {
-        canvas.setPointerCapture(e.pointerId);
-        draggedNode = nodeAt(e);
-        if (draggedNode) {
-            draggedNode.vx = 0;
-            draggedNode.vy = 0;
-            reheat();
-        }
-        else {
-            isPanning = true;
-            startX = e.clientX - transform.x;
-            startY = e.clientY - transform.y;
-        }
+    listen(canvas, 'pointerdown', (event) => {
+        if (!active)
+            return;
+        clearTimeout(clickTimer);
+        canvas.setPointerCapture(event.pointerId);
+        dragged = nodeAt(event);
+        panning = !dragged;
+        downX = event.clientX;
+        downY = event.clientY;
+        moved = false;
+        startX = event.clientX - transform.x;
+        startY = event.clientY - transform.y;
     });
-    listen(canvas, 'pointermove', e => {
-        const rect = canvas.getBoundingClientRect();
-        if (draggedNode) {
-            draggedNode.x = (e.clientX - rect.left - transform.x) / transform.k;
-            draggedNode.y = (e.clientY - rect.top - transform.y) / transform.k;
-            draggedNode.vx = 0;
-            draggedNode.vy = 0;
-            updateTooltip(draggedNode, e.clientX, e.clientY);
-            if (!animationFrameId)
-                render();
-        }
-        else if (isPanning) {
-            transform.x = e.clientX - startX;
-            transform.y = e.clientY - startY;
-            if (!animationFrameId)
-                render();
-        }
-        else {
-            const newHover = nodeAt(e);
-            if (newHover !== hoveredNode) {
-                hoveredNode = newHover || null;
-                if (hoveredNode)
-                    lockCandidate = hoveredNode;
-                syncLockControl();
-                canvas.style.cursor = hoveredNode ? 'pointer' : 'grab';
-                updateTooltip(hoveredNode, e.clientX, e.clientY);
-                if (!animationFrameId)
-                    render();
+    listen(canvas, 'pointermove', (event) => {
+        if (!active)
+            return;
+        if (dragged || panning) {
+            moved ||= Math.hypot(event.clientX - downX, event.clientY - downY) > 4;
+            if (moved)
+                fitOnResize = false;
+            if (dragged) {
+                const rect = canvas.getBoundingClientRect();
+                dragged.x = (event.clientX - rect.left - transform.x) / transform.k;
+                dragged.y = (event.clientY - rect.top - transform.y) / transform.k;
             }
-            else if (hoveredNode) {
-                updateTooltip(hoveredNode, e.clientX, e.clientY);
+            else {
+                transform.x = event.clientX - startX;
+                transform.y = event.clientY - startY;
             }
+            updateTooltip(null);
+            requestPaint();
+            return;
         }
+        const next = nodeAt(event);
+        if (next !== hovered) {
+            hovered = next;
+            if (next)
+                candidate = next;
+            syncLock();
+            canvas.style.cursor = next ? 'pointer' : 'grab';
+            requestPaint();
+        }
+        updateTooltip(next, event.clientX, event.clientY);
     });
-    const stopPointer = e => {
-        draggedNode = null;
-        isPanning = false;
-        if (canvas.hasPointerCapture(e.pointerId))
-            canvas.releasePointerCapture(e.pointerId);
+    const stopPointer = (event) => {
+        dragged = null;
+        panning = false;
+        if (canvas.hasPointerCapture(event.pointerId))
+            canvas.releasePointerCapture(event.pointerId);
     };
     listen(canvas, 'pointerup', stopPointer);
     listen(canvas, 'pointercancel', stopPointer);
-    listen(canvas, 'wheel', e => {
-        e.preventDefault();
+    listen(canvas, 'wheel', (event) => {
+        if (!active)
+            return;
+        event.preventDefault();
         const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-        const newK = Math.max(0.1, Math.min(5.0, transform.k * zoomFactor));
-        transform.x = mx - (mx - transform.x) * (newK / transform.k);
-        transform.y = my - (my - transform.y) * (newK / transform.k);
-        transform.k = newK;
-        if (!animationFrameId)
-            render();
+        zoom(event.deltaY < 0 ? 1.12 : 1 / 1.12, event.clientX - rect.left, event.clientY - rect.top);
     }, { passive: false });
-    listen(canvas, 'click', e => {
-        const now = Date.now();
-        const isDouble = now - lastClickTime < 300;
-        lastClickTime = now;
-        const clickedNode = nodeAt(e);
-        if (clickedNode) {
-            if (e.shiftKey) {
-                lockCandidate = clickedNode;
-                lockedNode = lockedNode === clickedNode ? null : clickedNode;
-                syncLockControl();
-                if (!animationFrameId)
-                    render();
-                return;
-            }
-            if (isDouble) {
-                flyToNode(clickedNode);
-            }
-            else {
-                selectedNode = clickedNode;
-                canvas.dispatchEvent(new CustomEvent('graph-node-click', {
-                    detail: { path: clickedNode.path },
-                    bubbles: true
-                }));
-            }
+    listen(canvas, 'click', (event) => {
+        if (!active || moved) {
+            moved = false;
+            return;
+        }
+        const node = nodeAt(event);
+        clearTimeout(clickTimer);
+        if (event.shiftKey && node) {
+            candidate = node;
+            locked = locked === node ? null : node;
+            syncLock();
         }
         else {
-            selectedNode = null;
-            if (!animationFrameId)
-                render();
+            selected = node;
+            if (node)
+                clickTimer = setTimeout(() => {
+                    if (active && !destroyed)
+                        canvas.dispatchEvent(new CustomEvent('graph-node-click', { detail: { path: node.path }, bubbles: true }));
+                }, 280);
         }
+        requestPaint();
     });
-    listen(canvas, 'mouseleave', () => {
-        hoveredNode = null;
-        updateTooltip(null);
-        if (!animationFrameId)
-            render();
-    });
-    // Wire Controls HUD
-    const lockBtn = document.getElementById('graphLock');
-    function syncLockControl() {
-        if (!lockBtn)
+    listen(canvas, 'dblclick', (event) => {
+        clearTimeout(clickTimer);
+        const node = nodeAt(event);
+        if (!active || !node)
             return;
-        lockBtn.disabled = !lockedNode && !lockCandidate;
-        lockBtn.setAttribute('aria-pressed', String(Boolean(lockedNode)));
-        lockBtn.textContent = lockedNode ? 'Unlock thread' : 'Lock thread';
-        lockBtn.title = lockedNode ? 'Locked: ' + lockedNode.path : lockCandidate ? 'Lock: ' + lockCandidate.path : 'Hover a node to choose a thread';
-    }
-    if (lockBtn)
-        listen(lockBtn, 'click', () => {
-            lockedNode = lockedNode ? null : lockCandidate;
-            hoveredNode = null;
-            syncLockControl();
-            if (!animationFrameId)
-                render();
-        });
-    listen(document, 'keydown', e => {
-        if (e.key === 'Escape' && viewActive && lockedNode) {
-            lockedNode = null;
-            hoveredNode = null;
-            syncLockControl();
-            if (!animationFrameId)
-                render();
-        }
+        fitOnResize = false;
+        transform.k = Math.max(1.2, transform.k);
+        transform.x = width / 2 - node.x * transform.k;
+        transform.y = height / 2 - node.y * transform.k;
+        selected = node;
+        requestPaint();
     });
-    const resetBtn = document.getElementById('graphReset');
-    const zoomInBtn = document.getElementById('graphZoomIn');
-    const zoomOutBtn = document.getElementById('graphZoomOut');
-    if (resetBtn)
-        listen(resetBtn, 'click', () => resetLayout());
-    if (zoomInBtn)
-        listen(zoomInBtn, 'click', () => {
-            const newK = Math.min(5.0, transform.k * 1.25);
-            transform.x = width / 2 - (width / 2 - transform.x) * (newK / transform.k);
-            transform.y = height / 2 - (height / 2 - transform.y) * (newK / transform.k);
-            transform.k = newK;
-            if (!animationFrameId)
-                render();
-        });
-    if (zoomOutBtn)
-        listen(zoomOutBtn, 'click', () => {
-            const newK = Math.max(0.1, transform.k * 0.8);
-            transform.x = width / 2 - (width / 2 - transform.x) * (newK / transform.k);
-            transform.y = height / 2 - (height / 2 - transform.y) * (newK / transform.k);
-            transform.k = newK;
-            if (!animationFrameId)
-                render();
-        });
+    listen(canvas, 'mouseleave', () => { hovered = null; updateTooltip(null); requestPaint(); });
+    if (lockBtn)
+        listen(lockBtn, 'click', () => { locked = locked ? null : candidate; hovered = null; syncLock(); requestPaint(); });
+    listen(document, 'keydown', (event) => { if (active && event.key === 'Escape' && locked) {
+        locked = null;
+        hovered = null;
+        syncLock();
+        requestPaint();
+    } });
+    for (const [id, action] of [['graphReset', reset], ['graphZoomIn', () => zoom(1.25)], ['graphZoomOut', () => zoom(0.8)]]) {
+        const button = document.getElementById(id);
+        if (button)
+            listen(button, 'click', action);
+    }
     function updateActivity() {
         const next = viewActive && !document.hidden && !destroyed;
         if (next === active)
             return;
         active = next;
         if (!active) {
-            if (animationFrameId)
-                cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-            draggedNode = null;
-            isPanning = false;
+            clearTimeout(clickTimer);
+            if (frame !== null)
+                cancelAnimationFrame(frame);
+            frame = null;
+            dragged = null;
+            panning = false;
             updateTooltip(null);
         }
-        else {
+        else
             resize();
-            if (alpha > alphaMin && !animationFrameId)
-                animationFrameId = requestAnimationFrame(tick);
-        }
     }
-    function setActive(value) { viewActive = value; updateActivity(); }
-    window.addEventListener('resize', resize);
-    document.addEventListener('visibilitychange', updateActivity);
-    const initialResize = setTimeout(resize, 50);
+    const observer = typeof window.ResizeObserver === 'undefined' ? null : new window.ResizeObserver(resize);
+    if (canvas.parentElement)
+        observer?.observe(canvas.parentElement);
+    listen(window, 'resize', resize);
+    listen(document, 'visibilitychange', updateActivity);
+    resize();
     return {
-        update,
-        resize,
-        setActive,
-        fit: fitToScreen,
-        reset: resetLayout,
-        search: q => { searchQuery = q; if (!animationFrameId)
-            render(); },
-        highlight: path => { highlightPath = path; if (!animationFrameId)
-            render(); },
+        update, resize, fit, reset,
+        setActive: (value) => { viewActive = value; updateActivity(); },
+        search: (query) => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => { searchQuery = query.trim().toLowerCase(); applyScene(true); }, 100);
+        },
+        highlight: (path) => { if (highlightPath === path)
+            return; highlightPath = path; applyScene(Boolean(path)); },
+        // Read-only diagnostic snapshot used by lifecycle/performance checks.
+        stats: () => ({ nodes: nodes.length, edges: edges.length, labels: width < 600 ? 20 : 48,
+            pixels: canvas.width * canvas.height, paints, pending: frame !== null, positions: nodes.map(n => ({ path: n.path, x: n.x, y: n.y })), viewport: { ...transform } }),
         destroy: () => {
+            if (destroyed)
+                return;
             destroyed = true;
             active = false;
             interactions.abort();
+            observer?.disconnect();
+            clearTimeout(searchTimer);
+            clearTimeout(clickTimer);
             updateTooltip(null);
-            clearTimeout(initialResize);
-            document.removeEventListener('visibilitychange', updateActivity);
-            window.removeEventListener('resize', resize);
-            if (animationFrameId)
-                cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
+            if (frame !== null)
+                cancelAnimationFrame(frame);
+            frame = null;
+            nodes = [];
+            edges = [];
+            index = new GraphIndex([], []);
+            inNeighbors.clear();
+            outNeighbors.clear();
+        },
     };
 }
 //# sourceMappingURL=forceGraph.js.map

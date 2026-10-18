@@ -1710,9 +1710,6 @@ button.mm-caret {
 .mm-cell.kind-root .mm-sum,
 .mm-cell.kind-root .mm-caret { color: rgba(247, 244, 237, 0.65); }
 
-[data-theme="dark"] .mm-cell.kind-root .mm-sum,
-[data-theme="dark"] .mm-cell.kind-root .mm-caret { color: rgba(236, 231, 219, 0.65); }
-
 .mm-cell.kind-folder { background: var(--paper-2); }
 
 .mm-cell.is-entry { border-color: var(--accent); background: var(--accent-soft); }
@@ -1720,6 +1717,12 @@ button.mm-caret {
 
 .mm-cell.is-hub { border-color: var(--hub); background: var(--hub-soft); }
 .mm-cell.is-hub .mm-sum { color: var(--hub); }
+
+/* Root roles must not replace its contrasting surface/text pair. */
+.mm-cell.kind-root.is-entry, .mm-cell.kind-root.is-hub { background: var(--ink); color: var(--paper); }
+[data-theme="dark"] .mm-cell.kind-root { background: var(--accent-soft); color: var(--ink); border-color: var(--accent); }
+[data-theme="dark"] .mm-cell.kind-root .mm-sum,
+[data-theme="dark"] .mm-cell.kind-root .mm-caret { color: var(--ink-2); }
 
 .mm-cell.is-cycle { border-color: var(--warn); }
 .mm-cell.is-cycle .mm-sum { color: var(--warn); }
@@ -1741,6 +1744,17 @@ button.mm-caret {
   background: transparent;
 }
 .mm-cell.kind-more .mm-name { color: var(--faint); font-weight: 400; font-style: italic; }
+
+.mcp-discovery { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 18px; }
+.mcp-discovery h3 { font: 600 20px var(--serif); margin: 0 0 8px; }
+.mcp-discovery .text-input { width: 100%; }
+.mcp-catalog { display: grid; gap: 8px; }
+.mcp-tool { border: 1px solid var(--line); border-radius: 5px; background: var(--card); padding: 10px; }
+.mcp-tool summary { cursor: pointer; font: 600 12px var(--mono); }
+.mcp-tool summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.mcp-tool-kind { float: right; font: 10px var(--mono); color: var(--accent); margin-left: 8px; }
+.mcp-tool code { display: block; color: var(--ink-2); font: 11px var(--mono); overflow-wrap: anywhere; margin: 12px 0 6px; }
+.mcp-tool p { font: 13px/1.5 var(--sans); margin: 0; color: var(--ink-2); }
 
 /* ---------- tour bar ---------- */
 
@@ -2625,7 +2639,43 @@ button.mm-caret {
 .server-section .field-label { margin-bottom: 8px; }
 .server-section .drawer-fine { margin: -4px 0 10px; }
 
-select.text-input { appearance: auto; }
+/* One arrow gutter for every single-choice dropdown, including dynamic views.
+   Keep native select semantics and leave multi-select/listbox controls alone. */
+:root {
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%232a2721' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+[data-theme="dark"] {
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23ece7db' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+select:not([multiple]):not([size]),
+select:not([multiple])[size="0"],
+select:not([multiple])[size="1"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+  padding-inline-end: 36px;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  text-overflow: ellipsis;
+}
+select:not([multiple]):not([size]):dir(rtl),
+select:not([multiple])[size="0"]:dir(rtl),
+select:not([multiple])[size="1"]:dir(rtl) {
+  background-position: left 12px center;
+}
+@media (forced-colors: active) {
+  select:not([multiple]):not([size]),
+  select:not([multiple])[size="0"],
+  select:not([multiple])[size="1"] {
+    -webkit-appearance: auto;
+    appearance: auto;
+    background-image: none;
+    padding-inline-end: 12px;
+  }
+}
 
 .server-fresh-key {
   border: 1px solid var(--accent);
@@ -2641,3 +2691,12 @@ select.text-input { appearance: auto; }
 .scan-status-row .landing-status { margin: 12px 0; }
 .scan-progress { display: block; width: min(420px, 100%); height: 6px; margin: 0 auto 16px; accent-color: var(--accent); }
 .scan-progress[hidden] { display: none; }
+
+/* Keep graph buffers out of flex sizing; canvas resolution is bounded in code. */
+.graph-view { min-width: 0; min-height: 0; overflow: hidden; }
+.graph-view .graph-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.graph-caption { position: absolute; top: 10px; left: 12px; max-width: calc(100% - 24px); pointer-events: none; }
+.graph-summary { margin: 0; padding: 6px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: var(--ink-2); font: 11px/1.5 var(--mono); }
+.graph-hint { margin: 4px 0 0; padding: 2px 8px; width: fit-content; background: var(--paper); color: var(--ink-2); font: 11px/1.5 var(--mono); }
+.graph-tooltip p { margin: 6px 0; overflow-wrap: anywhere; }
+.graph-tooltip { max-width: min(250px, calc(100vw - 24px)); }

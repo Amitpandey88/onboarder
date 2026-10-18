@@ -1,3 +1,4 @@
+import { requestText } from './js/textDialog.js';
 import { abortable, throwIfAborted } from '/shared/analyzer/scanControl.js';
 import { eventElement } from '/js/dom.js';
 // Onboarder — bootstrap, routing, and wiring.
@@ -15,6 +16,8 @@ import { eventElement } from '/js/dom.js';
 // codeTab, about, aiDraft — and is handed its host element and a set of callbacks
 // here. The callbacks are the reason the module graph stays acyclic: a feature
 // module never imports back into app.js.
+import { renderIntelligence, stopIntelligence } from '/js/intelligenceView.js';
+import { rememberView, rememberedView, saveBookmark, savedBookmarks } from '/js/workspacePreferences.js';
 import { scanRepo } from '/shared/analyzer/scan.js';
 import { computeFacts, scanIndex } from '/shared/analyzer/graph.js';
 import { analyzeStack } from '/shared/analyzer/stack.js';
@@ -67,14 +70,16 @@ const dom = {};
     'mmToggleBtn', 'mmCollapseBtn', 'threadControls', 'threadLockBtn', 'threadStatus', 'stageFilters', 'modeSwitch', 'nodeFilter', 'testsToggle', 'depthSelect',
     'tourbar', 'tourTitle', 'tourCount', 'tourPrev', 'tourNext', 'tourExit',
     'drawerScrim', 'settingsDrawer', 'drawerClose', 'setBaseUrl', 'setApiKey', 'setModel',
-    'saveSettings', 'testSettings', 'settingsStatus', 'toast', 'brandNote', 'askBtn', 'askInput',
+    'saveViewBtn', 'savedViewsBtn', 'intelligenceView', 'saveSettings', 'testSettings', 'settingsStatus', 'toast', 'brandNote', 'askBtn', 'askInput',
     'setConnection', 'apiConnection', 'hermesConnection', 'hermesConnectionStatus', 'hermesModel', 'hermesProvider', 'refreshHermes', 'aiConnectionNote',
-    'graphView', 'graphCanvas', 'graphControls', 'graphReset', 'graphZoomIn', 'graphZoomOut', 'graphFit', 'graphSearchInput', 'graphTooltip',
+    'graphView', 'graphCanvas', 'graphControls', 'graphReset', 'graphZoomIn', 'graphZoomOut', 'graphFit', 'graphSearchInput', 'graphSummary', 'graphTooltip',
     'heatmapView', 'heatmapCanvas', 'heatmapTooltip', 'blameGutter', 'codeTabContainer',
     'insightsView', 'diffView', 'reviewView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView',
     'mcpBtn', 'mcpBtnLabel', 'mcpDot', 'mcpDrawer', 'mcpScrim', 'mcpClose', 'mcpPanelDot', 'mcpPanelState',
     'mcpStart', 'mcpStop', 'mcpStatus', 'mcpConfig', 'mcpCommandInput', 'mcpCopy', 'mcpTabJson', 'mcpTabToml',
     'mcpConfigBlock', 'mcpToolsHint', 'serverBtn',
+    'mcpToolSearch', 'mcpCatalog', 'mcpCapabilities',
+    'readableZoomBtn',
 ].forEach((id) => (dom[id] = $(id)));
 let forceGraphCtl = null;
 let graphScan = null;
@@ -82,6 +87,7 @@ let graphHealth = null;
 let heatmapCtl = null;
 let searchCtl = null;
 const state = appState;
+let pendingViewport = null;
 const panzoom = makePanzoom(dom.canvas, dom.canvasContent);
 const connectionFocus = createConnectionFocus({ host: dom.canvasContent, controls: dom.threadControls, lockButton: dom.threadLockBtn, status: dom.threadStatus });
 const mobilePanels = initMobilePanels();
@@ -247,8 +253,45 @@ function enterExplorer(payload, opts) {
     dom.repoChip.title = state.scan.root;
     dom.brandNote.textContent = state.scan.stats.filesParsed + ' files · ' + state.scan.stats.edgeCount + ' connections';
     renderSidebar();
-    setView('map');
+    const goal = document.getElementById('repositoryGoal')?.value;
+    const saved = goal === 'resume' ? rememberedView(state.scan.root) : null;
+    if (saved?.filter) {
+        state.filters.text = saved.filter;
+        dom.nodeFilter.value = saved.filter;
+    }
+    if (saved?.path && state.scan.files.some(f => f.path === saved.path)) {
+        state.code.path = saved.path;
+        state.folder = dirOf(saved.path);
+        state.detail = saved.path;
+        focusFile(saved.path);
+    }
+    setView(goal === 'review' ? 'review' : goal === 'investigate' || goal === 'implement' ? 'intelligence' : saved?.name || 'map');
 }
+// Adopt refreshed analysis while preserving navigation, zoom and draft state.
+document.addEventListener('repository-refresh', (event) => {
+    const update = event.detail;
+    if (!update?.scan || update.scanId !== state.scanId)
+        return;
+    const identity = { root: state.scan.root, name: state.scan.name, gitUrl: state.scan.gitUrl, tempId: state.scan.tempId };
+    state.scan = { ...update.scan, ...identity };
+    state.facts = update.facts;
+    state.manifest = update.manifest;
+    state.treeData = buildTree(state.scan.allFiles);
+    state.patterns = buildPatterns(state.scan, state.facts, state.manifest);
+    state.health = analyzeHealth(state.scan, state.facts);
+    state.security = summarizeSecurity(state.scan);
+    state.stack = analyzeStack(state.manifest, state.scan.stats.languages);
+    if (state.selected && !state.scan.files.some(f => f.path === state.selected))
+        clearFocusState();
+    state.code.cache = {};
+    state.docs.rendered = false;
+    state.aiDiagrams = {};
+    searchCtl?.updateFiles(state.scan.files, state.scanId);
+    graphScan = null;
+    graphHealth = null;
+    dom.brandNote.textContent = state.scan.stats.filesParsed + ' files · ' + state.scan.stats.edgeCount + ' connections';
+    renderSidebar();
+});
 // The big name is the repo's own; the small line says where it actually lives.
 function repoSubLabel() {
     if (state.scan.tempId)
@@ -269,6 +312,7 @@ dom.newRepoBtn.addEventListener('click', () => {
     fileNavigation.close();
     stopAiDraft();
     stopReview();
+    stopIntelligence();
     stopDiff();
     mobilePanels.close();
     if (state.cloneId)
@@ -283,6 +327,8 @@ dom.newRepoBtn.addEventListener('click', () => {
         forceGraphCtl.destroy();
         forceGraphCtl = null;
     }
+    dom.graphSearchInput.value = '';
+    dom.graphSummary.textContent = '';
     if (heatmapCtl) {
         heatmapCtl.destroy();
         heatmapCtl = null;
@@ -370,10 +416,13 @@ function setView(view) {
     fileNavigation.close();
     if (view !== 'review')
         stopReview();
+    if (view !== 'intelligence')
+        stopIntelligence();
     if (view !== 'diff')
         stopDiff();
-    dom.explorer.classList.toggle('review-workspace', view === 'review');
+    dom.explorer.classList.toggle('review-workspace', view === 'review' || view === 'intelligence');
     state.view = view;
+    rememberView(state.scan.root, { name: view, path: state.code.path || state.selected || '', filter: state.filters.text });
     if (isExplorerView(view))
         state.lastExplorer = view;
     for (const tab of dom.viewTabs.querySelectorAll('.view-tab')) {
@@ -490,7 +539,11 @@ document.addEventListener('heatmap-node-click', (event) => {
     if (event.detail?.path)
         openFile(event.detail.path);
 });
-async function renderCanvas() {
+async function renderCanvas({ preserveViewport = false } = {}) {
+    const viewport = pendingViewport || panzoom.snapshot();
+    preserveViewport ||= Boolean(pendingViewport);
+    pendingViewport = null;
+    const positionDiagram = () => requestAnimationFrame(() => preserveViewport ? panzoom.restore(viewport) : panzoom.fit({ readable: true }));
     updateAiBtn();
     const isDocs = state.view === 'docs';
     const isAbout = state.view === 'about';
@@ -502,8 +555,9 @@ async function renderCanvas() {
     const isReview = state.view === 'review';
     const isWorkflows = state.view === 'workflows';
     const isSbom = state.view === 'sbom';
+    const isIntelligence = state.view === 'intelligence';
     const isAnalysis = state.view === 'analysis';
-    const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isReview || isWorkflows || isSbom || isAnalysis;
+    const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isReview || isWorkflows || isSbom || isAnalysis || isIntelligence;
     forceGraphCtl?.setActive(isGraph && !searchCtl?.isShowing());
     const isAtlasList = state.view === 'atlas' && !state.atlasOpen;
     const focusSubject = state.view === 'files' ? state.detail ? 'file:' + state.detail : 'folder:' + state.folder
@@ -511,6 +565,7 @@ async function renderCanvas() {
             : state.view === 'atlas' ? state.atlasOpen?.path || state.atlasOpen?.title || '' : '';
     const focusKey = [state.view, focusSubject, state.aiActiveKey === aiViewKey() ? state.aiActiveKey : ''].join('|');
     connectionFocus.setContext(focusKey, !isPage && !isAtlasList);
+    dom.intelligenceView.hidden = !isIntelligence;
     dom.canvas.hidden = isPage;
     dom.docView.hidden = !isDocs;
     dom.aboutView.hidden = !isAbout;
@@ -536,6 +591,7 @@ async function renderCanvas() {
     dom.copyMermaidBtn.hidden = isPage || isAtlasList;
     dom.svgBtn.hidden = isPage;
     dom.fitBtn.hidden = isPage || isAtlasList;
+    dom.readableZoomBtn.hidden = dom.fitBtn.hidden;
     dom.stageFilters.hidden = isPage;
     dom.mmToggleBtn.hidden = isPage || state.view !== 'map';
     dom.mmCollapseBtn.hidden = dom.mmToggleBtn.hidden;
@@ -561,9 +617,11 @@ async function renderCanvas() {
             renderSbom(dom.sbomView, state);
         else if (isAnalysis)
             renderDeepAnalysis(dom.analysisView, state);
+        else if (isIntelligence)
+            void renderIntelligence(dom.intelligenceView, state);
         if (isGraph) {
             if (!forceGraphCtl)
-                forceGraphCtl = initForceGraph(dom.graphCanvas);
+                forceGraphCtl = initForceGraph(dom.graphCanvas, { onStatus: message => { dom.graphSummary.textContent = message; } });
             forceGraphCtl.setActive(!searchCtl?.isShowing());
             if (graphScan !== state.scan || graphHealth !== state.health) {
                 const edges = state.scan.edges || [];
@@ -618,7 +676,7 @@ async function renderCanvas() {
     if (state.view === 'map' && !showingSketch) {
         // Copy Mermaid still hands over the classic folder overview.
         state.currentDiagram = { source: overviewDiagram(scan, facts).source, nodes: {} };
-        renderMap(true);
+        renderMap(!preserveViewport);
         renderCrumbs();
         renderFoot();
         return;
@@ -640,7 +698,7 @@ async function renderCanvas() {
             await renderInto(dom.canvasContent, source);
             connectionFocus.bind();
             wireAIClicks();
-            requestAnimationFrame(() => panzoom.fit());
+            positionDiagram();
         }
         catch (err) {
             console.error(err);
@@ -701,7 +759,7 @@ async function renderCanvas() {
         await renderInto(dom.canvasContent, d.source);
         connectionFocus.bind(d.nodes);
         wireNodeClicks(dom.canvasContent, d.nodes, onNodeClick);
-        requestAnimationFrame(() => panzoom.fit());
+        positionDiagram();
     }
     catch (err) {
         console.error(err);
@@ -912,7 +970,61 @@ dom.svgBtn.addEventListener('click', () => {
     if (downloadSvg(dom.canvasContent, name))
         toast('SVG saved.');
 });
+dom.saveViewBtn.addEventListener('click', async () => {
+    const title = await requestText('Name this saved view', 100);
+    if (!title?.trim())
+        return;
+    try {
+        saveBookmark(state.scan.root, title, { name: state.view, path: state.code.path || state.selected || '', filter: state.filters.text, viewport: isExplorerView(state.view) ? panzoom.snapshot() : undefined, expanded: [...state.mm.expanded].slice(0, 1000) });
+        toast('View saved in this browser.');
+    }
+    catch (error) {
+        toast(error.message);
+    }
+});
+dom.savedViewsBtn.addEventListener('click', () => {
+    const bookmarks = savedBookmarks(state.scan.root);
+    if (!bookmarks.length)
+        return toast('Save a view first.');
+    const dialog = document.createElement('dialog');
+    dialog.className = 'review-patch-dialog';
+    dialog.setAttribute('aria-label', 'Saved repository views');
+    const heading = document.createElement('h2');
+    heading.textContent = 'Saved repository views';
+    dialog.append(heading);
+    const close = () => { dialog.close(); dialog.remove(); dom.savedViewsBtn.focus(); };
+    for (const bookmark of bookmarks) {
+        const button = document.createElement('button');
+        button.className = 'btn';
+        button.textContent = bookmark.title;
+        button.onclick = () => {
+            state.filters.text = bookmark.filter;
+            dom.nodeFilter.value = bookmark.filter;
+            if (bookmark.path && state.scan.files.some(f => f.path === bookmark.path)) {
+                focusFile(bookmark.path);
+                state.code.path = bookmark.path;
+                state.folder = dirOf(bookmark.path);
+                state.detail = bookmark.path;
+            }
+            if (bookmark.expanded)
+                state.mm.expanded = new Set(bookmark.expanded);
+            pendingViewport = bookmark.viewport || null;
+            close();
+            setView(bookmark.name);
+        };
+        dialog.append(button);
+    }
+    const button = document.createElement('button');
+    button.textContent = 'Close';
+    button.className = 'btn';
+    button.onclick = close;
+    dialog.append(button);
+    dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+    document.body.append(dialog);
+    dialog.showModal();
+});
 dom.fitBtn.addEventListener('click', () => panzoom.fit());
+dom.readableZoomBtn.addEventListener('click', () => panzoom.readAtActualSize());
 dom.searchTriggerBtn.addEventListener('click', () => searchCtl?.show(dom.searchTriggerBtn));
 document.addEventListener('search-visibility', () => forceGraphCtl?.setActive(state.view === 'graph' && !searchCtl?.isShowing()));
 dom.graphSearchInput?.addEventListener('input', (e) => forceGraphCtl?.search(e.currentTarget.value));
@@ -1125,7 +1237,7 @@ function syncAIConnection() {
     dom.settingsStatus.textContent = '';
     dom.aiConnectionNote.textContent = hermes
         ? 'Hermes keeps your login on the server. Only the connection choice is saved in this browser. AI features send the displayed repository context to your Hermes provider.'
-        : 'Endpoint settings are saved in this browser. The key is forwarded through your server and never written to its disk or logs.';
+        : 'Endpoint preferences are saved in this browser. The API key stays only in this tab’s memory and must be entered again after reload. Requests forward it through your server to the chosen provider.';
     if (hermes)
         void refreshHermes();
 }
@@ -1182,6 +1294,8 @@ dom.serverBtn.addEventListener('click', () => (serverDrawer.isOpen() ? serverDra
 let mcpPoll = null;
 let mcpBusy = false;
 let mcpCommand = null; // fetched once; the command does not change while it runs
+let mcpCatalog = [];
+let mcpCatalogKey = '';
 // The dot's three states, and the copy that goes with each. `starting` is
 // separate from `running` because the handshake takes a beat, and claiming
 // success before it is known would be a lie the person acts on.
@@ -1196,7 +1310,7 @@ function mcpDotClass(state) {
 }
 function mcpStateLabel(data) {
     switch (data.state) {
-        case 'running': return `Running · ${data.toolCount} tools`;
+        case 'running': return `Local check passed · ${data.toolCount} tools`;
         case 'starting': return 'Starting…';
         case 'stopping': return 'Stopping…';
         case 'error': return 'Failed to start';
@@ -1231,10 +1345,10 @@ function renderMcpStatus(data) {
     const cls = mcpDotClass(data.state);
     dom.mcpDot.className = 'mcp-dot ' + cls;
     dom.mcpPanelDot.className = 'mcp-dot mcp-dot-lg ' + cls;
-    dom.mcpBtnLabel.textContent = data.running ? 'MCP on' : 'MCP';
+    dom.mcpBtnLabel.textContent = data.running ? 'MCP ready' : 'MCP';
     dom.mcpBtn.title = data.running
-        ? `MCP server running · ${data.toolCount} tools · pid ${data.pid}`
-        : 'Start the MCP server so AI agents can read this repository';
+        ? `MCP local check passed · ${data.toolCount} tools · pid ${data.pid}`
+        : 'Set up MCP and check the local server';
     dom.mcpPanelState.textContent = mcpStateLabel(data);
     // Both buttons stay visible and swap roles through `disabled`, so the panel
     // does not reflow as the state changes underneath it.
@@ -1249,13 +1363,42 @@ function renderMcpStatus(data) {
     if (data.lastError)
         bits.push(data.lastError);
     dom.mcpStatus.textContent = bits.join(' · ');
-    // The config only appears once there is a server to configure against. Shown
-    // earlier, it would be a command for a process that is not running.
-    dom.mcpConfig.hidden = !data.running;
-    if (data.running) {
-        dom.mcpToolsHint.textContent = `${data.toolCount} tools: ${(data.tools || []).join(', ')}`;
+    dom.mcpConfig.hidden = false;
+    if (Array.isArray(data.catalog)) {
+        const key = JSON.stringify(data.catalog);
+        if (key !== mcpCatalogKey) {
+            mcpCatalogKey = key;
+            mcpCatalog = data.catalog;
+            renderMcpCatalog();
+        }
+        dom.mcpCapabilities.textContent = `${data.version || ''} · MCP ${data.protocolVersion || ''} · ${data.resources?.length || 0} resource templates · ${data.prompts?.length || 0} guided prompts`;
     }
 }
+function renderMcpCatalog() {
+    const query = dom.mcpToolSearch.value.trim().toLowerCase();
+    const tools = mcpCatalog.filter(tool => `${tool.name} ${tool.title} ${tool.description}`.toLowerCase().includes(query));
+    dom.mcpToolsHint.textContent = `${tools.length} of ${mcpCatalog.length} tools`;
+    dom.mcpCatalog.replaceChildren();
+    for (const tool of tools) {
+        const item = document.createElement('details');
+        item.className = 'mcp-tool';
+        const summary = document.createElement('summary');
+        summary.textContent = tool.title || tool.name;
+        const kind = document.createElement('span');
+        kind.className = 'mcp-tool-kind';
+        kind.textContent = tool.annotations?.readOnlyHint ? 'Read only' : 'Runs engines';
+        summary.append(kind);
+        const name = document.createElement('code');
+        name.textContent = tool.name;
+        const description = document.createElement('p');
+        description.textContent = tool.description;
+        item.append(summary, name, description);
+        dom.mcpCatalog.append(item);
+    }
+    if (!tools.length)
+        dom.mcpCatalog.textContent = 'No matching tools. Try “source”, “security”, or “architecture”.';
+}
+dom.mcpToolSearch.addEventListener('input', renderMcpCatalog);
 function scheduleMcpPoll(ms) {
     clearTimeout(mcpPoll);
     mcpPoll = setTimeout(pollMcp, ms);
@@ -1284,6 +1427,7 @@ async function openMcp() {
     serverDrawer.close();
     dom.mcpDrawer.hidden = false;
     dom.mcpScrim.hidden = false;
+    dom.mcpClose.focus();
     await pollMcp();
     await loadMcpCommand();
     scheduleMcpPoll(2500);
@@ -1291,6 +1435,7 @@ async function openMcp() {
 function closeMcp() {
     dom.mcpDrawer.hidden = true;
     dom.mcpScrim.hidden = true;
+    dom.mcpBtn.focus();
     scheduleMcpPoll(8000);
 }
 // The two config shapes a client is most likely to want: JSON for the harnesses
@@ -1301,7 +1446,7 @@ function renderMcpConfigBlock() {
     const ex = mcpCommand?.examples?.[0];
     if (!ex)
         return;
-    const command = shortCommand(ex.command);
+    const command = ex.command;
     const json = { mcpServers: { onboarder: { command, args: ex.args } } };
     const toml = [
         '[mcp_servers.onboarder]',
@@ -1316,9 +1461,6 @@ function renderMcpConfigBlock() {
 // the harness's PATH has no node. But an absolute path is noise in a snippet
 // people read, so the common case is shown short and the input above keeps the
 // exact one.
-function shortCommand(cmd) {
-    return typeof cmd === 'string' && cmd.endsWith('/node') ? 'node' : cmd;
-}
 function pickMcpTab(toml) {
     dom.mcpTabJson.classList.toggle('is-on', !toml);
     dom.mcpTabToml.classList.toggle('is-on', toml);
@@ -1339,7 +1481,12 @@ dom.mcpCopy.addEventListener('click', async () => {
     catch {
         // Clipboard access can be refused outright; selecting the text is the one
         // fallback that always works, so the person can copy it themselves.
-        dom.mcpCommandInput.select();
+        const range = document.createRange();
+        range.selectNodeContents(dom.mcpConfigBlock);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        toast('Select and copy the config shown below');
     }
 });
 async function setMcpState(action) {
@@ -1429,8 +1576,6 @@ function toast(message) {
     toastTimer = setTimeout(() => (dom.toast.hidden = true), 2600);
 }
 document.addEventListener('keydown', (event) => {
-    if (eventElement(event)?.matches('input, textarea, select'))
-        return;
     // Escape closes whichever drawer is open. The three are kept mutually
     // exclusive when they open, so at most one is ever showing — but checking
     // each here means the behavior does not depend on that invariant holding.
@@ -1441,6 +1586,23 @@ document.addEventListener('keydown', (event) => {
             return serverDrawer.close();
         return closeSettings();
     }
+    if (!dom.mcpDrawer.hidden) {
+        if (event.key === 'Tab') {
+            const focusable = [...dom.mcpDrawer.querySelectorAll('button:not(:disabled), input, summary, [tabindex="0"]')];
+            const first = focusable[0], last = focusable.at(-1);
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last?.focus();
+            }
+            if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first?.focus();
+            }
+        }
+        return;
+    }
+    if (eventElement(event)?.matches('input, textarea, select'))
+        return;
     if (!state.scan)
         return;
     if (event.key === '1')
@@ -1482,7 +1644,7 @@ dom.themeBtn.addEventListener('click', () => {
     localStorage.setItem(THEME_KEY, next);
     applyTheme(next);
     if (state.scan && (isExplorerView(state.view) || state.view === 'graph' || state.view === 'heatmap'))
-        renderCanvas(); // Only canvas/diagram views need a theme redraw.
+        renderCanvas({ preserveViewport: true });
 });
 applyTheme(getTheme());
 //# sourceMappingURL=app.js.map

@@ -1,3 +1,5 @@
+import { showReviewPatch } from './reviewPatch.js';
+import { reviewSarif } from '/shared/review/sarif.js';
 import { escapeHtml } from './html.js';
 import { eventElement } from './dom.js';
 import { getSettings, isConfigured } from './llm.js';
@@ -41,7 +43,7 @@ export function renderReviewView(container: HTMLElement, context: ReviewContext)
       <label>Review depth<select name="profile"><option value="">Repository default</option><option value="focused">Focused · medium and above</option><option value="balanced">Balanced · low and above</option><option value="thorough">Thorough · all patterns</option></select></label>
       <button type="submit" class="btn btn-ink review-run">${s.report ? 'Run again' : 'Run review'} <span aria-hidden="true">↗</span></button><button type="button" class="btn" data-action="cancel" hidden>Cancel</button><datalist id="reviewReferences"></datalist>
     </form>
-    <p class="review-comparison-note">Working tree includes staged, unstaged, and untracked files. Branch ranges use the merge base. Guidelines come from .onboarder-review.json. Code links open working-tree files; lines may differ for staged or branch reviews.</p>
+    <p class="review-comparison-note">Working tree includes staged, unstaged, and untracked files. Branch ranges use the merge base. Guidelines come from .onboarder-review.json. Changed-file links open the exact captured comparison, including staged and branch changes.</p>
     <div class="review-feedback" role="status" aria-live="polite" hidden></div><div class="review-error" role="alert" hidden></div><div class="review-results"></div>
   </div>`;
   const form = container.querySelector<HTMLFormElement>('form')!;
@@ -93,7 +95,7 @@ export function renderReviewView(container: HTMLElement, context: ReviewContext)
     const affected = new Set<string>(); const queue = [...changed];
     for (let i = 0; i < queue.length; i++) for (const path of context.facts?.importers?.[queue[i]] || []) if (!changed.has(path) && !affected.has(path)) { affected.add(path); queue.push(path); }
     const attention = report.checks.some(c => c.status === 'fail');
-    results.innerHTML = `<div class="review-summary"><div><span class="review-status ${attention ? 'needs-review' : ''}">${!report.files.length ? 'No changes' : attention ? 'Needs attention' : 'Ready for human review'}</span><h2>${esc(report.summary)}</h2><p>${report.mode} · ${report.profile} · ${new Date(report.generatedAt).toLocaleTimeString()} · ${report.coverage.untracked} untracked files included</p></div><div class="review-export"><button class="btn" data-action="markdown">Export Markdown</button><button class="btn btn-ghost" data-action="json">JSON</button></div></div>
+    results.innerHTML = `<div class="review-summary"><div><span class="review-status ${attention ? 'needs-review' : ''}">${!report.files.length ? 'No changes' : attention ? 'Needs attention' : 'Ready for human review'}</span><h2>${esc(report.summary)}</h2><p>${report.mode} · ${report.profile} · ${new Date(report.generatedAt).toLocaleTimeString()} · ${report.coverage.untracked} untracked files included</p></div><div class="review-export"><button class="btn" data-action="markdown">Export Markdown</button><button class="btn btn-ghost" data-action="json">JSON</button><button class="btn btn-ghost" data-action="sarif">SARIF</button></div></div>
       <div class="review-metrics"><article><span>Changed files</span><strong>${report.stats.filesChanged}</strong><small><b class="review-add">+${report.stats.additions}</b> / <b class="review-del">−${report.stats.deletions}</b> lines</small></article><article><span>Patterns to review</span><strong>${report.findings.length}</strong><small>${blocking} high or critical</small></article><article><span>Files inspected</span><strong>${report.coverage.reviewed}<em> / ${report.files.length}</em></strong><small>${report.coverage.skipped} skipped · reasons below</small></article><article><span>Dependent files</span><strong>${affected.size}</strong><small>Estimated from the last repository scan</small></article></div>
       <div class="review-columns"><section class="review-card review-findings"><header><div><span class="workbench-eyebrow">THE REVIEW</span><h2>Findings <span class="review-count">${visible.length}</span></h2></div></header><div class="review-filters"><label class="sr-only" for="reviewFilter">Filter findings</label><input type="search" id="reviewFilter" class="text-input" placeholder="Filter by file or rule…" value="${esc(s.query)}"><select aria-label="Finding severity" data-filter="severity"><option value="all">All severities</option>${['critical','high','medium','low','info'].map(v => `<option value="${v}"${s.severity === v ? ' selected' : ''}>${v}</option>`).join('')}</select><label class="review-notes-toggle"><input type="checkbox" data-filter="notes"${s.showAcknowledged ? ' checked' : ''}> Show acknowledged</label></div>
       <div class="review-finding-list">${findingMarkup}</div></section>
@@ -127,10 +129,15 @@ export function renderReviewView(container: HTMLElement, context: ReviewContext)
   results.onclick = async event => {
     const target = eventElement(event); const report = s.report; if (!target || !report) return;
     const pathButton = target.closest<HTMLElement>('[data-path]');
+    if (pathButton && showReviewPatch(report, pathButton.dataset.path!, Number(pathButton.dataset.line) || 1)) return;
     if (pathButton) { document.dispatchEvent(new CustomEvent('search-select', { detail: { path: pathButton.dataset.path, line: Number(pathButton.dataset.line) || 1, target: 'code' } })); return; }
     const ack = target.closest<HTMLInputElement>('[data-ack]');
     if (ack) { const ids = acknowledgements(report); if (ack.checked) ids.add(ack.dataset.ack!); else ids.delete(ack.dataset.ack!); if (!remember(report, ids)) showError('Browser storage is unavailable. This acknowledgement could not be saved.'); draw(true); return; }
     const button = target.closest<HTMLButtonElement>('[data-action]'); if (!button) return;
+    if (button.dataset.action === 'sarif') {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(reviewSarif(report), null, 2)], { type: 'application/json' }));
+      const link = document.createElement('a'); link.href = url; link.download = 'onboarder-review.sarif'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); return;
+    }
     if (button.dataset.action === 'markdown' || button.dataset.action === 'json') { downloadReport(report, button.dataset.action === 'json'); return; }
     if (button.dataset.action === 'ai') {
       aiController?.abort(); const controller = new AbortController(); aiController = controller;

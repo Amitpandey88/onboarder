@@ -1,0 +1,1161 @@
+{
+  "version": "1.0.5",
+  "commands": [
+    {
+      "name": "help",
+      "args": "[command|all]",
+      "description": "Show commands and examples",
+      "group": "Setup and controls"
+    },
+    {
+      "name": "ask",
+      "args": "<question>",
+      "description": "Ask about this repository",
+      "group": "AI workflows"
+    },
+    {
+      "name": "review",
+      "args": "[PR number] [task]",
+      "description": "Review local changes or a GitHub PR",
+      "group": "AI workflows"
+    },
+    {
+      "name": "triage",
+      "args": "[issue number] [task]",
+      "description": "Investigate issues and suggest fixes",
+      "group": "AI workflows"
+    },
+    {
+      "name": "implement",
+      "args": "<task>",
+      "description": "Make changes in an isolated Git workspace",
+      "group": "AI workflows"
+    },
+    {
+      "name": "pr",
+      "args": "<task>",
+      "description": "Prepare a draft PR; publish when GitHub writes are enabled",
+      "group": "AI workflows"
+    },
+    {
+      "name": "github",
+      "args": "<task>",
+      "description": "Work with GitHub issues, reviews, labels, and CI",
+      "group": "AI workflows"
+    },
+    {
+      "name": "mode",
+      "args": "[ask|review|triage|implement|pr|github]",
+      "description": "Choose the workflow for following messages",
+      "group": "AI workflows"
+    },
+    {
+      "name": "permissions",
+      "args": "[checks|github] [on|off]",
+      "description": "Control test execution and GitHub writes",
+      "group": "Setup and controls"
+    },
+    {
+      "name": "model",
+      "args": "[name] [provider]",
+      "description": "Open the provider/model picker; configure opens full Hermes setup",
+      "group": "Setup and controls"
+    },
+    {
+      "name": "limits",
+      "args": "[seconds] [turns]",
+      "description": "Set the run timeout and tool-turn budget",
+      "group": "Setup and controls"
+    },
+    {
+      "name": "repo",
+      "args": "[folder|GitHub URL]",
+      "description": "Show or switch the repository; clone GitHub URLs",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "clone",
+      "args": "<GitHub URL>",
+      "description": "Clone a repository into a saved local checkout",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "pull",
+      "args": "",
+      "description": "Update the saved checkout without overwriting local changes",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "new",
+      "args": "",
+      "description": "Start a fresh conversation",
+      "group": "Conversations"
+    },
+    {
+      "name": "history",
+      "args": "",
+      "description": "List saved conversations for this repository",
+      "group": "Conversations"
+    },
+    {
+      "name": "resume",
+      "args": "[conversation ID]",
+      "description": "Pick or continue a saved conversation",
+      "group": "Conversations"
+    },
+    {
+      "name": "status",
+      "args": "",
+      "description": "Show model, permissions, workspace, and last run",
+      "group": "Setup and controls"
+    },
+    {
+      "name": "paste",
+      "args": "",
+      "description": "Enter a multiline message; finish with /send or /discard",
+      "group": "Conversations"
+    },
+    {
+      "name": "cancel",
+      "args": "",
+      "description": "Stop the active task (Ctrl-C also works)",
+      "group": "Setup and controls"
+    },
+    {
+      "name": "map",
+      "args": "",
+      "description": "Repository overview, available offline",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "tree",
+      "args": "[folder] [depth]",
+      "description": "Browse repository files",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "open",
+      "args": "[query]",
+      "description": "Pick a code file, then read, inspect or trace it",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "find",
+      "args": "<query>",
+      "description": "Search files, symbols, and contents",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "show",
+      "args": "<file> [from] [count]",
+      "description": "Read a file",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "diff",
+      "args": "[base] [head] [file]",
+      "description": "Inspect changes in the current workspace",
+      "group": "Health and security"
+    },
+    {
+      "name": "health",
+      "args": "",
+      "description": "Inspect repository health",
+      "group": "Health and security"
+    },
+    {
+      "name": "rescan",
+      "args": "",
+      "description": "Refresh the cached repository analysis",
+      "group": "Health and security"
+    },
+    {
+      "name": "tour",
+      "args": "",
+      "description": "Find the best reading order for this codebase",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "explain",
+      "args": "[file|folder]",
+      "description": "Explain a module using local analysis",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "deps",
+      "args": "<file>",
+      "description": "Trace imports and reverse dependencies",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "inspect",
+      "args": "<file>",
+      "description": "Inspect role, complexity, exports, and findings",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "graph",
+      "args": "<file> [depth]",
+      "description": "Explore the dependency graph",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "blast",
+      "args": "<file>",
+      "description": "Show the impact of changing a file",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "symbols",
+      "args": "<file>",
+      "description": "List functions, classes, and exports",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "hubs",
+      "args": "",
+      "description": "Find the most depended-on modules",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "layers",
+      "args": "",
+      "description": "Inspect architecture layers",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "patterns",
+      "args": "",
+      "description": "Discover architecture patterns",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "stats",
+      "args": "",
+      "description": "Inspect language and complexity statistics",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "security",
+      "args": "",
+      "description": "Show local security findings",
+      "group": "Health and security"
+    },
+    {
+      "name": "stack",
+      "args": "",
+      "description": "Inspect frameworks and dependencies",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "entry",
+      "args": "",
+      "description": "Locate application entry points",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "externals",
+      "args": "",
+      "description": "Inspect external dependencies and drift",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "coupling",
+      "args": "",
+      "description": "Explore traffic between folders",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "clusters",
+      "args": "",
+      "description": "Find groups of related modules",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "risks",
+      "args": "",
+      "description": "Inspect code and architecture risks",
+      "group": "Health and security"
+    },
+    {
+      "name": "log",
+      "args": "[count]",
+      "description": "Read recent Git commits",
+      "group": "Health and security"
+    },
+    {
+      "name": "hotspots",
+      "args": "[count]",
+      "description": "Find frequently changed complex files",
+      "group": "Health and security"
+    },
+    {
+      "name": "blame",
+      "args": "<file>",
+      "description": "Read line authorship",
+      "group": "Health and security"
+    },
+    {
+      "name": "diagram",
+      "args": "[file|folder]",
+      "description": "Generate Mermaid diagram source",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "layers-diagram",
+      "args": "",
+      "description": "Generate an architecture layer diagram",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "atlas",
+      "args": "",
+      "description": "Browse available diagrams",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "docs",
+      "args": "[file|folder] [--write]",
+      "description": "Read or explicitly generate repository documentation",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "workflows",
+      "args": "",
+      "description": "Inspect GitHub Actions workflows",
+      "group": "Health and security"
+    },
+    {
+      "name": "sbom",
+      "args": "[package]",
+      "description": "Inspect dependencies and licenses",
+      "group": "Health and security"
+    },
+    {
+      "name": "engines",
+      "args": "",
+      "description": "Show available optional analyzers",
+      "group": "Health and security"
+    },
+    {
+      "name": "deep",
+      "args": "[engine|all|security|dead-code|results|explain|export|options]",
+      "description": "Choose web UI analyzers, configure scans, and explain saved results",
+      "group": "Health and security"
+    },
+    {
+      "name": "web",
+      "args": "",
+      "description": "Open the repository in the web interface",
+      "group": "Browse the repository"
+    },
+    {
+      "name": "about",
+      "args": "",
+      "description": "Show repository and application information",
+      "group": "Code and architecture"
+    },
+    {
+      "name": "tools",
+      "args": "",
+      "description": "List the actual tools available to Hermes",
+      "group": "AI workflows"
+    },
+    {
+      "name": "skills",
+      "args": "",
+      "description": "Discover the six built-in agent workflows",
+      "group": "AI workflows"
+    },
+    {
+      "name": "runs",
+      "args": "",
+      "description": "List saved agent runs",
+      "group": "Conversations"
+    },
+    {
+      "name": "run",
+      "args": "<run ID>",
+      "description": "Read a saved result from this repository",
+      "group": "Conversations"
+    },
+    {
+      "name": "export",
+      "args": "",
+      "description": "Save this conversation as Markdown",
+      "group": "Conversations"
+    },
+    {
+      "name": "send",
+      "args": "",
+      "description": "Submit the message composed with /paste",
+      "group": "Conversations"
+    },
+    {
+      "name": "discard",
+      "args": "",
+      "description": "Discard the message composed with /paste",
+      "group": "Conversations"
+    },
+    {
+      "name": "doctor",
+      "args": "",
+      "description": "Check the Hermes runtime and profile",
+      "group": "Setup and controls"
+    },
+    {
+      "name": "setup",
+      "args": "",
+      "description": "Prepare the dedicated Hermes profile",
+      "group": "Setup and controls"
+    },
+    {
+      "name": "clear",
+      "args": "",
+      "description": "Clear the screen; keep the conversation",
+      "group": "Conversations"
+    },
+    {
+      "name": "exit",
+      "args": "",
+      "description": "Save and exit (Ctrl-D also works)",
+      "group": "Setup and controls"
+    }
+  ],
+  "mcp": [
+    {
+      "name": "onboarder_intelligence",
+      "title": "Intelligence",
+      "description": "Refresh repository intelligence: architecture boundaries, measured coverage, packages, routes, journeys, knowledge freshness and optional semantic symbols. Retrieve revision-pinned evidence or compare exact Git revisions. Source excerpts require includeSource; otherwise read cited files with onboarder_read_file.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "scan",
+              "evidence",
+              "compare"
+            ]
+          },
+          "question": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "base": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "head": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "semantic": {
+            "type": "boolean"
+          },
+          "includeSource": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_scan",
+      "title": "Scan",
+      "description": "Scan a repository and return everything Onboarder knows about it: structure, entry points, hubs, cycles, dependencies, services, health, security, history and a written overview. Start here. The returned `root` is what every other tool takes as its `path`.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Rescan even if this repository is already cached. Defaults to false."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_rescan",
+      "title": "Rescan",
+      "description": "Discard the cached analysis for a repository and scan it again. Use after changing files on disk, since every other tool answers from the cached scan.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_overview",
+      "title": "Overview",
+      "description": "The repository in one call: written summary, languages, entry points, the files everything depends on, dependency cycles, services, and what the scan is unsure about. Cheap, because it reads the cached analysis rather than scanning again.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_architecture",
+      "title": "Architecture",
+      "description": "How the code is arranged: the dependency layers and which files sit in each, files nothing reaches, the architectural patterns detected (hub-and-spoke, cycles, god objects, layer violations), which folders import each other, and the services detected.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_tour",
+      "title": "Tour",
+      "description": "A guided reading order for a new contributor: the handful of files worth reading first, each with the reason it matters and how many files depend on it. The fastest way to understand an unfamiliar repository.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_health",
+      "title": "Health",
+      "description": "Maintainability report: an overall score and letter grade, what the score is made of, and the riskiest files with their size, complexity, dependency counts and blast radius.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of results. Defaults to 20, capped at 200.",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_security",
+      "title": "Security",
+      "description": "Static security findings from the built-in rules: hardcoded secrets, unsafe calls, injection patterns and the rest, ordered by severity. These are the built-in rules only — use onboarder_deep_analysis for the external scanners.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of results. Defaults to 20, capped at 200.",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_history",
+      "title": "History",
+      "description": "What git knows: commit count, contributors, and the files with the highest churn weighted against complexity — the change-risk hotspots, plus files only one person has ever touched and files that keep changing together without importing each other.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of results. Defaults to 20, capped at 200.",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_dependencies",
+      "title": "Dependencies",
+      "description": "The dependency inventory: languages, package managers, every declared dependency with version, category and documentation link, the project license with its compliance counts, and the CI workflows with their triggers and jobs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_explain_file",
+      "title": "Explain File",
+      "description": "Explain one file: its role in the codebase, what it imports, what imports it, its exports, its metrics, and a written summary. Set includeSource to get the file text as well.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "file": {
+            "type": "string",
+            "description": "Repository-relative path, for example server/router.js."
+          },
+          "includeSource": {
+            "type": "boolean",
+            "description": "Also return the full file text. Defaults to false."
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_explain_folder",
+      "title": "Explain Folder",
+      "description": "Explain one folder: what lives in it, which folders it imports, its entry points and hubs, and a written summary of what the folder is for. Pass an empty string for the repository root.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "folder": {
+            "type": "string",
+            "description": "Repository-relative folder, for example server/mcp. Use \"\" for the root."
+          }
+        },
+        "required": [
+          "folder"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_read_file",
+      "title": "Read File",
+      "description": "The text of one file inside the repository. Paths outside the repository are refused, and files over 200 KB are refused rather than truncated. Optional startLine/endLine return up to 500 lines with line numbers and totalLines — use onboarder_search to locate the part you need. Symlinks and binary files are refused.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "file": {
+            "type": "string",
+            "description": "Repository-relative path."
+          },
+          "startLine": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "First line to read, inclusive (1-based)."
+          },
+          "endLine": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Last line to read, inclusive. At most 500 lines per range."
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_list_files",
+      "title": "List Files",
+      "description": "List the files in the repository, or in one folder. Filter by a substring of the path, by extension, and by whether the file is a test.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "folder": {
+            "type": "string",
+            "description": "Repository-relative folder. Use \"\" for the whole repository."
+          },
+          "contains": {
+            "type": "string",
+            "description": "Keep only paths containing this text."
+          },
+          "extension": {
+            "type": "string",
+            "description": "Keep only this extension, with or without the dot, e.g. \"js\"."
+          },
+          "tests": {
+            "type": "boolean",
+            "description": "true keeps only test files, false excludes them."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of results. Defaults to 20, capped at 200.",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_search",
+      "title": "Search",
+      "description": "Search the repository the way the app's search palette does: bare words rank by relevance, and the full query language works too — path:, ext:, is:test, is:source, \"exact phrases\", -exclude, /regex/, and case: for case sensitivity.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "query": {
+            "type": "string",
+            "description": "The search query."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of results. Defaults to 20, capped at 200.",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "caseSensitive": {
+            "type": "boolean",
+            "description": "Match case exactly. Defaults to false."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "onboarder_deep_analysis",
+      "title": "Deep Analysis",
+      "description": "Run the optional external analyzers (semgrep, gitleaks, knip, and the rest) over the repository and return their findings normalized. Slower than the built-in tools, and it only covers the analyzers that are actually installed. Call onboarder_analyzer_status first to see which those are.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "semgrep",
+                "gitleaks",
+                "knip",
+                "vulture",
+                "depcheck"
+              ]
+            },
+            "description": "Which analyzers to run. Omit to run every installed one."
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "security",
+                "dead-code"
+              ]
+            },
+            "description": "Narrow to a purpose."
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "onboarder_analyzer_status",
+      "title": "Analyzer Status",
+      "description": "Which external analyzers are installed on this machine, what each one is for, and how to install the ones that are missing. Takes no arguments.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "languages": [
+    {
+      "label": "TypeScript",
+      "extensions": [
+        ".ts",
+        ".tsx"
+      ]
+    },
+    {
+      "label": "JavaScript",
+      "extensions": [
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs"
+      ]
+    },
+    {
+      "label": "Python",
+      "extensions": [
+        ".py"
+      ]
+    },
+    {
+      "label": "Go",
+      "extensions": [
+        ".go"
+      ]
+    },
+    {
+      "label": "Rust",
+      "extensions": [
+        ".rs"
+      ]
+    },
+    {
+      "label": "Java",
+      "extensions": [
+        ".java"
+      ]
+    },
+    {
+      "label": "C#",
+      "extensions": [
+        ".cs"
+      ]
+    },
+    {
+      "label": "C / Ruby / PHP",
+      "extensions": [
+        ".c",
+        ".h",
+        ".cc",
+        ".cpp",
+        ".hpp",
+        ".rb",
+        ".php"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/intelligence/fix"
+    },
+    {
+      "method": "POST",
+      "path": "/api/github/webhook"
+    },
+    {
+      "method": "GET",
+      "path": "/api/github/automation"
+    },
+    {
+      "method": "POST",
+      "path": "/api/intelligence"
+    },
+    {
+      "method": "GET",
+      "path": "/api/team/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/team/comments"
+    },
+    {
+      "method": "POST",
+      "path": "/api/team/comments"
+    },
+    {
+      "method": "POST",
+      "path": "/api/review"
+    },
+    {
+      "method": "GET",
+      "path": "/api/diff/refs"
+    },
+    {
+      "method": "GET",
+      "path": "/api/diff"
+    },
+    {
+      "method": "POST",
+      "path": "/api/search"
+    },
+    {
+      "method": "GET",
+      "path": "/api/blame"
+    },
+    {
+      "method": "POST",
+      "path": "/api/scan"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/scan/"
+    },
+    {
+      "method": "GET",
+      "path": "/api/file"
+    },
+    {
+      "method": "POST",
+      "path": "/api/explain"
+    },
+    {
+      "method": "GET",
+      "path": "/api/hermes"
+    },
+    {
+      "method": "POST",
+      "path": "/api/doc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tools"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tools/run"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tools/install"
+    },
+    {
+      "method": "GET",
+      "path": "/api/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/mcp/command"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mcp/start"
+    },
+    {
+      "method": "POST",
+      "path": "/api/mcp/stop"
+    },
+    {
+      "method": "GET",
+      "path": "/api/health"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout"
+    },
+    {
+      "method": "GET",
+      "path": "/api/settings"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/access-key"
+    }
+  ]
+}

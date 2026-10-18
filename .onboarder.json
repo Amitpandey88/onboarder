@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "rules": [
+    { "id": "browser-server-boundary", "from": "src/public/**", "forbid": "src/server/**", "message": "Browser code must use HTTP APIs and portable shared contracts." },
+    { "id": "shared-server-boundary", "from": "src/shared/**", "forbid": "src/server/**", "message": "Shared analysis must run in both Node and the browser." },
+    { "id": "shared-cli-boundary", "from": "src/shared/**", "forbid": "src/cli/**", "message": "Shared analysis must not depend on terminal or agent process code." }
+  ],
+  "journeys": [
+    {
+      "id": "first-feature",
+      "title": "Build a first Onboarder feature",
+      "role": "Contributor",
+      "steps": [
+        { "id": "contracts", "title": "Start with the contract", "path": "src/shared/contracts.ts", "instruction": "Identify the portable data shape. Keep browser and server dependencies outside shared analysis." },
+        { "id": "analysis", "title": "Follow repository analysis", "path": "src/shared/analyzer/scan.ts", "instruction": "Trace walking, parsing and import resolution. Check source limits, skip reasons and cancellation." },
+        { "id": "route", "title": "Connect the server boundary", "path": "src/server/router.ts", "instruction": "Inspect authentication, origin checks, repository capabilities and explicit body limits before adding an endpoint." },
+        { "id": "interface", "title": "Wire the user workflow", "path": "src/public/app.ts", "instruction": "Use the current shared state and view lifecycle. Preserve focus, cancellation, source freshness and accessibility." },
+        { "id": "verify", "title": "Verify source and the installable package", "path": "tests/intelligence.test.js", "instruction": "Exercise a realistic repository fixture, run the full check, and verify the packaged CLI. Keep live-provider verification distinct from controlled fixtures." }
+      ]
+    }
+  ],
+  "knowledge": []
+}

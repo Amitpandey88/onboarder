@@ -3,6 +3,22 @@ import assert from 'node:assert/strict';
 
 import { DEFAULT_SETTINGS, fileMessages, questionMessages, stackSummaryMessages } from '../public/js/llm.js';
 import { extractRequestId } from '../server/llmProxy.js';
+import { getSettings, saveSettings } from '../public/js/llm.js';
+
+test('provider credentials migrate out of persistent storage and remain only in tab memory', () => {
+  const previous = globalThis.localStorage;
+  const data = new Map([['onboarder.llm.v1', JSON.stringify({ baseUrl: 'http://localhost:9999', model: 'fixture', apiKey: 'legacy-test-credential' })]]);
+  globalThis.localStorage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value), removeItem: key => data.delete(key) };
+  try {
+    assert.equal(getSettings().apiKey, 'legacy-test-credential');
+    assert.equal([...data.values()].join('').includes('legacy-test-credential'), false);
+    saveSettings({ connection: 'api', baseUrl: 'http://localhost:9999', model: 'fixture', apiKey: 'replacement-test-credential' });
+    assert.equal(getSettings().apiKey, 'replacement-test-credential');
+    assert.equal([...data.values()].join('').includes('replacement-test-credential'), false);
+    saveSettings({ connection: 'api', baseUrl: '', model: '', apiKey: '' });
+    assert.equal(getSettings().apiKey, '');
+  } finally { if (previous === undefined) delete globalThis.localStorage; else globalThis.localStorage = previous; }
+});
 
 test('default settings ship without a bundled credential', () => {
   assert.deepEqual(DEFAULT_SETTINGS, { connection: 'api', baseUrl: '', apiKey: '', model: '', hermesModel: '' });

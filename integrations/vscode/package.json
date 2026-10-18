@@ -1,0 +1,76 @@
+{
+  "name": "onboarder",
+  "displayName": "Onboarder",
+  "description": "Repository evidence, architecture, onboarding and change review using your local Onboarder CLI.",
+  "version": "0.1.0",
+  "publisher": "amitpandey88",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./extension.cjs",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
+  "activationEvents": [
+    "onCommand:onboarder.inspect",
+    "onView:onboarder.repository"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "onboarder.inspect",
+        "title": "Onboarder: Inspect Repository"
+      },
+      {
+        "command": "onboarder.explain",
+        "title": "Onboarder: Find Evidence for Selection"
+      },
+      {
+        "command": "onboarder.review",
+        "title": "Onboarder: Review Changes"
+      },
+      {
+        "command": "onboarder.journeys",
+        "title": "Onboarder: Show Onboarding Journeys"
+      },
+      {
+        "command": "onboarder.open",
+        "title": "Onboarder: Open Web Workspace"
+      },
+      {
+        "command": "onboarder.impact",
+        "title": "Onboarder: Show Change Impact"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "onboarder.repository",
+          "name": "Onboarder"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Onboarder",
+      "properties": {
+        "onboarder.cliPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Absolute path to bin/onboarder.js for source builds or Windows. Otherwise the installed onboarder command is used."
+        },
+        "onboarder.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:4310",
+          "description": "Address of your running Onboarder web server."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,176 @@
+[
+  {
+    "slug": "overview",
+    "title": "A guide to your codebase",
+    "description": "Learn the structure, trace dependencies, and make your first informed change.",
+    "group": "Start here"
+  },
+  {
+    "slug": "quickstart",
+    "title": "Your first repository",
+    "description": "Install, open a repository, and follow a useful reading path.",
+    "group": "Start here"
+  },
+  {
+    "slug": "installation",
+    "title": "Install and update",
+    "description": "npm, source builds, platform requirements, and safe updates.",
+    "group": "Start here"
+  },
+  {
+    "slug": "loading",
+    "title": "Load a repository",
+    "description": "Local folders, browser folders, Git URLs, and saved checkouts.",
+    "group": "Start here"
+  },
+  {
+    "slug": "web",
+    "title": "The web workspace",
+    "description": "Navigate every tab, open files, and follow locked connection threads.",
+    "group": "Workspaces"
+  },
+  {
+    "slug": "intelligence",
+    "title": "Repository intelligence",
+    "description": "Source evidence, semantic references, rules, coverage, verified fixes, teams and automation.",
+    "group": "Workspaces"
+  },
+  {
+    "slug": "graph",
+    "title": "Lightweight dependency graph",
+    "description": "Search every file, trace connections and keep large graphs responsive.",
+    "group": "Workspaces"
+  },
+  {
+    "slug": "editor",
+    "title": "VS Code integration",
+    "description": "Inspect, retrieve source evidence and review changes from your editor.",
+    "group": "Integrations"
+  },
+  {
+    "slug": "chat",
+    "title": "Terminal chat",
+    "description": "A readable conversation, quick navigation, and saved repository context.",
+    "group": "Workspaces"
+  },
+  {
+    "slug": "explorer",
+    "title": "Offline terminal explorer",
+    "description": "Browse, inspect, trace, and export without an AI account.",
+    "group": "Workspaces"
+  },
+  {
+    "slug": "review",
+    "title": "Review a change",
+    "description": "Compare working, staged, or branch changes and export an actionable report.",
+    "group": "Analysis"
+  },
+  {
+    "slug": "analysis",
+    "title": "Analysis and scan limits",
+    "description": "Understand languages, graph signals, supported inputs, and practical limits.",
+    "group": "Analysis"
+  },
+  {
+    "slug": "search",
+    "title": "Search and navigation",
+    "description": "Find files, symbols, source text, and the commands you need.",
+    "group": "Workspaces"
+  },
+  {
+    "slug": "deep-analysis",
+    "title": "Deep analysis",
+    "description": "Run optional security and dead-code engines with visible coverage.",
+    "group": "Analysis"
+  },
+  {
+    "slug": "ai",
+    "title": "Connect optional AI",
+    "description": "Configure Hermes or an API endpoint and understand what is sent.",
+    "group": "AI and integrations"
+  },
+  {
+    "slug": "agents",
+    "title": "Agent workflows",
+    "description": "Ask, review, triage, implement, prepare a PR, or investigate GitHub.",
+    "group": "AI and integrations"
+  },
+  {
+    "slug": "mcp",
+    "title": "MCP integration",
+    "description": "Connect your agent to the same repository analysis the UI uses.",
+    "group": "AI and integrations"
+  },
+  {
+    "slug": "diagrams",
+    "title": "Diagrams and repository docs",
+    "description": "Export static maps, generate optional AI sketches, and document a module.",
+    "group": "Analysis"
+  },
+  {
+    "slug": "reports",
+    "title": "Reports and CI",
+    "description": "Use one-shot summaries, JSON review output, and severity exit gates.",
+    "group": "Analysis"
+  },
+  {
+    "slug": "configuration",
+    "title": "Configuration",
+    "description": "Settings, environment variables, and where records are stored.",
+    "group": "Operate the tool"
+  },
+  {
+    "slug": "self-hosting",
+    "title": "Self-hosting and lifecycle",
+    "description": "Run your own authenticated workspace with background startup and HTTPS.",
+    "group": "Operate the tool"
+  },
+  {
+    "slug": "security",
+    "title": "Supply-chain and security",
+    "description": "Verified downloads, integrity checks, trust boundaries, and a tracked upstream advisory.",
+    "group": "Operate the tool"
+  },
+  {
+    "slug": "data-privacy",
+    "title": "Data and privacy",
+    "description": "Understand local processing, optional network use, and retained records.",
+    "group": "Operate the tool"
+  },
+  {
+    "slug": "troubleshooting",
+    "title": "Troubleshooting",
+    "description": "Recover from common installation, scan, terminal, and connection issues.",
+    "group": "Operate the tool"
+  },
+  {
+    "slug": "contributing",
+    "title": "Develop and contribute",
+    "description": "Source architecture, development checks, and useful contributions.",
+    "group": "Project"
+  },
+  {
+    "slug": "changelog",
+    "title": "Version 1.0.5",
+    "description": "The current release and the improvements carried forward from 1.0.3.",
+    "group": "Project"
+  },
+  {
+    "slug": "commands",
+    "title": "CLI command reference",
+    "description": "Every chat command, top-level command, and important terminal shortcut.",
+    "group": "Reference"
+  },
+  {
+    "slug": "mcp-reference",
+    "title": "MCP tool reference",
+    "description": "All standalone analysis tools and their actual JSON input schemas.",
+    "group": "Reference"
+  },
+  {
+    "slug": "http-api",
+    "title": "HTTP integration",
+    "description": "Server routes, scan requests, authentication, and streaming boundaries.",
+    "group": "Reference"
+  }
+]

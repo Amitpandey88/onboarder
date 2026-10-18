@@ -62,6 +62,8 @@ export interface AgentResult {
 }
 export interface AgentTool {
   name: string;
+  title?: string;
+  annotations?: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
   description: string;
   inputSchema: { type: 'object'; properties: Record<string, unknown>; required?: string[]; additionalProperties?: boolean };
   run: (args: Record<string, unknown>) => Promise<unknown>;

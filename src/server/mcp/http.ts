@@ -25,8 +25,8 @@
 
 import http from 'node:http';
 
-import { handle, PROTOCOL_VERSION, SERVER_INFO } from './server.js';
-import { toolDefinitions } from './tools.js';
+import { createDispatcher } from './server.js';
+import { SUPPORTED_PROTOCOL_VERSIONS, rpcError } from './protocol.js';
 
 export const HTTP_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 8790;
@@ -36,8 +36,12 @@ const MAX_BODY = 4 * 1024 * 1024; // a tools/call argument list, not a file uplo
 // clients to send both, and enforcing it is how a stray browser `fetch` to this
 // port is turned away at the door.
 function acceptsBoth(req) {
-  const accept = String(req.headers.accept || '');
-  return accept.includes('application/json') && accept.includes('text/event-stream');
+  const types = String(req.headers.accept || '').split(',').map(part => {
+    const [type, ...parameters] = part.trim().toLowerCase().split(';');
+    const quality = parameters.find(p => p.trim().startsWith('q='));
+    return quality && Number(quality.trim().slice(2)) <= 0 ? '' : type;
+  });
+  return types.includes('application/json') && types.includes('text/event-stream');
 }
 
 // The spec's DNS-rebinding defence: the Host header must name a loopback address
@@ -57,8 +61,9 @@ function originAllowed(req) {
   const origin = req.headers.origin;
   if (!origin) return true;
   try {
-    const { hostname } = new URL(String(origin));
-    return hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]';
+    const url = new URL(String(origin));
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password
+      && ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname);
   } catch {
     return false;
   }
@@ -106,8 +111,7 @@ function readBody(req) {
     req.on('data', (chunk) => {
       size += chunk.length;
       if (size > MAX_BODY) {
-        reject(new Error('Request body too large.'));
-        req.destroy();
+        reject(Object.assign(new Error('Request body too large.'), { status: 413 }));
         return;
       }
       chunks.push(chunk);
@@ -123,34 +127,30 @@ async function onPost(req, res) {
       error: 'An MCP client must Accept: application/json and text/event-stream.',
     });
   }
+  if (String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase() !== 'application/json') {
+    return sendJSON(res, 415, { error: 'Content-Type must be application/json.' });
+  }
 
   let msg;
   try {
     msg = JSON.parse(String(await readBody(req)));
   } catch (err) {
-    return sendJSON(res, 400, {
+    return sendJSON(res, err.status || 400, {
       jsonrpc: '2.0', id: null,
       error: { code: -32700, message: `Could not parse the request: ${err.message}` },
     });
   }
 
-  // A batch is legal JSON-RPC, and answering it in order keeps the client simple.
-  // Notifications inside it produce no entries, which is correct: `handle` returns
-  // undefined for them and they are filtered out here.
+  // Modern MCP requires one message per POST and does not support batches.
   if (Array.isArray(msg)) {
-    const replies = [];
-    for (const one of msg) {
-      const reply = await handle(one);
-      if (reply) replies.push(reply);
-    }
-    if (!replies.length) {
-      res.writeHead(202).end();
-      return undefined;
-    }
-    return sendStreamable(res, replies);
+    return sendJSON(res, 400, rpcError(null, -32600, 'Send one JSON-RPC message per POST; batches are not supported.'));
   }
 
-  const reply = await handle(msg);
+  const version = req.headers['mcp-protocol-version'];
+  if (version !== undefined && !SUPPORTED_PROTOCOL_VERSIONS.filter(v => v !== '2024-11-05').includes(String(version))) {
+    return sendJSON(res, 400, rpcError(msg?.id ?? null, -32600, 'Unsupported MCP-Protocol-Version header.'));
+  }
+  const reply = await createDispatcher({ stateless: true })(msg);
   // A lone notification: the spec says answer 202 with no body.
   if (!reply) {
     res.writeHead(202).end();
@@ -171,16 +171,10 @@ function onGet(res) {
 
 export function handleMcpHttpRequest(req, res) {
   if (!guard(req, res)) return undefined;
+  if (String(req.url || '').split('?')[0] !== '/mcp') return sendJSON(res, 404, { error: 'Use the /mcp endpoint.' });
   if (req.method === 'POST') return onPost(req, res);
   if (req.method === 'GET') return onGet(res);
-  if (req.method === 'DELETE') {
-    // No sessions exist, so there is nothing to delete. Saying so keeps a client
-    // that cleans up politely from logging an error on the way out.
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true }));
-    return undefined;
-  }
-  res.writeHead(405, { allow: 'POST, GET, DELETE' }).end();
+  res.writeHead(405, { allow: 'POST' }).end();
   return undefined;
 }
 
@@ -190,6 +184,7 @@ export function handleMcpHttpRequest(req, res) {
  * asked for 0 and gets a free one back.
  */
 export function createHttpTransport({ port = DEFAULT_PORT, host = HTTP_HOST }: Record<string, any> = {}) {
+  if (host !== HTTP_HOST) return Promise.reject(new Error('MCP HTTP must bind to 127.0.0.1. Use stdio for local clients.'));
   const server = http.createServer(handleMcpHttpRequest);
   // A long tool call is a scan of a large repository. The default 5s headers
   // timeout would cut the request off before the body finished arriving; the

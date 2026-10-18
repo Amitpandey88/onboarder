@@ -6,6 +6,7 @@ import { GithubClient, positiveId, githubToken, repositoryFromRemote } from './g
 import { readAgentFile, writeAgentFile, deleteAgentFile, safeRelative } from './files.js';
 import { GithubSourceReader } from './gitSource.js';
 import { runProcess, redact } from './process.js';
+import { createCheckpoint, restoreCheckpoint } from './checkpoints.js';
 
 export function field(args: Record<string, unknown>, name: string, max = 16000): string {
   const value = args[name];
@@ -41,6 +42,12 @@ export function createAgentTools(manifest: RunManifest, options: { client?: Gith
     receipts.set(key, result); return result;
   };
   const add = (name: string, description: string, properties: Record<string, unknown>, required: string[], run: AgentTool['run']) => tools.push({ name, description, inputSchema: { type: 'object', properties, required, additionalProperties: false }, run });
+  add('onboarder_agent_checkpoint', 'Save selected source files before a fix, only in the isolated implementation workspace. Returns a private checkpoint ID.', {
+    files: { type: 'array', items: string, minItems: 1, maxItems: 30 },
+  }, ['files'], async args => { requireFiles(); return createCheckpoint(manifest, args.files as string[]); });
+  add('onboarder_agent_restore_checkpoint', 'Restore selected files from this workspace checkpoint. Requires fresh expectedHashes for all files; refuses newer edits. Rerun checks afterward.', {
+    id: string, expectedHashes: { type: 'object', additionalProperties: { type: 'string' } },
+  }, ['id', 'expectedHashes'], async args => { requireFiles(); return restoreCheckpoint(manifest, field(args, 'id', 100), args.expectedHashes as Record<string, unknown>); });
   add('onboarder_agent_engines', 'Discover the same optional analyzers and configurable settings as the web UI. Read-only availability check.', {}, [], async () => {
     const [{ toolsStatus }, { clearDetectionCache }] = await Promise.all([import('../../server/tools/scan.js'), import('../../server/tools.js')]);
     clearDetectionCache(); return toolsStatus();
@@ -64,10 +71,13 @@ export function createAgentTools(manifest: RunManifest, options: { client?: Gith
   add('onboarder_agent_read_file', 'Read source text and its sha256 for a subsequent edit. No symlinks or credential files.', { file: string }, ['file'], async args => readAgentFile(manifest.root, field(args, 'file', 500)));
   add('onboarder_agent_write_file', 'Write source only in this run\'s isolated workspace. expectedSha256 must match a fresh read, or be new for a new file.', { file: string, content: string, expectedSha256: string }, ['file', 'content', 'expectedSha256'], async args => {
     requireFiles(); const content = args.content; if (typeof content !== 'string') throw new Error('content must be text.');
-    return writeAgentFile(manifest.root, field(args, 'file', 500), content, field(args, 'expectedSha256', 64));
+    const file = field(args, 'file', 500);
+    const checkpoint = await createCheckpoint(manifest, [file]);
+    return { ...await writeAgentFile(manifest.root, file, content, field(args, 'expectedSha256', 64)), checkpointId: checkpoint.id };
   });
   add('onboarder_agent_delete_file', 'Delete a source file in the isolated workspace after a fresh read.', { file: string, expectedSha256: string }, ['file', 'expectedSha256'], async args => {
-    requireFiles(); return deleteAgentFile(manifest.root, field(args, 'file', 500), field(args, 'expectedSha256', 64));
+    requireFiles(); const file = field(args, 'file', 500); const checkpoint = await createCheckpoint(manifest, [file]);
+    return { ...await deleteAgentFile(manifest.root, file, field(args, 'expectedSha256', 64)), checkpointId: checkpoint.id };
   });
   add('onboarder_agent_diff', 'Inspect the workspace patch and changed file list. Read-only.', {}, [], async () => ({ status: await git(['status', '--short']), patch: await git(['diff', 'HEAD', '--', '.']), untracked: await git(['ls-files', '--others', '--exclude-standard']) }));
   add('onboarder_agent_run_check', 'Run a fixed npm check or install lockfile dependencies with lifecycle scripts disabled. Requires --allow-checks; test/build scripts may execute repository code.', { check: { type: 'string', enum: ['install', 'test', 'typecheck', 'build'] } }, ['check'], async args => {
@@ -76,8 +86,15 @@ export function createAgentTools(manifest: RunManifest, options: { client?: Gith
     const commandArgs = check === 'install' ? ['ci', '--ignore-scripts', '--no-audit', '--no-fund'] : check === 'test' ? ['test'] : ['run', check];
     const command = process.platform === 'win32' ? (process.env.ComSpec || 'cmd.exe') : 'npm';
     const argv = process.platform === 'win32' ? ['/d', '/s', '/c', `npm ${commandArgs.join(' ')}`] : commandArgs;
+    const { workspaceFor } = await import('../../server/intelligence/workspace.js');
+    const workspace = await workspaceFor(manifest.root);
+    const before = await workspace.refresh().then(r => r.snapshot.fingerprint, () => null);
     const result = await runProcess(command, argv, { cwd: manifest.root, timeoutMs: 120_000, maxBytes: 2 * 1024 * 1024, signal: options.signal });
-    return { check, code: result.code, passed: result.code === 0, output: redact((result.stdout + result.stderr).slice(-16000)), truncated: result.stdout.length + result.stderr.length > 16000 };
+    const after = await workspace.refresh().then(r => r.snapshot.fingerprint, () => null);
+    const receipt = { check, code: result.code, passed: result.code === 0, completedAt: new Date().toISOString(),
+      sourceBefore: before, sourceAfter: after, sourceChangedDuringCheck: before && after ? before !== after : null };
+    await fs.appendFile(path.join(path.dirname(manifest.auditFile), 'checks.jsonl'), JSON.stringify(receipt) + '\n', { mode: 0o600 });
+    return { ...receipt, output: redact((result.stdout + result.stderr).slice(-16000)), truncated: result.stdout.length + result.stderr.length > 16000 };
   });
   add('onboarder_agent_local_review', 'Run the project\'s deterministic review of local changes and report its coverage. No model call.', {}, [], async () => {
     const module = await import('../../server/review.js'); return module.runReview(manifest.root, { mode: 'working', base: 'HEAD' });

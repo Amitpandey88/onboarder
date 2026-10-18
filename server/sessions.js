@@ -35,9 +35,9 @@ export const MAX_SESSIONS = 12;
 // the same repo would rebuild it; the cost of one scan's worth of work is
 // far below the cost of re-fetching the repo.
 const sessions = new Map();
-export function openSession({ root, cloneDir = null, searchIndex = null }) {
+export function openSession({ root, cloneDir = null, searchIndex = null, files = [] }) {
     const scanId = crypto.randomBytes(8).toString('hex');
-    sessions.set(scanId, { root: canonicalRoot(root), cloneDir, at: Date.now(), searchIndex });
+    sessions.set(scanId, { root: canonicalRoot(root), cloneDir, at: Date.now(), searchIndex, files: new Set(files) });
     evictBeyondCap();
     return scanId;
 }

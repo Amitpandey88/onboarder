@@ -62,7 +62,7 @@ for (const name of await readdir(path.join(root, '.github/workflows'))) {
 const pack = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['pack', '--dry-run', '--ignore-scripts', '--json'], { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, shell: process.platform === 'win32' });
 if (pack.status !== 0) fail('Could not inspect npm package: ' + pack.stderr);
 const files = JSON.parse(pack.stdout)[0].files.map(file => file.path);
-const allowed = /^(?:bin\/|cli\/|server\/|shared\/|public\/|docs\/(?:HERMES_RESEARCH|SUPPLY_CHAIN_SECURITY)\.md$|(?:package\.json|README\.md|LICENSE|SECURITY\.md)$)/;
+const allowed = /^(?:bin\/|cli\/|server\/|shared\/|public\/|docs\/(?:HERMES_RESEARCH|SUPPLY_CHAIN_SECURITY|ADVANCED_FEATURES)\.md$|(?:package\.json|README\.md|LICENSE|SECURITY\.md)$)/;
 for (const file of files) {
   if (!allowed.test(file) || /(?:^|\/)(?:\.env(?:\.|$)|\.git|\.codex|node_modules|AGENTS\.md|PROJECT_MEMORY\.md)|\.(?:pem|key|p12|pfx)$|(?:^|\/)postinstall\.js$/.test(file)) fail(`Unexpected published file: ${file}`);
   if ((await lstat(path.join(root, file))).isSymbolicLink()) fail(`Package symlink: ${file}`);

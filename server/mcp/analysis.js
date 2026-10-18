@@ -10,6 +10,7 @@
 // It reuses the same `shared/` analyzers the browser runs, rather than a second
 // implementation: a number in an MCP response is the same number the UI shows.
 import { promises as fs } from 'node:fs';
+import { constants } from 'node:fs';
 import path from 'node:path';
 import { scanRepo } from '../../shared/analyzer/scan.js';
 import { computeFacts, scanIndex } from '../../shared/analyzer/graph.js';
@@ -26,13 +27,16 @@ import { searchDocuments } from '../apiSearch.js';
 import { nodeFileSource } from '../fileSourceNode.js';
 import { gitLog, parseGitLog } from '../gitHistory.js';
 import { analyzeHistory, unavailableHistory } from '../../shared/analyzer/history.js';
-import { expandHome, resolveInside } from '../paths.js';
+import { expandHome, resolveInside, isInside } from '../paths.js';
+import { workspaceFor } from '../intelligence/workspace.js';
+import { memoizedSource } from '../../shared/analyzer/sourceCache.js';
 // How many repositories stay warm. One is the common case — a client points at a
 // repo and works in it — but an agent comparing two projects should not pay for a
 // rescan when it alternates between them. Each entry holds a parsed file list, so
 // the cap is about memory, not count.
 const MAX_CACHED = 4;
 const cache = new Map();
+const inFlight = new Map();
 // Root path -> the finished analysis. Resolving the path first means `/Users/x/~
 // repo` and `/Users/x/repo` are one entry, not two that evict each other.
 export function cachedAnalysis(root) {
@@ -43,6 +47,7 @@ export function cachedRoots() {
 }
 export function clearAnalysisCache() {
     cache.clear();
+    inFlight.clear();
 }
 // A tool error is a message the agent can act on, not a stack trace. The protocol
 // layer turns these into `isError` results so the model sees the sentence and can
@@ -76,11 +81,16 @@ async function collectHistory(root, scan) {
 // The entry point. `force` is how `onboarder_rescan` differs from every other
 // tool: the same call twice returns the same answer until it is asked not to.
 export async function analyzeRepository(rootInput, { force = false } = {}) {
+    if (typeof rootInput !== 'string')
+        throw new ToolError('A repository path is required.');
     const trimmed = String(rootInput || '').trim();
     if (!trimmed)
         throw new ToolError('A repository path is required.');
     const root = expandHome(trimmed);
     if (!force) {
+        const pending = inFlight.get(root);
+        if (pending)
+            return pending;
         const hit = cache.get(root);
         if (hit) {
             // Re-insert so the eviction below drops a genuinely cold repo rather than
@@ -90,12 +100,30 @@ export async function analyzeRepository(rootInput, { force = false } = {}) {
             return hit;
         }
     }
+    const job = buildAnalysis(root);
+    inFlight.set(root, job);
+    try {
+        const analysis = await job;
+        // A newer rescan or explicit clear wins over an earlier in-flight scan.
+        if (inFlight.get(root) === job) {
+            cache.set(root, analysis);
+            while (cache.size > MAX_CACHED)
+                cache.delete(cache.keys().next().value);
+        }
+        return analysis;
+    }
+    finally {
+        if (inFlight.get(root) === job)
+            inFlight.delete(root);
+    }
+}
+async function buildAnalysis(root) {
     const stat = await fs.stat(root).catch(() => null);
     if (!stat?.isDirectory()) {
         throw new ToolError(`No folder at ${root}. Check the path and try again.`);
     }
-    const source = nodeFileSource(root);
-    const scan = await scanRepo(source);
+    const source = memoizedSource(nodeFileSource(root));
+    const scan = await scanRepo(source, { analysisCache: (await workspaceFor(root)).cache });
     const manifest = await detectManifest(source);
     const facts = computeFacts(scan, manifest);
     // Built here rather than on first search for the same reason the HTTP route
@@ -119,10 +147,6 @@ export async function analyzeRepository(rootInput, { force = false } = {}) {
         overview: explainOverview(scan, facts, manifest),
         caveats: scanCaveats(scan),
     };
-    cache.set(root, analysis);
-    // Map preserves insertion order, so the first key is the least recently used.
-    while (cache.size > MAX_CACHED)
-        cache.delete(cache.keys().next().value);
     return analysis;
 }
 // Files anywhere under a folder, parsed or not. `scanIndex().filesIn` is an exact
@@ -148,6 +172,8 @@ export function resolveIn(analysis, relPath) {
     if (typeof relPath !== 'string' || !relPath.trim()) {
         throw new ToolError('A file path is required.');
     }
+    if (path.isAbsolute(relPath) || /^[a-z]:[\\/]/i.test(relPath))
+        throw new ToolError('Use a repository-relative file path. Absolute paths are outside the file scope.');
     const abs = resolveInside(analysis.root, relPath.trim());
     if (!abs)
         throw new ToolError(`${relPath} is outside ${analysis.root}.`);
@@ -168,15 +194,47 @@ export function fileIn(analysis, relPath) {
 }
 export async function readFileText(analysis, relPath) {
     const { abs, rel } = resolveIn(analysis, relPath);
-    const stat = await fs.stat(abs).catch(() => null);
-    if (!stat?.isFile())
+    const root = await fs.realpath(analysis.root);
+    const target = await fs.realpath(abs).catch(() => null);
+    if (!target)
         throw new ToolError(`${rel} could not be read.`);
-    // Matches the HTTP route's ceiling. A tool that returns a 200 MB file has not
-    // answered the question, it has exhausted the context window.
-    if (stat.size > 200 * 1024) {
-        throw new ToolError(`${rel} is ${Math.round(stat.size / 1024)} KB — too large to return whole.`);
+    if (!isInside(root, target))
+        throw new ToolError(`${rel} is outside the repository through a symbolic link.`);
+    let current = analysis.root;
+    for (const part of rel.split('/')) {
+        current = path.join(current, part);
+        if ((await fs.lstat(current)).isSymbolicLink())
+            throw new ToolError(`${rel} is a symbolic link. Read a regular file inside the repository.`);
     }
-    return { path: rel, text: await fs.readFile(abs, 'utf8') };
+    const handle = await fs.open(abs, constants.O_RDONLY | (constants.O_NOFOLLOW || 0)).catch(() => null);
+    if (!handle)
+        throw new ToolError(`${rel} could not be read.`);
+    try {
+        const stat = await handle.stat();
+        if (!stat.isFile())
+            throw new ToolError(`${rel} could not be read.`);
+        // Matches the HTTP route's ceiling. A tool that returns a 200 MB file has not
+        // answered the question, it has exhausted the context window.
+        if (stat.size > 200 * 1024) {
+            throw new ToolError(`${rel} is ${Math.round(stat.size / 1024)} KB — too large to return whole.`);
+        }
+        const data = Buffer.alloc(200 * 1024 + 1);
+        let size = 0;
+        while (size < data.length) {
+            const { bytesRead } = await handle.read(data, size, data.length - size, null);
+            if (!bytesRead)
+                break;
+            size += bytesRead;
+        }
+        if (size > 200 * 1024)
+            throw new ToolError(`${rel} grew too large to return whole.`);
+        if (data.subarray(0, size).includes(0))
+            throw new ToolError(`${rel} appears to be binary. Read a text source file.`);
+        return { path: rel, text: data.subarray(0, size).toString('utf8') };
+    }
+    finally {
+        await handle.close();
+    }
 }
 // Re-exported so tools build their payloads from the same helpers the views do,
 // rather than re-deriving "which files are in this folder" a third time.

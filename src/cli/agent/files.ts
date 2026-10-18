@@ -7,7 +7,7 @@ export const hashText = (text: string) => createHash('sha256').update(text).dige
 export function safeRelative(file: string): string {
   if (!file || file.length > 500 || path.isAbsolute(file) || file.includes('\\') || /[\x00-\x1f]/.test(file)) throw new Error('Use a relative repository file path.');
   const parts = file.split('/');
-  if (parts.some(p => !p || p === '..' || p === '.' || ['.git', 'node_modules', '.ssh', '.aws', '.npmrc', '.pypirc', '.netrc', '.git-credentials'].includes(p) || /^\.env(?:\.|$)/.test(p) || /^(?:id_rsa|id_ed25519)$|\.(?:pem|key)$/i.test(p))) throw new Error('This path is outside the agent source-file scope.');
+  if (parts.some(p => !p || p === '..' || p === '.' || ['.git', '.codex', '.agents', 'node_modules', '.ssh', '.aws', '.npmrc', '.pypirc', '.netrc', '.git-credentials'].includes(p) || /^\.env(?:\.|$)/.test(p) || /^(?:id_rsa|id_ed25519)$|\.(?:pem|key)$/i.test(p))) throw new Error('This path is outside the agent source-file scope.');
   return file;
 }
 export async function scopedFile(root: string, file: string, createParents = false): Promise<string> {

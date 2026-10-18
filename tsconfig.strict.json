@@ -43,6 +43,17 @@
     "src/shared/analyzer/jsonConfig.ts",
     "src/server/security/download.ts",
     "src/server/security/environment.ts",
-    "src/cli/chat/runtime.ts"
+    "src/cli/chat/runtime.ts",
+    "src/shared/intelligence/**/*.ts",
+    "src/public/js/workspacePreferences.ts",
+    "src/public/js/reviewPatch.ts",
+    "src/server/intelligence/semantic.ts",
+    "src/server/intelligence/semanticWorker.ts",
+    "src/cli/agent/checkpoints.ts",
+    "src/shared/analyzer/sourceCache.ts",
+    "src/shared/analyzer/parseCache.ts",
+    "src/public/js/textDialog.ts",
+    "src/public/js/graphScene.ts",
+    "src/public/js/forceGraph.ts"
   ]
 }

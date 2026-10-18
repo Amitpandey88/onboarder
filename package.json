@@ -1,6 +1,6 @@
 {
   "name": "codebase-onboarder",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Drop a path. Get a map. A zero-dependency codebase visualizer with a CLI onboarding wizard, a web UI, and an optional key-gated self-hosted mode.",
   "type": "module",
   "bin": {
@@ -17,7 +17,8 @@
     "README.md",
     "LICENSE",
     "docs/SUPPLY_CHAIN_SECURITY.md",
-    "SECURITY.md"
+    "SECURITY.md",
+    "docs/ADVANCED_FEATURES.md"
   ],
   "scripts": {
     "build": "npm run typecheck && tsc -p tsconfig.json",
@@ -29,10 +30,12 @@
     "prestart": "node bin/build-if-source.js",
     "dev": "node scripts/dev.mjs",
     "build:check": "node scripts/check-build.mjs",
-    "check": "npm run typecheck && npm test && npm run build:check && npm run security:check",
+    "check": "npm run typecheck && npm test && npm run build:check && npm run security:check && npm run architecture:check",
     "prepack": "npm run build && npm run security:check",
     "security:check": "node scripts/check-supply-chain.mjs",
-    "security:audit": "node scripts/audit-supply-chain.mjs"
+    "security:audit": "node scripts/audit-supply-chain.mjs",
+    "editor:package": "node scripts/package-editor.mjs",
+    "architecture:check": "npm run build && node bin/onboarder.js intelligence rules . --fail-on high --json"
   },
   "engines": {
     "node": ">=20"

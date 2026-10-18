@@ -24,9 +24,13 @@ import {
 import { buildTourStops } from '../../shared/analyzer/tour.js';
 import { runExternalAnalysis, toolsStatus } from '../tools/scan.js';
 import { TOOL_DEFS } from '../tools/registry.js';
+import { validateArguments } from './protocol.js';
+import { workspaceFor, compareRevisions } from '../intelligence/workspace.js';
 
 const PATH_PROPERTY = {
   type: 'string',
+  minLength: 1,
+  maxLength: 4096,
   description:
     'Absolute path to the repository on this machine (for example /Users/you/code/my-app). '
     + 'The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned.',
@@ -303,6 +307,40 @@ function tourPayload(a) {
 
 export const TOOLS = [
   {
+    name: 'onboarder_intelligence',
+    description: 'Refresh repository intelligence: architecture boundaries, measured coverage, packages, routes, journeys, knowledge freshness and optional semantic symbols. Retrieve revision-pinned evidence or compare exact Git revisions. Source excerpts require includeSource; otherwise read cited files with onboarder_read_file.',
+    inputSchema: {
+      type: 'object',
+      properties: { path: PATH_PROPERTY, action: { type: 'string', enum: ['scan', 'evidence', 'compare'] },
+        question: { type: 'string', maxLength: 4000 }, base: { type: 'string', maxLength: 200 }, head: { type: 'string', maxLength: 200 },
+        semantic: { type: 'boolean' }, includeSource: { type: 'boolean' } },
+      required: [],
+    },
+    async run(args) {
+      const a = await resolve(args);
+      if (args.action === 'compare') {
+        if (typeof args.base !== 'string' || typeof args.head !== 'string') throw new ToolError('Supply base and head references.');
+        return compareRevisions(a.root, args.base, args.head);
+      }
+      const workspace = await workspaceFor(a.root);
+      const report = await workspace.refresh({ semantic: args.semantic === true });
+      if (args.action === 'evidence') {
+        if (typeof args.question !== 'string') throw new ToolError('Supply a question.');
+        const result = workspace.evidence(args.question);
+        if (!args.includeSource) return { ...result, evidence: result.evidence.map(({ text: _text, ...e }) => e) };
+        return result;
+      }
+      return { ...report,
+        snapshot: { ...report.snapshot, files: report.snapshot.files.slice(0, 1000), edges: report.snapshot.edges.slice(0, 2000), cycles: report.snapshot.cycles.slice(0, 100), violations: report.rules.slice(0, 300) },
+        rules: report.rules.slice(0, 300), routes: report.routes.slice(0, 300), dataModels: report.dataModels.slice(0, 300), scanFiles: report.scanFiles.slice(0, 1000),
+        packages: { packages: report.packages.packages.slice(0, 100).map(p => ({ ...p, dependencies: Object.fromEntries(Object.entries(p.dependencies).slice(0, 100)) })), edges: report.packages.edges.slice(0, 1000), duplicateDeclarations: report.packages.duplicateDeclarations.slice(0, 1000) },
+        semantic: { ...report.semantic, definitions: report.semantic.definitions.slice(0, 500), references: report.semantic.references.slice(0, 500) },
+        resultLimits: { files: 1000, edges: 2000, rules: 300, routes: 300, packages: 100, packageDependencies: 100, semanticDefinitions: 500, semanticReferences: 500,
+          totalFiles: report.snapshot.files.length, totalEdges: report.snapshot.edges.length, totalRules: report.rules.length, totalDefinitions: report.semantic.definitions.length, totalReferences: report.semantic.references.length },
+      };
+    },
+  },
+  {
     name: 'onboarder_scan',
     description:
       'Scan a repository and return everything Onboarder knows about it: structure, entry points, '
@@ -505,18 +543,30 @@ export const TOOLS = [
     name: 'onboarder_read_file',
     description:
       'The text of one file inside the repository. Paths outside the repository are refused, and files over '
-      + '200 KB are refused rather than truncated — use onboarder_search to find the part you need.',
+      + '200 KB are refused rather than truncated. Optional startLine/endLine return up to 500 lines with '
+      + 'line numbers and totalLines — use onboarder_search to locate the part you need. Symlinks and binary files are refused.',
     inputSchema: {
       type: 'object',
       properties: {
         path: PATH_PROPERTY,
         file: { type: 'string', description: 'Repository-relative path.' },
+        startLine: { type: 'integer', minimum: 1, description: 'First line to read, inclusive (1-based).' },
+        endLine: { type: 'integer', minimum: 1, description: 'Last line to read, inclusive. At most 500 lines per range.' },
       },
       required: ['file'],
     },
     async run(args) {
       const a = await resolve(args);
-      return readFileText(a, args.file);
+      const result = await readFileText(a, args.file);
+      if (args.startLine === undefined && args.endLine === undefined) return result;
+      const lines = result.text.split('\n');
+      if (lines.at(-1) === '') lines.pop();
+      const start = args.startLine ?? 1, end = args.endLine ?? Math.min(start + 499, lines.length);
+      if (start > lines.length || end < start) throw new ToolError('Choose a line range inside the file with endLine at or after startLine.');
+      if (end - start + 1 > 500) throw new ToolError('Read at most 500 lines at a time. Narrow startLine/endLine.');
+      const last = Math.min(end, lines.length);
+      return { path: result.path, text: lines.slice(start - 1, last).join('\n'), startLine: start,
+        endLine: last, totalLines: lines.length, truncated: start > 1 || last < lines.length };
     },
   },
 
@@ -654,8 +704,15 @@ const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
 export function toolDefinitions() {
   return TOOLS.map((t) => ({
     name: t.name,
+    title: t.name.replace(/^onboarder_/, '').split('_').map(word => word[0].toUpperCase() + word.slice(1)).join(' '),
     description: t.description,
-    inputSchema: t.inputSchema,
+    inputSchema: { ...t.inputSchema, additionalProperties: false },
+    annotations: {
+      readOnlyHint: t.name !== 'onboarder_deep_analysis',
+      destructiveHint: t.name === 'onboarder_deep_analysis',
+      idempotentHint: t.name !== 'onboarder_deep_analysis',
+      openWorldHint: t.name === 'onboarder_deep_analysis',
+    },
   }));
 }
 
@@ -666,7 +723,10 @@ export function findTool(name) {
 export async function callTool(name, args) {
   const tool = findTool(name);
   if (!tool) throw new ToolError(`No tool called "${name}".`);
-  return await tool.run(args || {});
+  const input = args === undefined ? {} : args;
+  try { validateArguments({ ...tool.inputSchema, additionalProperties: false }, input); }
+  catch (error) { throw new ToolError(error.message); }
+  return await tool.run(input);
 }
 
 // What the top-bar button polls. The runner fills in `running`, `pid` and the
@@ -676,6 +736,7 @@ export function mcpStatus() {
     transport: 'stdio',
     toolCount: TOOLS.length,
     tools: TOOLS.map((t) => t.name),
+    catalog: toolDefinitions().map(({ name, title, description, annotations }) => ({ name, title, description, annotations })),
     cachedRepositories: cachedRoots(),
     lastRoot,
     analyzers: toolsStatus(),

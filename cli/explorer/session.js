@@ -19,6 +19,8 @@ import { expandHome, resolveInside } from '../../server/paths.js';
 import { assertGitUrl, cloneRepo, removeClone, repoNameFromUrl } from '../../server/gitClone.js';
 import { gitRemoteOrigin } from '../../server/gitRemote.js';
 import { scanRepo } from '../../shared/analyzer/scan.js';
+import { memoizedSource } from '../../shared/analyzer/sourceCache.js';
+import { workspaceFor } from '../../server/intelligence/workspace.js';
 import { detectManifest } from '../../shared/analyzer/services.js';
 import { computeFacts, roleOf } from '../../shared/analyzer/graph.js';
 import { analyzeHealth } from '../../shared/analyzer/health.js';
@@ -105,8 +107,8 @@ export async function openRepo(target = '.', options = {}) {
         throw new Error('No such folder: ' + root);
     if (!stat.isDirectory())
         throw new Error('Not a folder: ' + root);
-    const source = nodeFileSource(root);
-    const scan = await scanRepo(source, options);
+    const source = memoizedSource(nodeFileSource(root));
+    const scan = await scanRepo(source, { ...options, analysisCache: options.analysisCache || (await workspaceFor(root)).cache });
     const manifest = await detectManifest(source);
     const facts = computeFacts(scan, manifest);
     const searchIndex = await buildSearchIndex(source, scan.files.map((f) => f.path));

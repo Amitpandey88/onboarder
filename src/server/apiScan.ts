@@ -32,6 +32,8 @@ import { gitLog, parseGitLog } from './gitHistory.js';
 import { sendError, sendJSON } from './http.js';
 import { expandHome } from './paths.js';
 import { closeClone, isCloneId, openSession } from './sessions.js';
+import { workspaceFor } from './intelligence/workspace.js';
+import { memoizedSource } from '../shared/analyzer/sourceCache.js';
 
 export async function handleScan(res: ServerResponse, body: unknown, { projectRoot }: { projectRoot: string }) {
   let request: ScanRequest;
@@ -47,8 +49,8 @@ export async function handleScan(res: ServerResponse, body: unknown, { projectRo
     const { root, cloneId, gitMeta } = target;
     cloneDir = target.cloneDir;
     throwIfAborted(controller.signal);
-    const source = nodeFileSource(root);
-    const scan = await scanRepo(source, { ...request.options, signal: controller.signal });
+    const source = memoizedSource(nodeFileSource(root));
+    const scan = await scanRepo(source, { ...request.options, signal: controller.signal, analysisCache: (await workspaceFor(root)).cache });
     if (gitMeta) {
       // Show the repo's real name up top; keep the temp dir name for honesty,
       // so a path in the UI is still a path you could go and look at.
@@ -69,7 +71,10 @@ export async function handleScan(res: ServerResponse, body: unknown, { projectRo
 
     const history = await collectHistory(root, scan);
     throwIfAborted(controller.signal);
-    const scanId = openSession({ root, cloneDir, searchIndex: searchIndexData });
+    const sharedFiles = new Set(scan.files.map(f => f.path));
+    for (const file of scan.allFiles) if (/\.(?:md|prisma|sql)$|(?:^|\/)(?:package\.json|[jt]sconfig(?:\.[\w-]+)?\.json|LICENSE|\.gitignore)$/.test(file) &&
+      !/(?:^|\/)(?:AGENTS|PROJECT_MEMORY)\.md$/.test(file)) sharedFiles.add(file);
+    const scanId = openSession({ root, cloneDir, searchIndex: searchIndexData, files: [...sharedFiles] });
     sendJSON(res, 200, { scan, facts, manifest, history, scanId, cloneId });
   } catch (err) {
     // A clone that was never scanned successfully has no session to evict it

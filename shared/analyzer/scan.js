@@ -9,7 +9,8 @@ export { DEFAULT_LIMITS } from './scanControl.js';
 //   read(path) -> string
 // Paths are repo-relative, POSIX style ('' is the root).
 import { languageFor } from './languages/index.js';
-import { dirOf, baseName, extOf } from './pathUtil.js';
+import { dirOf, baseName, extOf, joinPath } from './pathUtil.js';
+import { matchesReviewPath } from '../intelligence/pathGlob.js';
 import { codeStats, complexityOf } from './metrics.js';
 import { analyzeSecurityFile } from './security.js';
 import { analyzeLicenses } from './licenses.js';
@@ -157,6 +158,35 @@ export async function scanRepo(source, options = {}) {
         modulePath: await abortable(readModulePath(source), signal),
         tsPaths: await abortable(readTsConfigPaths(source), signal),
     };
+    const projects = [];
+    for (const name of allFiles.filter(p => /\/(?:tsconfig|jsconfig)\.json$/.test(p))) {
+        const folder = dirOf(name);
+        const tsPaths = await abortable(readTsConfigPaths(source, folder), signal);
+        if (tsPaths)
+            projects.push({ folder, tsPaths });
+    }
+    projects.sort((a, b) => b.folder.length - a.folder.length);
+    const workspacePackages = new Map();
+    try {
+        const rootPackage = JSON.parse(await source.read('package.json'));
+        const patterns = Array.isArray(rootPackage.workspaces) ? rootPackage.workspaces : rootPackage.workspaces?.packages || [];
+        for (const file of allFiles.filter(p => /\/package\.json$/.test(p))) {
+            const folder = dirOf(file);
+            if (!patterns.some((pattern) => matchesReviewPath(folder, pattern.replace(/\/$/, ''))))
+                continue;
+            try {
+                const pkg = JSON.parse(await source.read(file));
+                if (typeof pkg.name !== 'string')
+                    continue;
+                const exports = typeof pkg.exports === 'object' && pkg.exports ? pkg.exports : {};
+                const rootExport = typeof pkg.exports === 'string' ? pkg.exports : exports['.'] || exports;
+                const target = typeof rootExport === 'string' ? rootExport : rootExport.types || rootExport.import || rootExport.default || rootExport.require;
+                workspacePackages.set(pkg.name, { folder, entry: pkg.source || target || pkg.module || pkg.main || 'index', exports });
+            }
+            catch { }
+        }
+    }
+    catch { }
     // ---- Parse ---------------------------------------------------------------
     // Reads run a window ahead of the analysis; the analysis stays strictly in
     // path order. Waiting for one `read` to land before starting the next was the
@@ -174,6 +204,7 @@ export async function scanRepo(source, options = {}) {
     const files = [];
     const langOf = new Map();
     let parsed = 0;
+    let reused = 0;
     const codeFiles = [];
     for (const path of allFiles) {
         const lang = languageFor(path);
@@ -198,7 +229,11 @@ export async function scanRepo(source, options = {}) {
         const lang = langOf.get(path);
         let analysis;
         try {
-            analysis = lang.analyze(text, path);
+            const previous = options.analysisCache?.get(path);
+            if (previous?.text === text)
+                reused++;
+            analysis = previous?.text === text ? previous.analysis : lang.analyze(text, path);
+            options.analysisCache?.set(path, { text, analysis });
         }
         catch {
             skips.analyzeFailed++;
@@ -228,6 +263,12 @@ export async function scanRepo(source, options = {}) {
             onProgress({ phase: 'parse', done: parsed, total: codeFiles.length });
     }
     onProgress({ phase: 'parse', done: parsed, total: codeFiles.length });
+    if (options.analysisCache) {
+        const accepted = new Set(codeFiles);
+        for (const key of options.analysisCache.keys())
+            if (!accepted.has(key))
+                options.analysisCache.delete(key);
+    }
     // ---- Resolve imports into edges -------------------------------------------
     const edges = [];
     const edgeKeys = new Map(); // key -> edge
@@ -260,9 +301,21 @@ export async function scanRepo(source, options = {}) {
         if (resolved++ % 25 === 0)
             onProgress({ phase: 'resolve', done: resolved, total: files.length });
         const lang = langOf.get(file.path);
+        const project = projects.find(p => file.path.startsWith(p.folder + '/'));
+        const fileContext = project ? { ...context, tsPaths: project.tsPaths } : context;
         for (const imp of file.imports) {
             tally.total++;
-            const res = lang.resolveImport(imp.spec, file.path, has, context, imp);
+            const workspaceName = ['typescript', 'javascript'].includes(file.lang) ? [...workspacePackages.keys()].find(name => imp.spec === name || imp.spec.startsWith(name + '/')) : undefined;
+            let res;
+            if (workspaceName) {
+                const pkg = workspacePackages.get(workspaceName);
+                const subpath = imp.spec.slice(workspaceName.length).replace(/^\//, '');
+                const exported = subpath ? pkg.exports['./' + subpath] : pkg.entry;
+                const target = typeof exported === 'string' ? exported : exported && typeof exported === 'object' ? exported.types || exported.import || exported.default : subpath;
+                res = lang.resolveImport('./' + joinPath(pkg.folder, String(target || subpath)), '__onboarder_workspace__.ts', has, fileContext, imp);
+            }
+            else
+                res = lang.resolveImport(imp.spec, file.path, has, fileContext, imp);
             if (res.path) {
                 tally.internal++;
                 addEdge(edges, edgeKeys, file.path, res.path, 'imports', imp.symbols);
@@ -357,6 +410,7 @@ export async function scanRepo(source, options = {}) {
         .sort((a, b) => a.path.localeCompare(b.path));
     const skippedTotal = Object.values(skips).reduce((a, b) => a + b, 0);
     const stats = {
+        reused,
         filesTotal: allFiles.length,
         filesParsed: parsed,
         skipped: skippedTotal,
@@ -492,16 +546,16 @@ async function buildIgnoreMatcher(source) {
 function escapeRe(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-async function readTsConfigPaths(source) {
+async function readTsConfigPaths(source, folder = '') {
     for (const name of ['tsconfig.json', 'jsconfig.json']) {
         try {
-            const text = await source.read(name);
+            const text = await source.read(joinPath(folder, name));
             const json = parseJsonConfig(text);
             const compilerOptions = json.compilerOptions || {};
-            const baseUrl = compilerOptions.baseUrl ? compilerOptions.baseUrl.replace(/^\.?\//, '').replace(/\/$/, '') : '';
+            const baseUrl = joinPath(folder, compilerOptions.baseUrl || '');
             const paths = compilerOptions.paths || {};
-            const sourceRoot = compilerOptions.rootDir?.replace(/^\.?\//, '').replace(/\/$/, '');
-            const outputRoot = compilerOptions.outDir?.replace(/^\.?\//, '').replace(/\/$/, '').replace(/^\.$/, '');
+            const sourceRoot = compilerOptions.rootDir ? joinPath(folder, compilerOptions.rootDir) : undefined;
+            const outputRoot = compilerOptions.outDir ? joinPath(folder, compilerOptions.outDir) : undefined;
             if (Object.keys(paths).length || baseUrl || sourceRoot) {
                 return { baseUrl, paths, sourceRoot, outputRoot };
             }

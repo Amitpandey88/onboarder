@@ -80,10 +80,9 @@ test('initialize identifies the server and negotiates a version', async () => {
   assert.equal(out.id, 1);
   assert.equal(out.result.serverInfo.name, 'onboarder');
   assert.equal(out.result.protocolVersion, '2025-06-18');
-  // A client asks what the server can do. The only capability claimed is tools:
-  // there is no resource or prompt surface to claim, and claiming one anyway is
-  // how a client ends up waiting for a feature that never arrives.
-  assert.deepEqual(Object.keys(out.result.capabilities), ['tools']);
+  assert.deepEqual(Object.keys(out.result.capabilities), ['tools', 'resources', 'prompts']);
+  assert.equal(out.result.serverInfo.version, JSON.parse(await fs.readFile(path.join(REPO, 'package.json'), 'utf8')).version);
+  assert.match(out.result.instructions, /untrusted data/);
 });
 
 test('an unknown method is a protocol error, not a crash', async () => {
@@ -93,9 +92,9 @@ test('an unknown method is a protocol error, not a crash', async () => {
 });
 
 test('a malformed request does not take the server down', async () => {
-  assert.equal(await handle(null), null, 'no id, no answer');
-  assert.equal(await handle({ jsonrpc: '2.0', id: 5 }), null, 'id but no method');
-  assert.equal(await handle({ id: 6, method: 'tools/list' }), null, 'a notification, not a request');
+  assert.equal((await handle(null)).error.code, -32600);
+  assert.equal((await handle({ jsonrpc: '2.0', id: 5 })).error.code, -32600);
+  assert.equal((await handle({ id: 6, method: 'tools/list' })).error.code, -32600);
   // And the next real request still works.
   assert.ok((await rpc('tools/list')).result.tools.length > 0);
 });
