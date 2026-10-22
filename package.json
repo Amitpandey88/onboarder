@@ -1,6 +1,6 @@
 {
   "name": "codebase-onboarder",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "Drop a path. Get a map. A zero-dependency codebase visualizer with a CLI onboarding wizard, a web UI, and an optional key-gated self-hosted mode.",
   "type": "module",
   "bin": {
@@ -15,10 +15,22 @@
     "public",
     "docs/HERMES_RESEARCH.md",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "docs/SUPPLY_CHAIN_SECURITY.md",
     "SECURITY.md",
-    "docs/ADVANCED_FEATURES.md"
+    "docs/ADVANCED_FEATURES.md",
+    "docs/UNIFIED_REVIEW_FOUNDATION.md",
+    "docs/CONTEXTUAL_AI_REVIEW.md",
+    "docs/AI_FIX_VERIFICATION.md",
+    "docs/PR_TRIAGE.md",
+    "docs/PHASE4A_VERIFICATION.md",
+    "docs/RELEASE_1.1.0.md",
+    "docs/MIGRATING_TO_1.1.md",
+    "integrations/vscode/package.json",
+    "integrations/vscode/extension.cjs",
+    "integrations/vscode/README.md",
+    "scripts/package-editor.mjs"
   ],
   "scripts": {
     "build": "npm run typecheck && tsc -p tsconfig.json",
@@ -26,6 +38,7 @@
     "start": "node server/index.js",
     "mcp": "node server/mcp/standalone.js",
     "test": "npm run build && node --test",
+    "benchmark:review": "npm run build && node scripts/benchmark-review.mjs",
     "prepublishOnly": "npm run check",
     "prestart": "node bin/build-if-source.js",
     "dev": "node scripts/dev.mjs",

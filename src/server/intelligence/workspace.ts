@@ -16,11 +16,16 @@ import { redact } from '../../cli/agent/process.js';
 import { semanticAnalysis } from './semantic.js';
 import { parseTelemetry } from '../../shared/intelligence/telemetry.js';
 import { ParseCache } from '../../shared/analyzer/parseCache.js';
+import { safeGitArguments } from '../../cli/agent/gitSafety.js';
 
 const execute = promisify(execFile);
 export const ANALYZER_VERSION = 'intelligence-1';
 export const hash = (text: string) => createHash('sha256').update(text).digest('hex');
 export function evidenceText(source: string): string {
+  // Preserve line coordinates when a known environment secret spans lines.
+  for (const [name, value] of Object.entries(process.env)) if (value && value.length >= 4 && value.includes('\n') && /TOKEN|KEY|PASSWORD|SECRET/i.test(name)) {
+    source = source.split(value).join(value.split('\n').map(() => '[redacted]').join('\n'));
+  }
   let privateBlock = false;
   return redact(source).split('\n').map(line => {
     if (/-----BEGIN .*PRIVATE KEY-----/.test(line)) privateBlock = true;
@@ -48,7 +53,7 @@ export async function boundedSource(root: string, file: string, max = 204800): P
   } finally { await handle.close(); }
 }
 export async function gitRead(root: string, args: string[], signal?: AbortSignal): Promise<string> {
-  const { stdout } = await execute('git', ['--literal-pathspecs', '-c', 'core.fsmonitor=false', '-c', 'core.quotePath=false', ...args], {
+  const { stdout } = await execute('git', [...await safeGitArguments(root, signal), ...args], {
     cwd: root, timeout: 15000, maxBuffer: 8 * 1024 * 1024, signal,
     env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_NO_REPLACE_OBJECTS: '1', GIT_TERMINAL_PROMPT: '0' },
   });
@@ -246,19 +251,21 @@ export async function workspaceFor(root: string): Promise<IntelligenceWorkspace>
   return workspace;
 }
 
-/** Read immutable Git objects without checkout, hooks, or repository scripts. */
-export async function revisionSnapshot(root: string, ref: string, config = emptyIntelligenceConfig()): Promise<Snapshot> {
-  if (!/^[\w./~^@{}-]{1,200}$/.test(ref) || ref.startsWith('-')) throw new Error('Use a valid Git reference.');
-  const revision = (await gitRead(root, ['rev-parse', '--verify', '--end-of-options', ref + '^{commit}'])).trim();
-  const tree = await gitRead(root, ['ls-tree', '-rz', '--full-tree', revision]);
+/** Shared immutable commit/index source for intelligence and contextual review. */
+export async function revisionFileSource(root: string, ref: string, signal?: AbortSignal) {
+  if (ref && (!/^[\w./~^@{}-]{1,200}$/.test(ref) || ref.startsWith('-'))) throw new Error('Use a valid Git reference.');
+  const revision = ref ? (await gitRead(root, ['rev-parse', '--verify', '--end-of-options', ref + '^{commit}'], signal)).trim() : '';
+  const tree = await gitRead(root, revision ? ['ls-tree', '-rz', '--full-tree', revision] : ['ls-files', '--stage', '-z'], signal);
   const entries = new Map<string, string>();
+  const unavailable = new Set<string>();
   for (const line of tree.split('\0').filter(Boolean)) {
-    const match = /^100(?:644|755) blob ([a-f0-9]+)\t([\s\S]+)$/.exec(line);
+    const match = (revision ? /^100(?:644|755) blob ([a-f0-9]+)\t([\s\S]+)$/ : /^100(?:644|755) ([a-f0-9]+) 0\t([\s\S]+)$/).exec(line);
     if (match) { try { entries.set(safeRelative(match[2]), match[1]); } catch {} }
+    else { const file = line.slice(line.indexOf('\t') + 1); try { unavailable.add(safeRelative(file)); } catch {} }
   }
   const texts = new Map<string, string>();
   const source: FileSource = {
-    kind: 'git-snapshot', root, name: path.basename(root),
+    kind: revision ? 'git-snapshot' : 'git-index', root, name: path.basename(root),
     list: async dir => {
       const prefix = dir ? dir + '/' : ''; const out = new Map();
       for (const file of entries.keys()) if (file.startsWith(prefix)) {
@@ -269,14 +276,23 @@ export async function revisionSnapshot(root: string, ref: string, config = empty
     },
     read: async file => {
       if (texts.has(file)) return texts.get(file)!;
+      if (unavailable.has(file)) throw new Error('Snapshot source is a symlink, submodule or unresolved index entry.');
       const blob = entries.get(file); if (!blob) throw new Error('File unavailable at this revision.');
-      const value = await gitRead(root, ['cat-file', 'blob', blob]);
+      const size = Number((await gitRead(root, ['cat-file', '-s', blob], signal)).trim());
+      if (!Number.isSafeInteger(size) || size > 204800) throw new Error('File exceeds snapshot limit.');
+      const value = await gitRead(root, ['cat-file', 'blob', blob], signal);
       if (Buffer.byteLength(value) > 204800 || value.includes('\0')) throw new Error('File exceeds snapshot limit.');
       texts.set(file, value); return value;
     },
   };
-  const scan = await scanRepo(source); const facts = computeFacts(scan, await detectManifest(source));
+  return { source, texts, revision };
+}
+/** Read immutable Git objects without checkout, hooks, or repository scripts. */
+export async function revisionSnapshot(root: string, ref: string, config = emptyIntelligenceConfig(), options: { signal?: AbortSignal; maxFiles?: number } = {}): Promise<Snapshot> {
+  const { source, texts, revision } = await revisionFileSource(root, ref, options.signal);
+  const scan = await scanRepo(source, options); const facts = computeFacts(scan, await detectManifest(source));
   return { schemaVersion: 1, id: randomUUID(), createdAt: new Date().toISOString(), revision, analyzerVersion: ANALYZER_VERSION,
+    scanCoverage: { truncated: Boolean(scan.stats.truncated), unavailable: scan.stats.skips.readFailed + scan.stats.skips.listFailed + scan.stats.skips.tooLarge + scan.stats.skips.analyzeFailed, unsupported: scan.stats.skips.notCode },
     fingerprint: hash(JSON.stringify([...texts].map(([p, v]) => [p, hash(v)]))), files: scan.files.map(f => ({ path: f.path, hash: hash(texts.get(f.path) || ''), exports: f.exports.map(e => e.name) })),
     edges: scan.edges, cycles: facts.cycles, violations: architectureViolations(scan.edges, config),
     metrics: { files: scan.files.length, connections: scan.edges.length, unresolved: scan.stats.imports.unresolved, security: scan.files.reduce((n, f) => n + (f.findings?.length || 0), 0), reused: 0 } };

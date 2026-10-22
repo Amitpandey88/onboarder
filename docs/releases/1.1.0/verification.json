@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "release": "1.1.0",
+  "date": "2026-10-22",
+  "scope": "Implemented Phases 1–3, Phase 4A triage and Phase 5A hardening. Full Phase 4 platform is not complete.",
+  "state": "local-candidate-awaiting-final-human-approval",
+  "baseCommit": "44556a88b556ae13bf7c6ce126d910f4e31321b4",
+  "requiredChecks": [
+    {
+      "command": "npm ci --ignore-scripts",
+      "status": "passed"
+    },
+    {
+      "command": "npm run check",
+      "node": "24.20.0",
+      "status": "passed",
+      "tests": 1041,
+      "passed": 1041,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 21971.031917
+    },
+    {
+      "command": "npm run security:audit",
+      "status": "passed-policy",
+      "unacceptedAdvisories": 0,
+      "trackedLow": [
+        {
+          "id": "GHSA-238p-pmpm-9mq7",
+          "reviewBy": "2026-11-09"
+        }
+      ]
+    },
+    {
+      "command": "npm run editor:package",
+      "status": "passed",
+      "version": "0.2.0"
+    },
+    {
+      "command": "npm pack --dry-run",
+      "status": "passed"
+    }
+  ],
+  "additional": [
+    {
+      "command": "node --test",
+      "node": "20.20.2",
+      "status": "passed",
+      "tests": 1041,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 17255.980583
+    },
+    {
+      "schemaVersion": 1,
+      "node": "v20.20.2",
+      "status": "passed",
+      "archiveSha256": "0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382",
+      "version": "1.1.0",
+      "runtimeDependencies": 0,
+      "editorVersion": "0.2.0",
+      "installation": "Offline npm install --ignore-scripts --omit=dev into a fresh prefix/home; no source tree or development dependencies installed.",
+      "checks": [
+        "version/help",
+        "repository report and intelligence analysis",
+        "offline review",
+        "staged review",
+        "SARIF",
+        "AI unavailable is explicit",
+        "MCP self-check",
+        "mocked read-only GitHub triage list/inspect",
+        "packaged editor VSIX generation",
+        "packaged web server/health/browser assets/scan API",
+        "separate-process mocked-provider CLI proposal/show/approval/apply/real baseline-result verification/status/rollback"
+      ],
+      "model": "mock HTTP provider; no external model",
+      "externalWrites": 0
+    },
+    {
+      "schemaVersion": 1,
+      "node": "v24.20.0",
+      "status": "passed",
+      "archiveSha256": "0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382",
+      "version": "1.1.0",
+      "runtimeDependencies": 0,
+      "editorVersion": "0.2.0",
+      "installation": "Offline npm install --ignore-scripts --omit=dev into a fresh prefix/home; no source tree or development dependencies installed.",
+      "checks": [
+        "version/help",
+        "repository report and intelligence analysis",
+        "offline review",
+        "staged review",
+        "SARIF",
+        "AI unavailable is explicit",
+        "MCP self-check",
+        "mocked read-only GitHub triage list/inspect",
+        "packaged editor VSIX generation",
+        "packaged web server/health/browser assets/scan API",
+        "separate-process mocked-provider CLI proposal/show/approval/apply/real baseline-result verification/status/rollback"
+      ],
+      "model": "mock HTTP provider; no external model",
+      "externalWrites": 0
+    },
+    {
+      "schemaVersion": 1,
+      "status": "passed",
+      "previousVersion": "1.0.5",
+      "candidateVersion": "1.1.0",
+      "checks": [
+        "original review JSON/finding fields retained",
+        "stable eval finding ID",
+        "SARIF version preserved",
+        "report and intelligence CLI compatibility",
+        "agent help and existing config commands",
+        "MCP self-check and additive tool count"
+      ],
+      "oldTools": 17,
+      "newTools": 18,
+      "scope": "Synthetic offline JS repository; does not prove compatibility of every third-party consumer or saved development run."
+    }
+  ],
+  "archive": {
+    "name": "codebase-onboarder-1.1.0.tgz",
+    "files": 829,
+    "compressedBytes": 5603215,
+    "unpackedBytes": 22203830,
+    "sha256": "0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382",
+    "integrity": "sha512-DlrpJ9DDf/W0c7m0ZIf6FoVqYKX3F49uXywUXwVtAtxKMbVshfqZaXLe5gVzyfQ4JaJkJbwtypXRzZ7eAtjz8g=="
+  },
+  "coreRuntimeDependencies": 0,
+  "semanticCompiler": "Optional pinned TypeScript Compiler API 5.9.3 from a trusted temporary installation; no runtime dependency added.",
+  "identities": {
+    "github": "Amitpandey88",
+    "npm": "its.amit",
+    "npmOwnerVerified": true
+  },
+  "availability": {
+    "npmVersion": "not present at preflight",
+    "githubTag": "not present at preflight",
+    "githubRelease": "not present at preflight"
+  },
+  "unverified": [
+    "Live model/Hermes quality",
+    "Live GitHub App/private repositories",
+    "Actual VS Code GUI",
+    "Linux/Node 22 final-candidate CI pending authorized push"
+  ],
+  "remainingLimits": [
+    "Dedicated Change Stack, planner, full team platform and post-merge drafts unfinished",
+    "Static analysis is heuristic; worktrees are not OS sandboxes",
+    "Existing tracked low KaTeX advisory not fixed"
+  ],
+  "externalWrites": 0
+}

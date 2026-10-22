@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "auditedAt": "2026-10-22T11:21:41.321Z",
+  "node": "v24.20.0",
+  "mode": "deterministic-review",
+  "corpusHash": "43bbd2f1df15bad9668b208cd4df17828f78364a200534c8816cbdf38120c8de",
+  "limitations": "Sixteen explicitly labelled synthetic cases. Clean constant-eval and comment cases deliberately test lexical false positives. Detection means at least one finding on a known-bug case; this is not a representative population estimate or measured model quality.",
+  "detection": {
+    "cases": 8,
+    "detected": 4,
+    "casesWithExpectedRule": 4,
+    "matchedExpectedRule": 3
+  },
+  "falsePositives": {
+    "cleanCases": 8,
+    "flaggedCases": 3,
+    "findings": 3
+  },
+  "evidence": {
+    "findings": 7,
+    "casesWithInvalidEvidence": 0
+  },
+  "modelRequests": 0,
+  "modelTokens": null,
+  "rows": [
+    {
+      "id": "eval-input",
+      "knownBug": true,
+      "expectedRule": "eval",
+      "expectedRuleMatched": true,
+      "detected": true,
+      "rules": [
+        "eval"
+      ],
+      "evidenceAccurate": true,
+      "findings": 1,
+      "runtimeMs": 82.169,
+      "fingerprint": "2540ae177799f9901f525ba1302551cda17deee7ec4e8e2ed1c4f581dc98f13b"
+    },
+    {
+      "id": "dynamic-function",
+      "knownBug": true,
+      "expectedRule": "new-function",
+      "expectedRuleMatched": true,
+      "detected": true,
+      "rules": [
+        "new-function"
+      ],
+      "evidenceAccurate": true,
+      "findings": 1,
+      "runtimeMs": 33.215,
+      "fingerprint": "c30bfa29fd6d6c31dccba1efe537803b6461fc4d12b015986a66013b2666cf33"
+    },
+    {
+      "id": "shell-input",
+      "knownBug": true,
+      "expectedRule": "child-exec",
+      "expectedRuleMatched": false,
+      "detected": true,
+      "rules": [
+        "sql-concat"
+      ],
+      "evidenceAccurate": true,
+      "findings": 1,
+      "runtimeMs": 32.116,
+      "fingerprint": "78b5c6d8240bb0d38ba0d256f942830d2bc3387e609ce9c8808d5a0e14888817"
+    },
+    {
+      "id": "html-input",
+      "knownBug": true,
+      "expectedRule": "innerhtml",
+      "expectedRuleMatched": true,
+      "detected": true,
+      "rules": [
+        "innerhtml"
+      ],
+      "evidenceAccurate": true,
+      "findings": 1,
+      "runtimeMs": 32.325,
+      "fingerprint": "5e6641185de26dd1a23c210505a85d488bc8275afaa9f6ea320e24f2c76df004"
+    },
+    {
+      "id": "null-guard",
+      "knownBug": true,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": false,
+      "rules": [],
+      "evidenceAccurate": true,
+      "findings": 0,
+      "runtimeMs": 33.612,
+      "fingerprint": "0c1230b4272c0683895ec3b45b113618b411c92727db3f014064141615b6aab4"
+    },
+    {
+      "id": "auth-removed",
+      "knownBug": true,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": false,
+      "rules": [],
+      "evidenceAccurate": true,
+      "findings": 0,
+      "runtimeMs": 32.74,
+      "fingerprint": "98d4cbbb3f8f01f55aa92781b04c1a80742b4847749f36f7ca12980dca1b83cc"
+    },
+    {
+      "id": "async-caller",
+      "knownBug": true,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": false,
+      "rules": [],
+      "evidenceAccurate": true,
+      "findings": 0,
+      "runtimeMs": 33.233,
+      "fingerprint": "190ba0508eb50f210e707aee89da0a1407f7571d6be44e513b0ea6ed64b143c2"
+    },
+    {
+      "id": "off-by-one",
+      "knownBug": true,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": false,
+      "rules": [],
+      "evidenceAccurate": true,
+      "findings": 0,
+      "runtimeMs": 31.349,
+      "fingerprint": "e2f137a3f87b3f766e6a14da7dc629a34ac137270ec5d5ba7c3c33a8f8227522"
+    },
+    {
+      "id": "safe-json",
+      "knownBug": false,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": false,
+      "rules": [],
+      "evidenceAccurate": true,
+      "findings": 0,
+      "runtimeMs": 30.753,
+      "fingerprint": "b2241afd1681516a2419987aa5ce4f9fa71cc2c6c88549b3c6421c2b2a810991"
+    },
+    {
+      "id": "safe-shell",
+      "knownBug": false,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": false,
+      "rules": [],
+      "evidenceAccurate": true,
+      "findings": 0,
+      "runtimeMs": 32.536,
+      "fingerprint": "8d83df4f2d9bcb03c54f98fef3a85119249fa584f8921292618f623c5d6ea044"
+    },
+    {
+      "id": "safe-text",
+      "knownBug": false,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": false,
+      "rules": [],
+      "evidenceAccurate": true,
+      "findings": 0,
+      "runtimeMs": 32.085,
+      "fingerprint": "e2bac8b287ff0541bdcc9ab3f188bf2bb24ebbdad73d8bdd72f4df824bcdd4bf"
+    },
+    {
+      "id": "safe-null",
+      "knownBug": false,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": false,
+      "rules": [],
+      "evidenceAccurate": true,
+      "findings": 0,
+      "runtimeMs": 32.349,
+      "fingerprint": "4b2c8f970d92960fd18b45ec852abddfcdc05d1f7408702baa77f8b759c933a5"
+    },
+    {
+      "id": "safe-async",
+      "knownBug": false,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": false,
+      "rules": [],
+      "evidenceAccurate": true,
+      "findings": 0,
+      "runtimeMs": 31.895,
+      "fingerprint": "0de40c7048de0bcac4447382f9f72f8e5057ff61359ce85d529094a8196c46e9"
+    },
+    {
+      "id": "safe-html-clear",
+      "knownBug": false,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": true,
+      "rules": [
+        "innerhtml"
+      ],
+      "evidenceAccurate": true,
+      "findings": 1,
+      "runtimeMs": 31.628,
+      "fingerprint": "17085acf3b992f1281af32eb989302adf50ad89cee2030da6c2d7e76d4142883"
+    },
+    {
+      "id": "comment-example",
+      "knownBug": false,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": true,
+      "rules": [
+        "eval"
+      ],
+      "evidenceAccurate": true,
+      "findings": 1,
+      "runtimeMs": 31.883,
+      "fingerprint": "b63129d1e297d456aa62f7c96918d4f330e44d7c0ec2265cfbff8a0ce6382589"
+    },
+    {
+      "id": "constant-eval",
+      "knownBug": false,
+      "expectedRule": null,
+      "expectedRuleMatched": null,
+      "detected": true,
+      "rules": [
+        "eval"
+      ],
+      "evidenceAccurate": true,
+      "findings": 1,
+      "runtimeMs": 33.623,
+      "fingerprint": "0592b4cc748722a0af68bc0d3ab46bfce02dabe659e6cd8464b7a7dfe469474c"
+    }
+  ]
+}

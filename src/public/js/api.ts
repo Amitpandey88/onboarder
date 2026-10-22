@@ -178,10 +178,12 @@ export async function* streamExplain({ connection = 'api', baseUrl = '', apiKey 
   if (!res.body) throw new Error('The connection returned no answer stream.');
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = '';
+  let buffer = '', receivedBytes = 0;
   try { while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    receivedBytes += value.byteLength;
+    if (receivedBytes > 2 * 1024 * 1024) throw new Error('The answer exceeded the stream limit.');
     buffer = (buffer + decoder.decode(value, { stream: true })).replace(/\r\n/g, '\n');
     if (buffer.length > 2 * 1024 * 1024) throw new Error('The answer exceeded the stream limit.');
     const frames = buffer.split('\n\n');
@@ -192,14 +194,25 @@ export async function* streamExplain({ connection = 'api', baseUrl = '', apiKey 
         const payload = line.slice(5).trim();
         if (payload === '[DONE]') return;
         let json;
-        try { json = JSON.parse(payload); } catch { continue; }
+        try { json = JSON.parse(payload); } catch { throw new Error('The provider returned a malformed answer event. Its output is incomplete.'); }
         if (json.error) throw new Error(typeof json.error === 'string' ? json.error : json.error.message || 'The assistant could not finish its answer.');
         const delta = json.choices?.[0]?.delta?.content;
         if (typeof delta === 'string' && delta) yield delta;
+        const finish = json.choices?.[0]?.finish_reason;
+        if (finish === 'length' || finish === 'content_filter') throw new Error('The answer was truncated by the provider output limit or content filter.');
+        if (finish === 'stop') return;
+        if (json.type === 'content_block_delta' && json.delta?.type === 'text_delta' && typeof json.delta.text === 'string') yield json.delta.text;
+        if (json.type === 'message_delta' && json.delta?.stop_reason === 'max_tokens') throw new Error('The answer reached the provider token limit.');
+        if (json.type === 'message_stop') return;
+        const candidate = json.candidates?.[0];
+        for (const part of candidate?.content?.parts || []) if (typeof part.text === 'string' && part.text) yield part.text;
+        if (candidate?.finishReason && candidate.finishReason !== 'STOP') throw new Error('The answer stopped before completion: provider output limit or safety filter.');
+        if (candidate?.finishReason === 'STOP') return;
       }
     }
   }
   if (connection === 'hermes') throw new Error('Hermes disconnected before finishing its answer. Try again.');
+  throw new Error('The provider disconnected before finishing its answer. Its output is incomplete.');
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 

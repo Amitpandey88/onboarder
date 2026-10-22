@@ -9,7 +9,8 @@ import type { SemanticResult } from '../../shared/intelligence/contracts.js';
 let activeWorkers = 0;
 
 /** Optional compiler loaded from operator configuration, never repository code. */
-export async function semanticAnalysis(_root: string, texts: Map<string, string>): Promise<SemanticResult> {
+export async function semanticAnalysis(_root: string, texts: Map<string, string>, signal?: AbortSignal): Promise<SemanticResult> {
+  signal?.throwIfAborted();
   const unavailable = (reason: string): SemanticResult => ({ available: false, reason, definitions: [], references: [] });
   let engine = process.env.ONBOARDER_TYPESCRIPT_MODULE;
   if (!engine) {
@@ -37,8 +38,11 @@ export async function semanticAnalysis(_root: string, texts: Map<string, string>
     const timer = setTimeout(() => finish(unavailable('Semantic indexing exceeded its 20-second limit.')), 20000);
     const finish = (result: SemanticResult) => {
       if (settled) return; settled = true; activeWorkers--;
-      clearTimeout(timer); void worker.terminate(); resolve(result);
+      clearTimeout(timer); signal?.removeEventListener('abort', cancel); void worker.terminate(); resolve(result);
     };
+    const cancel = () => finish(unavailable('Semantic indexing cancelled.'));
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) cancel();
     worker.once('message', finish);
     worker.once('error', () => finish(unavailable('Optional compiler failed. Check the configured module and its compatibility.')));
     worker.once('exit', code => { if (code !== 0) finish(unavailable('Optional compiler exited before completing.')); });

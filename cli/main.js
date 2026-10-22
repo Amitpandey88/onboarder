@@ -13,9 +13,6 @@ import { isRemoteSource } from './chat/source.js';
 import { openRepoOrClone, closeRemote } from './explorer/session.js';
 import { createReport, formatReport } from './explorer/report.js';
 import { setColorEnabled } from './ui.js';
-import { runReview } from '../server/review.js';
-import { reviewMarkdown, reviewProfile, SEVERITY_RANK } from '../shared/review/review.js';
-import { expandHome } from '../server/paths.js';
 import { agentCommand, AGENT_OPTIONS } from './agent/command.js';
 const PACKAGE = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const HELP = `
@@ -35,11 +32,17 @@ const HELP = `
     onboarder intelligence <action>  Evidence, rules, coverage, journeys, history and live refresh
       onboarder intelligence --help    Intelligence command reference
     onboarder review [folder]       Review local changes (--json for scripts)
+    onboarder fix <action> [folder] Propose, approve, verify and roll back fixes (--help)
       --base <ref> --head <ref>     Compare branches from their merge base
       --staged                    Review only staged changes
+      --ai                        Optional contextual AI review (source sent only with this flag)
+      --ai-connection api|hermes   Configured endpoint/model or existing Hermes profile
+      --ai-max-context-bytes <n> --ai-max-excerpts <n> --ai-max-changed-files <n>
+      --ai-max-tokens <n> --ai-timeout-ms <n> --ai-max-requests-per-minute <n>
       --profile focused|balanced|thorough
       --fail-on high|medium|low|critical|info  Exit 1 for findings at this level or above
     onboarder agent <workflow>      Hermes: ask, review, triage, implement, pr, github
+    onboarder triage list|inspect   Read-only GitHub PR queue and exact-revision risk
       onboarder agent --help        Agent setup, permissions, and examples
     onboarder mcp                  Connect an AI client over stdio
       onboarder mcp --help          Configuration, catalog and connection check
@@ -112,6 +115,8 @@ const HELP = `
 `;
 const OPTIONS = {
     ...AGENT_OPTIONS,
+    repo: { type: 'string' }, state: { type: 'string' }, page: { type: 'string' }, limit: { type: 'string' }, queue: { type: 'string' }, sort: { type: 'string' }, search: { type: 'string' },
+    urgency: { type: 'string' }, 'urgency-head': { type: 'string' }, 'urgency-reason': { type: 'string' },
     help: { type: 'boolean', short: 'h' },
     version: { type: 'boolean', short: 'v' },
     json: { type: 'boolean' },
@@ -150,7 +155,23 @@ const OPTIONS = {
     'fail-on': { type: 'string' },
     sarif: { type: 'boolean' },
     semantic: { type: 'boolean' },
+    ai: { type: 'boolean' },
+    'ai-connection': { type: 'string' },
+    'ai-max-context-bytes': { type: 'string' },
+    'ai-max-excerpts': { type: 'string' },
+    'ai-max-changed-files': { type: 'string' },
+    'ai-max-tokens': { type: 'string' },
+    'ai-timeout-ms': { type: 'string' },
+    'ai-max-requests-per-minute': { type: 'string' },
     role: { type: 'string' },
+    finding: { type: 'string' },
+    proposal: { type: 'string' },
+    run: { type: 'string' },
+    approve: { type: 'string' },
+    report: { type: 'string' },
+    check: { type: 'string', multiple: true },
+    'check-digest': { type: 'string' },
+    'trust-worktree': { type: 'boolean' },
 };
 // parseArgs speaks kebab-case; the wizard's flags speak camelCase.
 function normalizeFlags(values) {
@@ -213,7 +234,7 @@ export async function main(argv = process.argv.slice(2)) {
         console.log(CHAT_HELP);
         return 0;
     }
-    if (flags.help && !['agent', 'mcp', 'intelligence', 'team'].includes(positionals[0])) {
+    if (flags.help && !['agent', 'mcp', 'intelligence', 'team', 'fix', 'triage'].includes(positionals[0])) {
         console.log(HELP);
         return 0;
     }
@@ -224,6 +245,18 @@ export async function main(argv = process.argv.slice(2)) {
     const [cmd, sub, ...rest] = positionals;
     try {
         switch (cmd) {
+            case 'triage': {
+                if (rest.length > 1)
+                    throw new Error('Use triage <action> [folder|owner/repo].');
+                const { triageCommand } = await import('./triage.js');
+                return triageCommand(sub, rest[0] || '.', flags);
+            }
+            case 'fix': {
+                if (rest.length > 1)
+                    throw new Error('Use one repository folder: onboarder fix <action> [folder].');
+                const { fixCommand } = await import('./fix.js');
+                return fixCommand(sub, rest[0] || '.', flags);
+            }
             case 'team': {
                 const { teamCommand } = await import('./team.js');
                 return teamCommand(sub, rest, flags);
@@ -283,14 +316,8 @@ export async function main(argv = process.argv.slice(2)) {
                 }
             }
             case 'review': {
-                if (flags.staged && flags.head)
-                    throw new Error('Choose either --staged or --head.');
-                if (flags.failOn && !Object.hasOwn(SEVERITY_RANK, flags.failOn))
-                    throw new Error('Choose a valid --fail-on severity: critical, high, medium, low, or info.');
-                const report = await runReview(expandHome(sub || '.'), { base: flags.base || 'HEAD', head: flags.head || '', mode: flags.staged ? 'staged' : flags.head ? 'range' : 'working', profile: flags.profile ? reviewProfile(flags.profile) : undefined });
-                const { reviewSarif } = await import('../shared/review/sarif.js');
-                console.log(flags.sarif ? JSON.stringify(reviewSarif(report), null, 2) : flags.json ? JSON.stringify(report, null, 2) : reviewMarkdown(report));
-                return flags.failOn && report.findings.some(f => SEVERITY_RANK[f.severity] >= SEVERITY_RANK[flags.failOn]) || report.checks.some(c => c.id === 'conflicts' && c.status === 'fail') ? 1 : 0;
+                const { reviewCommand } = await import('./review.js');
+                return reviewCommand(sub || '.', flags);
             }
             case 'web':
             case 'site':

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "result": "passed",
+  "model": "mocked",
+  "checks": "real Node test, failed baseline and passed result",
+  "steps": [
+    "scan",
+    "offline review",
+    "finding-linked proposal",
+    "complete patch preview",
+    "explicit approval",
+    "worktree application",
+    "separate check authorization",
+    "real baseline/result checks",
+    "fresh review comparison",
+    "checkpoint rollback",
+    "keyboard Escape",
+    "dark theme",
+    "390px layout"
+  ],
+  "errors": [],
+  "overflow": false,
+  "auditDate": "2026-10-22",
+  "liveProvider": false
+}

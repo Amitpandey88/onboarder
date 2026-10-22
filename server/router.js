@@ -29,6 +29,8 @@ import { handleTeamComments } from './apiTeam.js';
 import { getSession } from './sessions.js';
 import { GithubAutomation, handleGithubWebhook } from './intelligence/githubAutomation.js';
 import { handleFix } from './apiFix.js';
+import { handleTriage } from './apiTriage.js';
+import { hash as fixOwnerHash } from './intelligence/workspace.js';
 import { safeRelative } from '../cli/agent/files.js';
 import { handleToolsInstall, handleToolsRun, handleToolsStatus } from './apiTools.js';
 import { handleMcpStart, handleMcpStatus, handleMcpStop, handleMcpCommand } from './apiMcp.js';
@@ -36,8 +38,10 @@ import { handleGetSettings, handleRotateAccessKey, handleUpdateSettings } from '
 import { handleAuthStatus, handleLogin, handleLogout } from './apiAuth.js';
 import { accessKeysMatch, allowedHosts, authReason, bearerToken, DEFAULT_SETTINGS } from './config.js';
 import { hasValidSession } from './auth.js';
+const hashFixOwner = (req) => fixOwnerHash(String(req.headers.authorization || req.headers.cookie || 'local-owner'));
 const ROUTES = [
-    { method: 'POST', path: '/api/intelligence/fix', body: true, run: ({ res, body, config }) => handleFix(res, body, config.runAgent) },
+    { method: 'POST', path: '/api/triage', body: true, run: ({ res, body, config }) => handleTriage(res, body, config) },
+    { method: 'POST', path: '/api/intelligence/fix', body: true, run: ({ req, res, body, config }) => handleFix(res, body, config.runAgent, { owner: hashFixOwner(req), store: config.fixStore, complete: config.reviewComplete }) },
     { method: 'POST', path: '/api/github/webhook', body: true, raw: true, run: ({ req, res, config }) => handleGithubWebhook(req, res, config.githubAutomation) },
     { method: 'GET', path: '/api/github/automation', sameOrigin: true, run: async ({ res, config }) => sendJSON(res, 200, {
             configured: Boolean(config.githubAutomation), jobs: config.githubAutomation ? (await config.githubAutomation.jobs()).slice(0, 20).map(({ id, repository, number, head, status, updatedAt, error, checkId }) => ({ id, repository, number, head, status, updatedAt, error, checkId })) : []
@@ -50,7 +54,7 @@ const ROUTES = [
         }) },
     { method: 'GET', path: '/api/team/comments', sameOrigin: true, run: ({ res, url, config, member }) => handleTeamComments(res, url.searchParams.get('scan'), null, config.teamFile || process.env.ONBOARDER_TEAM_FILE, member) },
     { method: 'POST', path: '/api/team/comments', body: true, run: ({ res, body, config, member }) => handleTeamComments(res, body.scanId, body, config.teamFile || process.env.ONBOARDER_TEAM_FILE, member) },
-    { method: 'POST', path: '/api/review', body: true, run: ({ res, body }) => handleReview(res, body) },
+    { method: 'POST', path: '/api/review', body: true, run: ({ res, body, config }) => handleReview(res, body, { complete: config.reviewComplete }) },
     {
         method: 'GET', path: '/api/diff/refs', sameOrigin: true,
         run: ({ res, url }) => handleDiffRefs(res, url.searchParams.get('scan')),

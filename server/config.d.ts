@@ -1,0 +1,42 @@
+import type { Settings, SettingsInput, ServerUrls } from '../shared/contracts.js';
+export declare const CONFIG_VERSION = 2;
+export declare const LOOPBACK_HOSTS: Set<string>;
+export declare const DEFAULT_SETTINGS: Readonly<Settings>;
+export declare function configHome(env?: NodeJS.ProcessEnv): string;
+export declare function configPath(env?: NodeJS.ProcessEnv): string;
+export declare function isLoopbackHost(host: any): boolean;
+export declare function normalizeSettings(value?: SettingsInput): Settings;
+export declare function generateAccessKey(): string;
+export declare function serverUrls(value?: SettingsInput): ServerUrls;
+export declare function maskAccessKey(key: any): string;
+export declare function browserUrl(settings: any): string;
+export declare function publicSettings(value?: SettingsInput): {
+    version: number;
+    mode: "local" | "self-hosted";
+    host: string;
+    port: number;
+    domain: string;
+    https: boolean;
+    autoOpen: boolean;
+    hasAccessKey: boolean;
+    accessKeyMasked: string;
+    account: import("../shared/contracts.js").AccountSettings;
+    tunnel: {
+        cloudflare: boolean;
+        tailscale: boolean;
+    };
+    urls: ServerUrls;
+    security: {
+        remoteAuth: boolean;
+        loopback: boolean;
+    };
+};
+export declare function allowedHosts(value?: SettingsInput): unknown[];
+export declare function accessKeysMatch(expected: any, actual: any): boolean;
+export declare function bearerToken(req: any): string;
+export declare function requestIsLoopback(req: any): boolean;
+export declare function authReason(req: any, settings?: SettingsInput): "A valid access key is required." | "Self-hosted mode has no access key configured.";
+export declare function configExists(file?: string): Promise<boolean>;
+export declare function readSettings(file?: string): Promise<Settings>;
+export declare function writeSettings(value: any, file?: string): Promise<Settings>;
+export declare function updateSettings(patch?: SettingsInput, file?: string): Promise<Settings>;

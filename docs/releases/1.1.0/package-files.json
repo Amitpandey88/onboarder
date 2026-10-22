@@ -1,0 +1,4152 @@
+{
+  "schemaVersion": 1,
+  "release": "1.1.0",
+  "sha256": "0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382",
+  "files": [
+    {
+      "path": "CHANGELOG.md",
+      "size": 2523,
+      "mode": 420
+    },
+    {
+      "path": "LICENSE",
+      "size": 1071,
+      "mode": 420
+    },
+    {
+      "path": "README.md",
+      "size": 68281,
+      "mode": 420
+    },
+    {
+      "path": "SECURITY.md",
+      "size": 758,
+      "mode": 420
+    },
+    {
+      "path": "bin/build-if-source.js",
+      "size": 979,
+      "mode": 420
+    },
+    {
+      "path": "bin/onboarder.js",
+      "size": 398,
+      "mode": 493
+    },
+    {
+      "path": "cli/agent/checkpoints.d.ts",
+      "size": 497,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/checkpoints.js",
+      "size": 4911,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/checkpoints.js.map",
+      "size": 10132,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/checks.d.ts",
+      "size": 525,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/checks.js",
+      "size": 4467,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/checks.js.map",
+      "size": 9574,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/command.d.ts",
+      "size": 4065,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/command.js",
+      "size": 11620,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/command.js.map",
+      "size": 22251,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/config.d.ts",
+      "size": 1195,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/config.js",
+      "size": 5773,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/config.js.map",
+      "size": 12074,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/contracts.d.ts",
+      "size": 2342,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/contracts.js",
+      "size": 122,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/contracts.js.map",
+      "size": 2376,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/files.d.ts",
+      "size": 738,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/files.js",
+      "size": 4764,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/files.js.map",
+      "size": 9875,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/github.d.ts",
+      "size": 1095,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/github.js",
+      "size": 5475,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/github.js.map",
+      "size": 11107,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/gitSafety.d.ts",
+      "size": 203,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/gitSafety.js",
+      "size": 1404,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/gitSafety.js.map",
+      "size": 2927,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/gitSource.d.ts",
+      "size": 575,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/gitSource.js",
+      "size": 3514,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/gitSource.js.map",
+      "size": 6981,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/mcp.d.ts",
+      "size": 542,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/mcp.js",
+      "size": 7652,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/mcp.js.map",
+      "size": 14341,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/process.d.ts",
+      "size": 641,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/process.js",
+      "size": 5420,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/process.js.map",
+      "size": 10448,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/protocol.d.ts",
+      "size": 193,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/protocol.js",
+      "size": 1470,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/protocol.js.map",
+      "size": 3048,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/runner.d.ts",
+      "size": 1130,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/runner.js",
+      "size": 12006,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/runner.js.map",
+      "size": 23106,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/stdio.d.ts",
+      "size": 11,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/stdio.js",
+      "size": 2942,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/stdio.js.map",
+      "size": 6220,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/tools.d.ts",
+      "size": 350,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/tools.js",
+      "size": 21558,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/tools.js.map",
+      "size": 42999,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/workspace.d.ts",
+      "size": 286,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/workspace.js",
+      "size": 1540,
+      "mode": 420
+    },
+    {
+      "path": "cli/agent/workspace.js.map",
+      "size": 3267,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/analysis.d.ts",
+      "size": 830,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/analysis.js",
+      "size": 11579,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/analysis.js.map",
+      "size": 22991,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/app.d.ts",
+      "size": 2953,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/app.js",
+      "size": 24626,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/app.js.map",
+      "size": 46003,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/commands.d.ts",
+      "size": 6035,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/commands.js",
+      "size": 10399,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/commands.js.map",
+      "size": 19063,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/composer.d.ts",
+      "size": 2129,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/composer.js",
+      "size": 23951,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/composer.js.map",
+      "size": 50943,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/controller.d.ts",
+      "size": 2223,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/controller.js",
+      "size": 21848,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/controller.js.map",
+      "size": 41703,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/logo.d.ts",
+      "size": 183,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/logo.js",
+      "size": 702,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/logo.js.map",
+      "size": 1061,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/models.d.ts",
+      "size": 535,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/models.js",
+      "size": 5954,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/models.js.map",
+      "size": 9953,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/navigation.d.ts",
+      "size": 1372,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/navigation.js",
+      "size": 3202,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/navigation.js.map",
+      "size": 7138,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/profile.d.ts",
+      "size": 224,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/profile.js",
+      "size": 3527,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/profile.js.map",
+      "size": 7237,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/render.d.ts",
+      "size": 1851,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/render.js",
+      "size": 17840,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/render.js.map",
+      "size": 38461,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/runtime.d.ts",
+      "size": 937,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/runtime.js",
+      "size": 3818,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/runtime.js.map",
+      "size": 7773,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/screen.d.ts",
+      "size": 1400,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/screen.js",
+      "size": 5768,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/screen.js.map",
+      "size": 12849,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/source.d.ts",
+      "size": 960,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/source.js",
+      "size": 6566,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/source.js.map",
+      "size": 13226,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/store.d.ts",
+      "size": 1177,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/store.js",
+      "size": 5450,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/store.js.map",
+      "size": 12581,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/text.d.ts",
+      "size": 264,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/text.js",
+      "size": 1212,
+      "mode": 420
+    },
+    {
+      "path": "cli/chat/text.js.map",
+      "size": 2738,
+      "mode": 420
+    },
+    {
+      "path": "cli/commands.d.ts",
+      "size": 1810,
+      "mode": 420
+    },
+    {
+      "path": "cli/commands.js",
+      "size": 46117,
+      "mode": 420
+    },
+    {
+      "path": "cli/commands.js.map",
+      "size": 89696,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/advanced.d.ts",
+      "size": 1154,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/advanced.js",
+      "size": 23795,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/advanced.js.map",
+      "size": 49074,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/app.d.ts",
+      "size": 175,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/app.js",
+      "size": 21515,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/app.js.map",
+      "size": 38496,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/assistant.d.ts",
+      "size": 355,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/assistant.js",
+      "size": 2818,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/assistant.js.map",
+      "size": 5546,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/commands.d.ts",
+      "size": 644,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/commands.js",
+      "size": 20375,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/commands.js.map",
+      "size": 39261,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/featureViews.d.ts",
+      "size": 2875,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/featureViews.js",
+      "size": 9182,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/featureViews.js.map",
+      "size": 21251,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/github.d.ts",
+      "size": 693,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/github.js",
+      "size": 3361,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/github.js.map",
+      "size": 5509,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/graphs.d.ts",
+      "size": 571,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/graphs.js",
+      "size": 8793,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/graphs.js.map",
+      "size": 16523,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/picker.d.ts",
+      "size": 564,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/picker.js",
+      "size": 6220,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/picker.js.map",
+      "size": 12767,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/report.d.ts",
+      "size": 1954,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/report.js",
+      "size": 2839,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/report.js.map",
+      "size": 6935,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/session.d.ts",
+      "size": 11351,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/session.js",
+      "size": 12660,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/session.js.map",
+      "size": 22543,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/views.d.ts",
+      "size": 1381,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/views.js",
+      "size": 33890,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/views.js.map",
+      "size": 69008,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/wrap.d.ts",
+      "size": 89,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/wrap.js",
+      "size": 1101,
+      "mode": 420
+    },
+    {
+      "path": "cli/explorer/wrap.js.map",
+      "size": 2287,
+      "mode": 420
+    },
+    {
+      "path": "cli/fix.d.ts",
+      "size": 1215,
+      "mode": 420
+    },
+    {
+      "path": "cli/fix.js",
+      "size": 7273,
+      "mode": 420
+    },
+    {
+      "path": "cli/fix.js.map",
+      "size": 13579,
+      "mode": 420
+    },
+    {
+      "path": "cli/intelligence.d.ts",
+      "size": 179,
+      "mode": 420
+    },
+    {
+      "path": "cli/intelligence.js",
+      "size": 6044,
+      "mode": 420
+    },
+    {
+      "path": "cli/intelligence.js.map",
+      "size": 11359,
+      "mode": 420
+    },
+    {
+      "path": "cli/main.d.ts",
+      "size": 61,
+      "mode": 420
+    },
+    {
+      "path": "cli/main.js",
+      "size": 19447,
+      "mode": 420
+    },
+    {
+      "path": "cli/main.js.map",
+      "size": 30540,
+      "mode": 420
+    },
+    {
+      "path": "cli/mcp.d.ts",
+      "size": 869,
+      "mode": 420
+    },
+    {
+      "path": "cli/mcp.js",
+      "size": 3901,
+      "mode": 420
+    },
+    {
+      "path": "cli/mcp.js.map",
+      "size": 7188,
+      "mode": 420
+    },
+    {
+      "path": "cli/prompt.d.ts",
+      "size": 225,
+      "mode": 420
+    },
+    {
+      "path": "cli/prompt.js",
+      "size": 4746,
+      "mode": 420
+    },
+    {
+      "path": "cli/prompt.js.map",
+      "size": 9446,
+      "mode": 420
+    },
+    {
+      "path": "cli/review.d.ts",
+      "size": 329,
+      "mode": 420
+    },
+    {
+      "path": "cli/review.js",
+      "size": 3433,
+      "mode": 420
+    },
+    {
+      "path": "cli/review.js.map",
+      "size": 7368,
+      "mode": 420
+    },
+    {
+      "path": "cli/scanOptions.d.ts",
+      "size": 164,
+      "mode": 420
+    },
+    {
+      "path": "cli/scanOptions.js",
+      "size": 403,
+      "mode": 420
+    },
+    {
+      "path": "cli/scanOptions.js.map",
+      "size": 998,
+      "mode": 420
+    },
+    {
+      "path": "cli/team.d.ts",
+      "size": 127,
+      "mode": 420
+    },
+    {
+      "path": "cli/team.js",
+      "size": 1660,
+      "mode": 420
+    },
+    {
+      "path": "cli/team.js.map",
+      "size": 3089,
+      "mode": 420
+    },
+    {
+      "path": "cli/triage.d.ts",
+      "size": 1272,
+      "mode": 420
+    },
+    {
+      "path": "cli/triage.js",
+      "size": 6423,
+      "mode": 420
+    },
+    {
+      "path": "cli/triage.js.map",
+      "size": 12582,
+      "mode": 420
+    },
+    {
+      "path": "cli/ui.d.ts",
+      "size": 1378,
+      "mode": 420
+    },
+    {
+      "path": "cli/ui.js",
+      "size": 4218,
+      "mode": 420
+    },
+    {
+      "path": "cli/ui.js.map",
+      "size": 8013,
+      "mode": 420
+    },
+    {
+      "path": "cli/wizard.d.ts",
+      "size": 4313,
+      "mode": 420
+    },
+    {
+      "path": "cli/wizard.js",
+      "size": 18268,
+      "mode": 420
+    },
+    {
+      "path": "cli/wizard.js.map",
+      "size": 33065,
+      "mode": 420
+    },
+    {
+      "path": "docs/ADVANCED_FEATURES.md",
+      "size": 19473,
+      "mode": 420
+    },
+    {
+      "path": "docs/AI_FIX_VERIFICATION.md",
+      "size": 16652,
+      "mode": 420
+    },
+    {
+      "path": "docs/CONTEXTUAL_AI_REVIEW.md",
+      "size": 15323,
+      "mode": 420
+    },
+    {
+      "path": "docs/HERMES_RESEARCH.md",
+      "size": 9569,
+      "mode": 420
+    },
+    {
+      "path": "docs/MIGRATING_TO_1.1.md",
+      "size": 3608,
+      "mode": 420
+    },
+    {
+      "path": "docs/PHASE4A_VERIFICATION.md",
+      "size": 9727,
+      "mode": 420
+    },
+    {
+      "path": "docs/PR_TRIAGE.md",
+      "size": 15324,
+      "mode": 420
+    },
+    {
+      "path": "docs/RELEASE_1.1.0.md",
+      "size": 5684,
+      "mode": 420
+    },
+    {
+      "path": "docs/SUPPLY_CHAIN_SECURITY.md",
+      "size": 6733,
+      "mode": 420
+    },
+    {
+      "path": "docs/UNIFIED_REVIEW_FOUNDATION.md",
+      "size": 10381,
+      "mode": 420
+    },
+    {
+      "path": "integrations/vscode/extension.cjs",
+      "size": 6632,
+      "mode": 420
+    },
+    {
+      "path": "integrations/vscode/package.json",
+      "size": 1996,
+      "mode": 420
+    },
+    {
+      "path": "integrations/vscode/README.md",
+      "size": 1464,
+      "mode": 420
+    },
+    {
+      "path": "package.json",
+      "size": 2566,
+      "mode": 420
+    },
+    {
+      "path": "public/app.d.ts",
+      "size": 11,
+      "mode": 420
+    },
+    {
+      "path": "public/app.js",
+      "size": 69853,
+      "mode": 420
+    },
+    {
+      "path": "public/app.js.map",
+      "size": 135218,
+      "mode": 420
+    },
+    {
+      "path": "public/assets/onboarder-mark.svg",
+      "size": 821,
+      "mode": 420
+    },
+    {
+      "path": "public/browser.d.ts",
+      "size": 2120,
+      "mode": 420
+    },
+    {
+      "path": "public/browser.js",
+      "size": 46,
+      "mode": 420
+    },
+    {
+      "path": "public/browser.js.map",
+      "size": 1959,
+      "mode": 420
+    },
+    {
+      "path": "public/index.html",
+      "size": 27743,
+      "mode": 420
+    },
+    {
+      "path": "public/intelligence.css",
+      "size": 3609,
+      "mode": 420
+    },
+    {
+      "path": "public/js/about.d.ts",
+      "size": 337,
+      "mode": 420
+    },
+    {
+      "path": "public/js/about.js",
+      "size": 13238,
+      "mode": 420
+    },
+    {
+      "path": "public/js/about.js.map",
+      "size": 24210,
+      "mode": 420
+    },
+    {
+      "path": "public/js/aiDraft.d.ts",
+      "size": 205,
+      "mode": 420
+    },
+    {
+      "path": "public/js/aiDraft.js",
+      "size": 8123,
+      "mode": 384
+    },
+    {
+      "path": "public/js/aiDraft.js.map",
+      "size": 15159,
+      "mode": 420
+    },
+    {
+      "path": "public/js/analysisPanel.d.ts",
+      "size": 475,
+      "mode": 420
+    },
+    {
+      "path": "public/js/analysisPanel.js",
+      "size": 11880,
+      "mode": 420
+    },
+    {
+      "path": "public/js/analysisPanel.js.map",
+      "size": 20872,
+      "mode": 420
+    },
+    {
+      "path": "public/js/analysisReport.d.ts",
+      "size": 1038,
+      "mode": 420
+    },
+    {
+      "path": "public/js/analysisReport.js",
+      "size": 7094,
+      "mode": 420
+    },
+    {
+      "path": "public/js/analysisReport.js.map",
+      "size": 13129,
+      "mode": 420
+    },
+    {
+      "path": "public/js/api.d.ts",
+      "size": 1504,
+      "mode": 420
+    },
+    {
+      "path": "public/js/api.js",
+      "size": 12007,
+      "mode": 420
+    },
+    {
+      "path": "public/js/api.js.map",
+      "size": 20833,
+      "mode": 420
+    },
+    {
+      "path": "public/js/atlas.d.ts",
+      "size": 187,
+      "mode": 420
+    },
+    {
+      "path": "public/js/atlas.js",
+      "size": 4107,
+      "mode": 420
+    },
+    {
+      "path": "public/js/atlas.js.map",
+      "size": 7279,
+      "mode": 420
+    },
+    {
+      "path": "public/js/blameView.d.ts",
+      "size": 186,
+      "mode": 420
+    },
+    {
+      "path": "public/js/blameView.js",
+      "size": 1510,
+      "mode": 420
+    },
+    {
+      "path": "public/js/blameView.js.map",
+      "size": 3110,
+      "mode": 420
+    },
+    {
+      "path": "public/js/codeTab.d.ts",
+      "size": 169,
+      "mode": 420
+    },
+    {
+      "path": "public/js/codeTab.js",
+      "size": 11034,
+      "mode": 420
+    },
+    {
+      "path": "public/js/codeTab.js.map",
+      "size": 20221,
+      "mode": 420
+    },
+    {
+      "path": "public/js/codeViewer.d.ts",
+      "size": 366,
+      "mode": 420
+    },
+    {
+      "path": "public/js/codeViewer.js",
+      "size": 8814,
+      "mode": 420
+    },
+    {
+      "path": "public/js/codeViewer.js.map",
+      "size": 15984,
+      "mode": 420
+    },
+    {
+      "path": "public/js/components/FileChip.d.ts",
+      "size": 355,
+      "mode": 420
+    },
+    {
+      "path": "public/js/components/FileChip.js",
+      "size": 2981,
+      "mode": 420
+    },
+    {
+      "path": "public/js/components/FileChip.js.map",
+      "size": 4838,
+      "mode": 420
+    },
+    {
+      "path": "public/js/components/MetricSparkline.d.ts",
+      "size": 255,
+      "mode": 420
+    },
+    {
+      "path": "public/js/components/MetricSparkline.js",
+      "size": 2576,
+      "mode": 420
+    },
+    {
+      "path": "public/js/components/MetricSparkline.js.map",
+      "size": 4454,
+      "mode": 420
+    },
+    {
+      "path": "public/js/components/RiskBadge.d.ts",
+      "size": 377,
+      "mode": 420
+    },
+    {
+      "path": "public/js/components/RiskBadge.js",
+      "size": 3014,
+      "mode": 420
+    },
+    {
+      "path": "public/js/components/RiskBadge.js.map",
+      "size": 5173,
+      "mode": 420
+    },
+    {
+      "path": "public/js/connectionFocus.d.ts",
+      "size": 469,
+      "mode": 420
+    },
+    {
+      "path": "public/js/connectionFocus.js",
+      "size": 9922,
+      "mode": 420
+    },
+    {
+      "path": "public/js/connectionFocus.js.map",
+      "size": 19377,
+      "mode": 420
+    },
+    {
+      "path": "public/js/deepAnalysisView.d.ts",
+      "size": 2259,
+      "mode": 420
+    },
+    {
+      "path": "public/js/deepAnalysisView.js",
+      "size": 23538,
+      "mode": 420
+    },
+    {
+      "path": "public/js/deepAnalysisView.js.map",
+      "size": 40745,
+      "mode": 420
+    },
+    {
+      "path": "public/js/diagramPane.d.ts",
+      "size": 827,
+      "mode": 420
+    },
+    {
+      "path": "public/js/diagramPane.js",
+      "size": 8862,
+      "mode": 420
+    },
+    {
+      "path": "public/js/diagramPane.js.map",
+      "size": 17608,
+      "mode": 420
+    },
+    {
+      "path": "public/js/diffView.d.ts",
+      "size": 191,
+      "mode": 420
+    },
+    {
+      "path": "public/js/diffView.js",
+      "size": 14914,
+      "mode": 420
+    },
+    {
+      "path": "public/js/diffView.js.map",
+      "size": 25489,
+      "mode": 420
+    },
+    {
+      "path": "public/js/docsView.d.ts",
+      "size": 162,
+      "mode": 420
+    },
+    {
+      "path": "public/js/docsView.js",
+      "size": 24225,
+      "mode": 420
+    },
+    {
+      "path": "public/js/docsView.js.map",
+      "size": 46006,
+      "mode": 420
+    },
+    {
+      "path": "public/js/dom.d.ts",
+      "size": 7079,
+      "mode": 420
+    },
+    {
+      "path": "public/js/dom.js",
+      "size": 204,
+      "mode": 420
+    },
+    {
+      "path": "public/js/dom.js.map",
+      "size": 7230,
+      "mode": 420
+    },
+    {
+      "path": "public/js/fileNavigation.d.ts",
+      "size": 166,
+      "mode": 420
+    },
+    {
+      "path": "public/js/fileNavigation.js",
+      "size": 2811,
+      "mode": 420
+    },
+    {
+      "path": "public/js/fileNavigation.js.map",
+      "size": 5905,
+      "mode": 420
+    },
+    {
+      "path": "public/js/fileSourceBrowser.d.ts",
+      "size": 337,
+      "mode": 420
+    },
+    {
+      "path": "public/js/fileSourceBrowser.js",
+      "size": 1584,
+      "mode": 420
+    },
+    {
+      "path": "public/js/fileSourceBrowser.js.map",
+      "size": 3437,
+      "mode": 420
+    },
+    {
+      "path": "public/js/flameGraph.d.ts",
+      "size": 145,
+      "mode": 420
+    },
+    {
+      "path": "public/js/flameGraph.js",
+      "size": 2239,
+      "mode": 420
+    },
+    {
+      "path": "public/js/flameGraph.js.map",
+      "size": 4534,
+      "mode": 420
+    },
+    {
+      "path": "public/js/forceGraph.d.ts",
+      "size": 787,
+      "mode": 420
+    },
+    {
+      "path": "public/js/forceGraph.js",
+      "size": 19982,
+      "mode": 420
+    },
+    {
+      "path": "public/js/forceGraph.js.map",
+      "size": 42426,
+      "mode": 420
+    },
+    {
+      "path": "public/js/graphScene.d.ts",
+      "size": 775,
+      "mode": 420
+    },
+    {
+      "path": "public/js/graphScene.js",
+      "size": 2325,
+      "mode": 420
+    },
+    {
+      "path": "public/js/graphScene.js.map",
+      "size": 5230,
+      "mode": 420
+    },
+    {
+      "path": "public/js/heatmap.d.ts",
+      "size": 157,
+      "mode": 420
+    },
+    {
+      "path": "public/js/heatmap.js",
+      "size": 6123,
+      "mode": 420
+    },
+    {
+      "path": "public/js/heatmap.js.map",
+      "size": 12855,
+      "mode": 420
+    },
+    {
+      "path": "public/js/highlight.d.ts",
+      "size": 140,
+      "mode": 420
+    },
+    {
+      "path": "public/js/highlight.js",
+      "size": 5360,
+      "mode": 420
+    },
+    {
+      "path": "public/js/highlight.js.map",
+      "size": 10230,
+      "mode": 420
+    },
+    {
+      "path": "public/js/html.d.ts",
+      "size": 117,
+      "mode": 420
+    },
+    {
+      "path": "public/js/html.js",
+      "size": 619,
+      "mode": 420
+    },
+    {
+      "path": "public/js/html.js.map",
+      "size": 1410,
+      "mode": 420
+    },
+    {
+      "path": "public/js/insightsView.d.ts",
+      "size": 142,
+      "mode": 420
+    },
+    {
+      "path": "public/js/insightsView.js",
+      "size": 8623,
+      "mode": 420
+    },
+    {
+      "path": "public/js/insightsView.js.map",
+      "size": 15604,
+      "mode": 420
+    },
+    {
+      "path": "public/js/inspector.d.ts",
+      "size": 1175,
+      "mode": 420
+    },
+    {
+      "path": "public/js/inspector.js",
+      "size": 26025,
+      "mode": 420
+    },
+    {
+      "path": "public/js/inspector.js.map",
+      "size": 51389,
+      "mode": 420
+    },
+    {
+      "path": "public/js/intelligenceView.d.ts",
+      "size": 231,
+      "mode": 420
+    },
+    {
+      "path": "public/js/intelligenceView.js",
+      "size": 36966,
+      "mode": 420
+    },
+    {
+      "path": "public/js/intelligenceView.js.map",
+      "size": 66270,
+      "mode": 420
+    },
+    {
+      "path": "public/js/llm.d.ts",
+      "size": 2980,
+      "mode": 420
+    },
+    {
+      "path": "public/js/llm.js",
+      "size": 18180,
+      "mode": 420
+    },
+    {
+      "path": "public/js/llm.js.map",
+      "size": 31722,
+      "mode": 420
+    },
+    {
+      "path": "public/js/mapView.d.ts",
+      "size": 281,
+      "mode": 420
+    },
+    {
+      "path": "public/js/mapView.js",
+      "size": 8074,
+      "mode": 420
+    },
+    {
+      "path": "public/js/mapView.js.map",
+      "size": 15951,
+      "mode": 420
+    },
+    {
+      "path": "public/js/markdown.d.ts",
+      "size": 154,
+      "mode": 420
+    },
+    {
+      "path": "public/js/markdown.js",
+      "size": 4059,
+      "mode": 420
+    },
+    {
+      "path": "public/js/markdown.js.map",
+      "size": 7291,
+      "mode": 420
+    },
+    {
+      "path": "public/js/mindmap.d.ts",
+      "size": 787,
+      "mode": 420
+    },
+    {
+      "path": "public/js/mindmap.js",
+      "size": 9730,
+      "mode": 420
+    },
+    {
+      "path": "public/js/mindmap.js.map",
+      "size": 19213,
+      "mode": 420
+    },
+    {
+      "path": "public/js/mobilePanels.d.ts",
+      "size": 197,
+      "mode": 420
+    },
+    {
+      "path": "public/js/mobilePanels.js",
+      "size": 2413,
+      "mode": 420
+    },
+    {
+      "path": "public/js/mobilePanels.js.map",
+      "size": 5167,
+      "mode": 420
+    },
+    {
+      "path": "public/js/repoFiles.d.ts",
+      "size": 294,
+      "mode": 420
+    },
+    {
+      "path": "public/js/repoFiles.js",
+      "size": 1913,
+      "mode": 420
+    },
+    {
+      "path": "public/js/repoFiles.js.map",
+      "size": 3356,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewAI.d.ts",
+      "size": 420,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewAI.js",
+      "size": 4755,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewAI.js.map",
+      "size": 8859,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewFix.d.ts",
+      "size": 258,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewFix.js",
+      "size": 17784,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewFix.js.map",
+      "size": 33663,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewPatch.d.ts",
+      "size": 344,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewPatch.js",
+      "size": 3342,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewPatch.js.map",
+      "size": 7295,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewView.d.ts",
+      "size": 754,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewView.js",
+      "size": 26198,
+      "mode": 420
+    },
+    {
+      "path": "public/js/reviewView.js.map",
+      "size": 46639,
+      "mode": 420
+    },
+    {
+      "path": "public/js/sbomView.d.ts",
+      "size": 88,
+      "mode": 420
+    },
+    {
+      "path": "public/js/sbomView.js",
+      "size": 6046,
+      "mode": 420
+    },
+    {
+      "path": "public/js/sbomView.js.map",
+      "size": 9578,
+      "mode": 420
+    },
+    {
+      "path": "public/js/scanCache.d.ts",
+      "size": 459,
+      "mode": 420
+    },
+    {
+      "path": "public/js/scanCache.js",
+      "size": 2512,
+      "mode": 420
+    },
+    {
+      "path": "public/js/scanCache.js.map",
+      "size": 5274,
+      "mode": 420
+    },
+    {
+      "path": "public/js/search.d.ts",
+      "size": 268,
+      "mode": 420
+    },
+    {
+      "path": "public/js/search.js",
+      "size": 41979,
+      "mode": 420
+    },
+    {
+      "path": "public/js/search.js.map",
+      "size": 71650,
+      "mode": 420
+    },
+    {
+      "path": "public/js/searchLocal.d.ts",
+      "size": 1096,
+      "mode": 420
+    },
+    {
+      "path": "public/js/searchLocal.js",
+      "size": 3555,
+      "mode": 420
+    },
+    {
+      "path": "public/js/searchLocal.js.map",
+      "size": 8436,
+      "mode": 420
+    },
+    {
+      "path": "public/js/serverSettings.d.ts",
+      "size": 161,
+      "mode": 420
+    },
+    {
+      "path": "public/js/serverSettings.js",
+      "size": 8431,
+      "mode": 420
+    },
+    {
+      "path": "public/js/serverSettings.js.map",
+      "size": 15386,
+      "mode": 420
+    },
+    {
+      "path": "public/js/state.d.ts",
+      "size": 17245,
+      "mode": 420
+    },
+    {
+      "path": "public/js/state.js",
+      "size": 8817,
+      "mode": 420
+    },
+    {
+      "path": "public/js/state.js.map",
+      "size": 15391,
+      "mode": 420
+    },
+    {
+      "path": "public/js/textDialog.d.ts",
+      "size": 177,
+      "mode": 420
+    },
+    {
+      "path": "public/js/textDialog.js",
+      "size": 1533,
+      "mode": 420
+    },
+    {
+      "path": "public/js/textDialog.js.map",
+      "size": 3000,
+      "mode": 420
+    },
+    {
+      "path": "public/js/tour.d.ts",
+      "size": 199,
+      "mode": 420
+    },
+    {
+      "path": "public/js/tour.js",
+      "size": 627,
+      "mode": 420
+    },
+    {
+      "path": "public/js/tour.js.map",
+      "size": 1066,
+      "mode": 420
+    },
+    {
+      "path": "public/js/transitions.d.ts",
+      "size": 151,
+      "mode": 420
+    },
+    {
+      "path": "public/js/transitions.js",
+      "size": 553,
+      "mode": 420
+    },
+    {
+      "path": "public/js/transitions.js.map",
+      "size": 1042,
+      "mode": 420
+    },
+    {
+      "path": "public/js/tree.d.ts",
+      "size": 540,
+      "mode": 420
+    },
+    {
+      "path": "public/js/tree.js",
+      "size": 8977,
+      "mode": 420
+    },
+    {
+      "path": "public/js/tree.js.map",
+      "size": 17281,
+      "mode": 420
+    },
+    {
+      "path": "public/js/triageView.d.ts",
+      "size": 194,
+      "mode": 420
+    },
+    {
+      "path": "public/js/triageView.js",
+      "size": 20784,
+      "mode": 420
+    },
+    {
+      "path": "public/js/triageView.js.map",
+      "size": 41480,
+      "mode": 420
+    },
+    {
+      "path": "public/js/workflowsView.d.ts",
+      "size": 93,
+      "mode": 420
+    },
+    {
+      "path": "public/js/workflowsView.js",
+      "size": 3141,
+      "mode": 420
+    },
+    {
+      "path": "public/js/workflowsView.js.map",
+      "size": 5236,
+      "mode": 420
+    },
+    {
+      "path": "public/js/workspacePreferences.d.ts",
+      "size": 535,
+      "mode": 420
+    },
+    {
+      "path": "public/js/workspacePreferences.js",
+      "size": 2280,
+      "mode": 420
+    },
+    {
+      "path": "public/js/workspacePreferences.js.map",
+      "size": 5558,
+      "mode": 420
+    },
+    {
+      "path": "public/login.html",
+      "size": 7517,
+      "mode": 420
+    },
+    {
+      "path": "public/search.css",
+      "size": 9347,
+      "mode": 420
+    },
+    {
+      "path": "public/styles.css",
+      "size": 88782,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/manifest.json",
+      "size": 12136,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/MERMAID-LICENSE.txt",
+      "size": 1089,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/mermaid.min.js",
+      "size": 3572661,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/LICENSE.txt",
+      "size": 1098,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/base/browser/ui/codicons/codicon/codicon.ttf",
+      "size": 80340,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/base/worker/workerMain.js",
+      "size": 376515,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/abap/abap.js",
+      "size": 14986,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/apex/apex.js",
+      "size": 4775,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/azcli/azcli.js",
+      "size": 1673,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/bat/bat.js",
+      "size": 2666,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/bicep/bicep.js",
+      "size": 3361,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/cameligo/cameligo.js",
+      "size": 3016,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/clojure/clojure.js",
+      "size": 10472,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/coffee/coffee.js",
+      "size": 4417,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/cpp/cpp.js",
+      "size": 6121,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/csharp/csharp.js",
+      "size": 5351,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/csp/csp.js",
+      "size": 2240,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/css/css.js",
+      "size": 5331,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/cypher/cypher.js",
+      "size": 4212,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/dart/dart.js",
+      "size": 5073,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/dockerfile/dockerfile.js",
+      "size": 2704,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/ecl/ecl.js",
+      "size": 6163,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/elixir/elixir.js",
+      "size": 11084,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/flow9/flow9.js",
+      "size": 2635,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/freemarker2/freemarker2.js",
+      "size": 17149,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/fsharp/fsharp.js",
+      "size": 3810,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/go/go.js",
+      "size": 3476,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/graphql/graphql.js",
+      "size": 3089,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/handlebars/handlebars.js",
+      "size": 7827,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/hcl/hcl.js",
+      "size": 4411,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/html/html.js",
+      "size": 6055,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/ini/ini.js",
+      "size": 1922,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/java/java.js",
+      "size": 4044,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/javascript/javascript.js",
+      "size": 7137,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/julia/julia.js",
+      "size": 8052,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/kotlin/kotlin.js",
+      "size": 4266,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/less/less.js",
+      "size": 4721,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/lexon/lexon.js",
+      "size": 3262,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/liquid/liquid.js",
+      "size": 5005,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/lua/lua.js",
+      "size": 2944,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/m3/m3.js",
+      "size": 3636,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/markdown/markdown.js",
+      "size": 4619,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/mdx/mdx.js",
+      "size": 5916,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/mips/mips.js",
+      "size": 3402,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/msdax/msdax.js",
+      "size": 5737,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/mysql/mysql.js",
+      "size": 12099,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/objective-c/objective-c.js",
+      "size": 3239,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/pascal/pascal.js",
+      "size": 3822,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/pascaligo/pascaligo.js",
+      "size": 2833,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/perl/perl.js",
+      "size": 9078,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/pgsql/pgsql.js",
+      "size": 14289,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/php/php.js",
+      "size": 8848,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/pla/pla.js",
+      "size": 2504,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/postiats/postiats.js",
+      "size": 8687,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/powerquery/powerquery.js",
+      "size": 17774,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/powershell/powershell.js",
+      "size": 4104,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/protobuf/protobuf.js",
+      "size": 9877,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/pug/pug.js",
+      "size": 5649,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/python/python.js",
+      "size": 5239,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/qsharp/qsharp.js",
+      "size": 4016,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/r/r.js",
+      "size": 3948,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/razor/razor.js",
+      "size": 9821,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/redis/redis.js",
+      "size": 4381,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/redshift/redshift.js",
+      "size": 12631,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/restructuredtext/restructuredtext.js",
+      "size": 4740,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/ruby/ruby.js",
+      "size": 9327,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/rust/rust.js",
+      "size": 4983,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/sb/sb.js",
+      "size": 2648,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/scala/scala.js",
+      "size": 8143,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/scheme/scheme.js",
+      "size": 2594,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/scss/scss.js",
+      "size": 7232,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/shell/shell.js",
+      "size": 3898,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/solidity/solidity.js",
+      "size": 19428,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/sophia/sophia.js",
+      "size": 3591,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/sparql/sparql.js",
+      "size": 3379,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/sql/sql.js",
+      "size": 11118,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/st/st.js",
+      "size": 8222,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/swift/swift.js",
+      "size": 5997,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/systemverilog/systemverilog.js",
+      "size": 8444,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/tcl/tcl.js",
+      "size": 4392,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/twig/twig.js",
+      "size": 6796,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/typescript/typescript.js",
+      "size": 6460,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/typespec/typespec.js",
+      "size": 3627,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/vb/vb.js",
+      "size": 6610,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/wgsl/wgsl.js",
+      "size": 8146,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/xml/xml.js",
+      "size": 3452,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/basic-languages/yaml/yaml.js",
+      "size": 5056,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/editor/editor.main.css",
+      "size": 131858,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/editor/editor.main.js",
+      "size": 3766654,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/language/css/cssMode.js",
+      "size": 33094,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/language/css/cssWorker.js",
+      "size": 778035,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/language/html/htmlMode.js",
+      "size": 33634,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/language/html/htmlWorker.js",
+      "size": 449070,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/language/json/jsonMode.js",
+      "size": 42545,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/language/json/jsonWorker.js",
+      "size": 131177,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/language/typescript/tsMode.js",
+      "size": 23919,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/language/typescript/tsWorker.js",
+      "size": 5749518,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/vs/loader.js",
+      "size": 30051,
+      "mode": 420
+    },
+    {
+      "path": "public/vendor/monaco/worker-boot.js",
+      "size": 908,
+      "mode": 420
+    },
+    {
+      "path": "public/workbench.css",
+      "size": 21002,
+      "mode": 420
+    },
+    {
+      "path": "scripts/package-editor.mjs",
+      "size": 3617,
+      "mode": 420
+    },
+    {
+      "path": "server/apiAuth.d.ts",
+      "size": 236,
+      "mode": 420
+    },
+    {
+      "path": "server/apiAuth.js",
+      "size": 1379,
+      "mode": 420
+    },
+    {
+      "path": "server/apiAuth.js.map",
+      "size": 2600,
+      "mode": 420
+    },
+    {
+      "path": "server/apiDiff.d.ts",
+      "size": 187,
+      "mode": 420
+    },
+    {
+      "path": "server/apiDiff.js",
+      "size": 1149,
+      "mode": 420
+    },
+    {
+      "path": "server/apiDiff.js.map",
+      "size": 2500,
+      "mode": 420
+    },
+    {
+      "path": "server/apiDocs.d.ts",
+      "size": 164,
+      "mode": 420
+    },
+    {
+      "path": "server/apiDocs.js",
+      "size": 3248,
+      "mode": 420
+    },
+    {
+      "path": "server/apiDocs.js.map",
+      "size": 5358,
+      "mode": 420
+    },
+    {
+      "path": "server/apiFile.d.ts",
+      "size": 88,
+      "mode": 420
+    },
+    {
+      "path": "server/apiFile.js",
+      "size": 2130,
+      "mode": 420
+    },
+    {
+      "path": "server/apiFile.js.map",
+      "size": 3765,
+      "mode": 420
+    },
+    {
+      "path": "server/apiFix.d.ts",
+      "size": 415,
+      "mode": 420
+    },
+    {
+      "path": "server/apiFix.js",
+      "size": 7175,
+      "mode": 420
+    },
+    {
+      "path": "server/apiFix.js.map",
+      "size": 14566,
+      "mode": 420
+    },
+    {
+      "path": "server/apiGitBlame.d.ts",
+      "size": 155,
+      "mode": 420
+    },
+    {
+      "path": "server/apiGitBlame.js",
+      "size": 2351,
+      "mode": 420
+    },
+    {
+      "path": "server/apiGitBlame.js.map",
+      "size": 4947,
+      "mode": 420
+    },
+    {
+      "path": "server/apiIntelligence.d.ts",
+      "size": 232,
+      "mode": 420
+    },
+    {
+      "path": "server/apiIntelligence.js",
+      "size": 5714,
+      "mode": 420
+    },
+    {
+      "path": "server/apiIntelligence.js.map",
+      "size": 10879,
+      "mode": 420
+    },
+    {
+      "path": "server/apiMcp.d.ts",
+      "size": 336,
+      "mode": 420
+    },
+    {
+      "path": "server/apiMcp.js",
+      "size": 5344,
+      "mode": 420
+    },
+    {
+      "path": "server/apiMcp.js.map",
+      "size": 8588,
+      "mode": 420
+    },
+    {
+      "path": "server/apiReview.d.ts",
+      "size": 242,
+      "mode": 420
+    },
+    {
+      "path": "server/apiReview.js",
+      "size": 4474,
+      "mode": 420
+    },
+    {
+      "path": "server/apiReview.js.map",
+      "size": 9208,
+      "mode": 420
+    },
+    {
+      "path": "server/apiScan.d.ts",
+      "size": 261,
+      "mode": 420
+    },
+    {
+      "path": "server/apiScan.js",
+      "size": 6966,
+      "mode": 420
+    },
+    {
+      "path": "server/apiScan.js.map",
+      "size": 12332,
+      "mode": 420
+    },
+    {
+      "path": "server/apiSearch.d.ts",
+      "size": 873,
+      "mode": 420
+    },
+    {
+      "path": "server/apiSearch.js",
+      "size": 10022,
+      "mode": 420
+    },
+    {
+      "path": "server/apiSearch.js.map",
+      "size": 18474,
+      "mode": 420
+    },
+    {
+      "path": "server/apiSettings.d.ts",
+      "size": 375,
+      "mode": 420
+    },
+    {
+      "path": "server/apiSettings.js",
+      "size": 5662,
+      "mode": 420
+    },
+    {
+      "path": "server/apiSettings.js.map",
+      "size": 9911,
+      "mode": 420
+    },
+    {
+      "path": "server/apiTeam.d.ts",
+      "size": 301,
+      "mode": 420
+    },
+    {
+      "path": "server/apiTeam.js",
+      "size": 3517,
+      "mode": 420
+    },
+    {
+      "path": "server/apiTeam.js.map",
+      "size": 7401,
+      "mode": 420
+    },
+    {
+      "path": "server/apiTools.d.ts",
+      "size": 215,
+      "mode": 420
+    },
+    {
+      "path": "server/apiTools.js",
+      "size": 3979,
+      "mode": 420
+    },
+    {
+      "path": "server/apiTools.js.map",
+      "size": 7032,
+      "mode": 420
+    },
+    {
+      "path": "server/apiTriage.d.ts",
+      "size": 567,
+      "mode": 420
+    },
+    {
+      "path": "server/apiTriage.js",
+      "size": 6583,
+      "mode": 420
+    },
+    {
+      "path": "server/apiTriage.js.map",
+      "size": 13659,
+      "mode": 420
+    },
+    {
+      "path": "server/auth.d.ts",
+      "size": 379,
+      "mode": 420
+    },
+    {
+      "path": "server/auth.js",
+      "size": 2903,
+      "mode": 420
+    },
+    {
+      "path": "server/auth.js.map",
+      "size": 5790,
+      "mode": 420
+    },
+    {
+      "path": "server/config.d.ts",
+      "size": 2018,
+      "mode": 420
+    },
+    {
+      "path": "server/config.js",
+      "size": 11975,
+      "mode": 420
+    },
+    {
+      "path": "server/config.js.map",
+      "size": 22429,
+      "mode": 420
+    },
+    {
+      "path": "server/daemon.d.ts",
+      "size": 1029,
+      "mode": 420
+    },
+    {
+      "path": "server/daemon.js",
+      "size": 8343,
+      "mode": 420
+    },
+    {
+      "path": "server/daemon.js.map",
+      "size": 14966,
+      "mode": 420
+    },
+    {
+      "path": "server/fileSourceNode.d.ts",
+      "size": 127,
+      "mode": 420
+    },
+    {
+      "path": "server/fileSourceNode.js",
+      "size": 1713,
+      "mode": 420
+    },
+    {
+      "path": "server/fileSourceNode.js.map",
+      "size": 3221,
+      "mode": 420
+    },
+    {
+      "path": "server/fixEngine.d.ts",
+      "size": 1284,
+      "mode": 420
+    },
+    {
+      "path": "server/fixEngine.js",
+      "size": 24544,
+      "mode": 420
+    },
+    {
+      "path": "server/fixEngine.js.map",
+      "size": 47844,
+      "mode": 420
+    },
+    {
+      "path": "server/fixProposal.d.ts",
+      "size": 2798,
+      "mode": 420
+    },
+    {
+      "path": "server/fixProposal.js",
+      "size": 14557,
+      "mode": 420
+    },
+    {
+      "path": "server/fixProposal.js.map",
+      "size": 29380,
+      "mode": 420
+    },
+    {
+      "path": "server/fixSource.d.ts",
+      "size": 888,
+      "mode": 420
+    },
+    {
+      "path": "server/fixSource.js",
+      "size": 7582,
+      "mode": 420
+    },
+    {
+      "path": "server/fixSource.js.map",
+      "size": 14818,
+      "mode": 420
+    },
+    {
+      "path": "server/fixStore.d.ts",
+      "size": 409,
+      "mode": 420
+    },
+    {
+      "path": "server/fixStore.js",
+      "size": 4450,
+      "mode": 420
+    },
+    {
+      "path": "server/fixStore.js.map",
+      "size": 8933,
+      "mode": 420
+    },
+    {
+      "path": "server/gitClone.d.ts",
+      "size": 381,
+      "mode": 420
+    },
+    {
+      "path": "server/gitClone.js",
+      "size": 4035,
+      "mode": 420
+    },
+    {
+      "path": "server/gitClone.js.map",
+      "size": 7514,
+      "mode": 420
+    },
+    {
+      "path": "server/gitDiff.d.ts",
+      "size": 1233,
+      "mode": 420
+    },
+    {
+      "path": "server/gitDiff.js",
+      "size": 14011,
+      "mode": 420
+    },
+    {
+      "path": "server/gitDiff.js.map",
+      "size": 27246,
+      "mode": 420
+    },
+    {
+      "path": "server/gitHistory.d.ts",
+      "size": 289,
+      "mode": 420
+    },
+    {
+      "path": "server/gitHistory.js",
+      "size": 4274,
+      "mode": 420
+    },
+    {
+      "path": "server/gitHistory.js.map",
+      "size": 7849,
+      "mode": 420
+    },
+    {
+      "path": "server/gitRemote.d.ts",
+      "size": 422,
+      "mode": 420
+    },
+    {
+      "path": "server/gitRemote.js",
+      "size": 2931,
+      "mode": 420
+    },
+    {
+      "path": "server/gitRemote.js.map",
+      "size": 5241,
+      "mode": 420
+    },
+    {
+      "path": "server/hermesChat.d.ts",
+      "size": 788,
+      "mode": 420
+    },
+    {
+      "path": "server/hermesChat.js",
+      "size": 9617,
+      "mode": 420
+    },
+    {
+      "path": "server/hermesChat.js.map",
+      "size": 17655,
+      "mode": 420
+    },
+    {
+      "path": "server/htmlText.d.ts",
+      "size": 105,
+      "mode": 420
+    },
+    {
+      "path": "server/htmlText.js",
+      "size": 2244,
+      "mode": 384
+    },
+    {
+      "path": "server/htmlText.js.map",
+      "size": 3740,
+      "mode": 420
+    },
+    {
+      "path": "server/http.d.ts",
+      "size": 533,
+      "mode": 420
+    },
+    {
+      "path": "server/http.js",
+      "size": 1998,
+      "mode": 420
+    },
+    {
+      "path": "server/http.js.map",
+      "size": 4178,
+      "mode": 420
+    },
+    {
+      "path": "server/httpGuards.d.ts",
+      "size": 140,
+      "mode": 420
+    },
+    {
+      "path": "server/httpGuards.js",
+      "size": 4790,
+      "mode": 420
+    },
+    {
+      "path": "server/httpGuards.js.map",
+      "size": 7608,
+      "mode": 420
+    },
+    {
+      "path": "server/https.d.ts",
+      "size": 1089,
+      "mode": 420
+    },
+    {
+      "path": "server/https.js",
+      "size": 7034,
+      "mode": 420
+    },
+    {
+      "path": "server/https.js.map",
+      "size": 14724,
+      "mode": 420
+    },
+    {
+      "path": "server/index.d.ts",
+      "size": 1507,
+      "mode": 420
+    },
+    {
+      "path": "server/index.js",
+      "size": 10513,
+      "mode": 420
+    },
+    {
+      "path": "server/index.js.map",
+      "size": 18813,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/githubAutomation.d.ts",
+      "size": 2235,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/githubAutomation.js",
+      "size": 18583,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/githubAutomation.js.map",
+      "size": 37177,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/githubReview.d.ts",
+      "size": 595,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/githubReview.js",
+      "size": 6270,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/githubReview.js.map",
+      "size": 13423,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/semantic.d.ts",
+      "size": 495,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/semantic.js",
+      "size": 4491,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/semantic.js.map",
+      "size": 8251,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/semanticWorker.d.ts",
+      "size": 11,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/semanticWorker.js",
+      "size": 6061,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/semanticWorker.js.map",
+      "size": 13473,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/store.d.ts",
+      "size": 722,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/store.js",
+      "size": 8439,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/store.js.map",
+      "size": 18879,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/team.d.ts",
+      "size": 1112,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/team.js",
+      "size": 7335,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/team.js.map",
+      "size": 15733,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/workspace.d.ts",
+      "size": 3257,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/workspace.js",
+      "size": 23555,
+      "mode": 420
+    },
+    {
+      "path": "server/intelligence/workspace.js.map",
+      "size": 48887,
+      "mode": 420
+    },
+    {
+      "path": "server/layout.d.ts",
+      "size": 818,
+      "mode": 420
+    },
+    {
+      "path": "server/layout.js",
+      "size": 5673,
+      "mode": 420
+    },
+    {
+      "path": "server/layout.js.map",
+      "size": 10578,
+      "mode": 420
+    },
+    {
+      "path": "server/llmProxy.d.ts",
+      "size": 767,
+      "mode": 420
+    },
+    {
+      "path": "server/llmProxy.js",
+      "size": 15286,
+      "mode": 420
+    },
+    {
+      "path": "server/llmProxy.js.map",
+      "size": 29531,
+      "mode": 420
+    },
+    {
+      "path": "server/logger.d.ts",
+      "size": 1732,
+      "mode": 420
+    },
+    {
+      "path": "server/logger.js",
+      "size": 16411,
+      "mode": 420
+    },
+    {
+      "path": "server/logger.js.map",
+      "size": 29158,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/analysis.d.ts",
+      "size": 1352,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/analysis.js",
+      "size": 11880,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/analysis.js.map",
+      "size": 20739,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/context.d.ts",
+      "size": 1391,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/context.js",
+      "size": 6579,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/context.js.map",
+      "size": 12724,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/http.d.ts",
+      "size": 493,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/http.js",
+      "size": 8807,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/http.js.map",
+      "size": 15735,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/protocol.d.ts",
+      "size": 1162,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/protocol.js",
+      "size": 4142,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/protocol.js.map",
+      "size": 8611,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/runner.d.ts",
+      "size": 4260,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/runner.js",
+      "size": 12682,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/runner.js.map",
+      "size": 20669,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/server.d.ts",
+      "size": 1314,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/server.js",
+      "size": 15639,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/server.js.map",
+      "size": 25518,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/standalone.d.ts",
+      "size": 11,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/standalone.js",
+      "size": 2197,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/standalone.js.map",
+      "size": 3416,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/tools.d.ts",
+      "size": 83485,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/tools.js",
+      "size": 37705,
+      "mode": 420
+    },
+    {
+      "path": "server/mcp/tools.js.map",
+      "size": 65855,
+      "mode": 420
+    },
+    {
+      "path": "server/paths.d.ts",
+      "size": 209,
+      "mode": 420
+    },
+    {
+      "path": "server/paths.js",
+      "size": 1749,
+      "mode": 420
+    },
+    {
+      "path": "server/paths.js.map",
+      "size": 3143,
+      "mode": 420
+    },
+    {
+      "path": "server/pidfile.d.ts",
+      "size": 584,
+      "mode": 420
+    },
+    {
+      "path": "server/pidfile.js",
+      "size": 3274,
+      "mode": 420
+    },
+    {
+      "path": "server/pidfile.js.map",
+      "size": 5806,
+      "mode": 420
+    },
+    {
+      "path": "server/providers/contracts.d.ts",
+      "size": 1623,
+      "mode": 420
+    },
+    {
+      "path": "server/providers/contracts.js",
+      "size": 48,
+      "mode": 420
+    },
+    {
+      "path": "server/providers/contracts.js.map",
+      "size": 1583,
+      "mode": 420
+    },
+    {
+      "path": "server/providers/github.d.ts",
+      "size": 2407,
+      "mode": 420
+    },
+    {
+      "path": "server/providers/github.js",
+      "size": 15826,
+      "mode": 420
+    },
+    {
+      "path": "server/providers/github.js.map",
+      "size": 33525,
+      "mode": 420
+    },
+    {
+      "path": "server/review.d.ts",
+      "size": 287,
+      "mode": 420
+    },
+    {
+      "path": "server/review.js",
+      "size": 3101,
+      "mode": 420
+    },
+    {
+      "path": "server/review.js.map",
+      "size": 6047,
+      "mode": 420
+    },
+    {
+      "path": "server/reviewAI.d.ts",
+      "size": 3560,
+      "mode": 420
+    },
+    {
+      "path": "server/reviewAI.js",
+      "size": 18887,
+      "mode": 420
+    },
+    {
+      "path": "server/reviewAI.js.map",
+      "size": 36281,
+      "mode": 420
+    },
+    {
+      "path": "server/reviewContext.d.ts",
+      "size": 576,
+      "mode": 420
+    },
+    {
+      "path": "server/reviewContext.js",
+      "size": 14443,
+      "mode": 420
+    },
+    {
+      "path": "server/reviewContext.js.map",
+      "size": 31235,
+      "mode": 420
+    },
+    {
+      "path": "server/reviewEvidence.d.ts",
+      "size": 363,
+      "mode": 420
+    },
+    {
+      "path": "server/reviewEvidence.js",
+      "size": 1904,
+      "mode": 420
+    },
+    {
+      "path": "server/reviewEvidence.js.map",
+      "size": 3819,
+      "mode": 420
+    },
+    {
+      "path": "server/router.d.ts",
+      "size": 991,
+      "mode": 420
+    },
+    {
+      "path": "server/router.js",
+      "size": 18172,
+      "mode": 420
+    },
+    {
+      "path": "server/router.js.map",
+      "size": 33522,
+      "mode": 420
+    },
+    {
+      "path": "server/scanRequest.d.ts",
+      "size": 213,
+      "mode": 420
+    },
+    {
+      "path": "server/scanRequest.js",
+      "size": 1730,
+      "mode": 420
+    },
+    {
+      "path": "server/scanRequest.js.map",
+      "size": 3525,
+      "mode": 420
+    },
+    {
+      "path": "server/searchIndex.d.ts",
+      "size": 449,
+      "mode": 420
+    },
+    {
+      "path": "server/searchIndex.js",
+      "size": 5454,
+      "mode": 420
+    },
+    {
+      "path": "server/searchIndex.js.map",
+      "size": 8937,
+      "mode": 420
+    },
+    {
+      "path": "server/security/deadline.d.ts",
+      "size": 237,
+      "mode": 420
+    },
+    {
+      "path": "server/security/deadline.js",
+      "size": 502,
+      "mode": 420
+    },
+    {
+      "path": "server/security/deadline.js.map",
+      "size": 1067,
+      "mode": 420
+    },
+    {
+      "path": "server/security/download.d.ts",
+      "size": 366,
+      "mode": 420
+    },
+    {
+      "path": "server/security/download.js",
+      "size": 2953,
+      "mode": 420
+    },
+    {
+      "path": "server/security/download.js.map",
+      "size": 6207,
+      "mode": 420
+    },
+    {
+      "path": "server/security/environment.d.ts",
+      "size": 156,
+      "mode": 420
+    },
+    {
+      "path": "server/security/environment.js",
+      "size": 1971,
+      "mode": 420
+    },
+    {
+      "path": "server/security/environment.js.map",
+      "size": 3862,
+      "mode": 420
+    },
+    {
+      "path": "server/sessions.d.ts",
+      "size": 659,
+      "mode": 420
+    },
+    {
+      "path": "server/sessions.js",
+      "size": 6931,
+      "mode": 420
+    },
+    {
+      "path": "server/sessions.js.map",
+      "size": 10908,
+      "mode": 420
+    },
+    {
+      "path": "server/startup.d.ts",
+      "size": 3093,
+      "mode": 420
+    },
+    {
+      "path": "server/startup.js",
+      "size": 11914,
+      "mode": 420
+    },
+    {
+      "path": "server/startup.js.map",
+      "size": 21083,
+      "mode": 420
+    },
+    {
+      "path": "server/static.d.ts",
+      "size": 308,
+      "mode": 420
+    },
+    {
+      "path": "server/static.js",
+      "size": 2908,
+      "mode": 420
+    },
+    {
+      "path": "server/static.js.map",
+      "size": 4794,
+      "mode": 420
+    },
+    {
+      "path": "server/tools.d.ts",
+      "size": 987,
+      "mode": 420
+    },
+    {
+      "path": "server/tools.js",
+      "size": 11530,
+      "mode": 420
+    },
+    {
+      "path": "server/tools.js.map",
+      "size": 19579,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/install.d.ts",
+      "size": 542,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/install.js",
+      "size": 14536,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/install.js.map",
+      "size": 26555,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/parse.d.ts",
+      "size": 531,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/parse.js",
+      "size": 7285,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/parse.js.map",
+      "size": 13009,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/platform.d.ts",
+      "size": 547,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/platform.js",
+      "size": 4584,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/platform.js.map",
+      "size": 8322,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/registry.d.ts",
+      "size": 3072,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/registry.js",
+      "size": 9573,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/registry.js.map",
+      "size": 16741,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/scan.d.ts",
+      "size": 769,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/scan.js",
+      "size": 7250,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/scan.js.map",
+      "size": 13830,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/versions.d.ts",
+      "size": 163,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/versions.js",
+      "size": 263,
+      "mode": 420
+    },
+    {
+      "path": "server/tools/versions.js.map",
+      "size": 552,
+      "mode": 420
+    },
+    {
+      "path": "server/triage.d.ts",
+      "size": 739,
+      "mode": 420
+    },
+    {
+      "path": "server/triage.js",
+      "size": 11964,
+      "mode": 420
+    },
+    {
+      "path": "server/triage.js.map",
+      "size": 23729,
+      "mode": 420
+    },
+    {
+      "path": "server/triageAI.d.ts",
+      "size": 5315,
+      "mode": 420
+    },
+    {
+      "path": "server/triageAI.js",
+      "size": 9733,
+      "mode": 420
+    },
+    {
+      "path": "server/triageAI.js.map",
+      "size": 19515,
+      "mode": 420
+    },
+    {
+      "path": "server/tunnel.d.ts",
+      "size": 1203,
+      "mode": 420
+    },
+    {
+      "path": "server/tunnel.js",
+      "size": 4563,
+      "mode": 420
+    },
+    {
+      "path": "server/tunnel.js.map",
+      "size": 7130,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/docs.d.ts",
+      "size": 573,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/docs.js",
+      "size": 6336,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/docs.js.map",
+      "size": 12649,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/explainLocal.d.ts",
+      "size": 302,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/explainLocal.js",
+      "size": 7379,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/explainLocal.js.map",
+      "size": 15834,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/github.d.ts",
+      "size": 1312,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/github.js",
+      "size": 3880,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/github.js.map",
+      "size": 6127,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/graph.d.ts",
+      "size": 1053,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/graph.js",
+      "size": 17359,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/graph.js.map",
+      "size": 36427,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/health.d.ts",
+      "size": 722,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/health.js",
+      "size": 8578,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/health.js.map",
+      "size": 19083,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/history.d.ts",
+      "size": 710,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/history.js",
+      "size": 7381,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/history.js.map",
+      "size": 13712,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/jsonConfig.d.ts",
+      "size": 148,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/jsonConfig.js",
+      "size": 2062,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/jsonConfig.js.map",
+      "size": 3989,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/csharp.d.ts",
+      "size": 719,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/csharp.js",
+      "size": 5597,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/csharp.js.map",
+      "size": 9347,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/generic.d.ts",
+      "size": 640,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/generic.js",
+      "size": 5626,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/generic.js.map",
+      "size": 11814,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/go.d.ts",
+      "size": 652,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/go.js",
+      "size": 2513,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/go.js.map",
+      "size": 5607,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/index.d.ts",
+      "size": 285,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/index.js",
+      "size": 1896,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/index.js.map",
+      "size": 4043,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/java.d.ts",
+      "size": 587,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/java.js",
+      "size": 5753,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/java.js.map",
+      "size": 9535,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/javascript.d.ts",
+      "size": 507,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/javascript.js",
+      "size": 12395,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/javascript.js.map",
+      "size": 24592,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/python.d.ts",
+      "size": 615,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/python.js",
+      "size": 4522,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/python.js.map",
+      "size": 10036,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/rust.d.ts",
+      "size": 565,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/rust.js",
+      "size": 6332,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/rust.js.map",
+      "size": 11219,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/typescript.d.ts",
+      "size": 337,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/typescript.js",
+      "size": 5871,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/languages/typescript.js.map",
+      "size": 12342,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/licenses.d.ts",
+      "size": 569,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/licenses.js",
+      "size": 6257,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/licenses.js.map",
+      "size": 11643,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/metrics.d.ts",
+      "size": 630,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/metrics.js",
+      "size": 4804,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/metrics.js.map",
+      "size": 10520,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/parseCache.d.ts",
+      "size": 476,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/parseCache.js",
+      "size": 954,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/parseCache.js.map",
+      "size": 2231,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/pathUtil.d.ts",
+      "size": 554,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/pathUtil.js",
+      "size": 2480,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/pathUtil.js.map",
+      "size": 4760,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/patterns.d.ts",
+      "size": 379,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/patterns.js",
+      "size": 10630,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/patterns.js.map",
+      "size": 20476,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/scan.d.ts",
+      "size": 1632,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/scan.js",
+      "size": 24412,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/scan.js.map",
+      "size": 47077,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/scanControl.d.ts",
+      "size": 671,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/scanControl.js",
+      "size": 2153,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/scanControl.js.map",
+      "size": 4681,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/security.d.ts",
+      "size": 549,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/security.js",
+      "size": 11374,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/security.js.map",
+      "size": 19752,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/services.d.ts",
+      "size": 324,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/services.js",
+      "size": 5766,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/services.js.map",
+      "size": 12468,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/sourceCache.d.ts",
+      "size": 215,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/sourceCache.js",
+      "size": 849,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/sourceCache.js.map",
+      "size": 1736,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/stack.d.ts",
+      "size": 228,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/stack.js",
+      "size": 8668,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/stack.js.map",
+      "size": 16547,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/tour.d.ts",
+      "size": 125,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/tour.js",
+      "size": 2975,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/tour.js.map",
+      "size": 5534,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/util.d.ts",
+      "size": 571,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/util.js",
+      "size": 6300,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/util.js.map",
+      "size": 11288,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/workflows.d.ts",
+      "size": 264,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/workflows.js",
+      "size": 6201,
+      "mode": 420
+    },
+    {
+      "path": "shared/analyzer/workflows.js.map",
+      "size": 11591,
+      "mode": 420
+    },
+    {
+      "path": "shared/contracts.d.ts",
+      "size": 6023,
+      "mode": 420
+    },
+    {
+      "path": "shared/contracts.js",
+      "size": 48,
+      "mode": 420
+    },
+    {
+      "path": "shared/contracts.js.map",
+      "size": 5842,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/aiFacts.d.ts",
+      "size": 908,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/aiFacts.js",
+      "size": 7762,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/aiFacts.js.map",
+      "size": 15318,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/aiMermaid.d.ts",
+      "size": 164,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/aiMermaid.js",
+      "size": 2784,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/aiMermaid.js.map",
+      "size": 5394,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/atlas.d.ts",
+      "size": 470,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/atlas.js",
+      "size": 3973,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/atlas.js.map",
+      "size": 7530,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/mermaid.d.ts",
+      "size": 2202,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/mermaid.js",
+      "size": 19068,
+      "mode": 420
+    },
+    {
+      "path": "shared/diagram/mermaid.js.map",
+      "size": 40743,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/analysis.d.ts",
+      "size": 2075,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/analysis.js",
+      "size": 17147,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/analysis.js.map",
+      "size": 38125,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/contracts.d.ts",
+      "size": 4597,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/contracts.js",
+      "size": 48,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/contracts.js.map",
+      "size": 3943,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/pathGlob.d.ts",
+      "size": 170,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/pathGlob.js",
+      "size": 1760,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/pathGlob.js.map",
+      "size": 3764,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/telemetry.d.ts",
+      "size": 488,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/telemetry.js",
+      "size": 2955,
+      "mode": 420
+    },
+    {
+      "path": "shared/intelligence/telemetry.js.map",
+      "size": 6605,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/aiContracts.d.ts",
+      "size": 2444,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/aiContracts.js",
+      "size": 50,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/aiContracts.js.map",
+      "size": 2133,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/contracts.d.ts",
+      "size": 3539,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/contracts.js",
+      "size": 48,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/contracts.js.map",
+      "size": 3261,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/fixContracts.d.ts",
+      "size": 2886,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/fixContracts.js",
+      "size": 51,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/fixContracts.js.map",
+      "size": 2676,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/review.d.ts",
+      "size": 771,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/review.js",
+      "size": 14117,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/review.js.map",
+      "size": 28644,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/sarif.d.ts",
+      "size": 2637,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/sarif.js",
+      "size": 2278,
+      "mode": 420
+    },
+    {
+      "path": "shared/review/sarif.js.map",
+      "size": 4831,
+      "mode": 420
+    },
+    {
+      "path": "shared/search/query.d.ts",
+      "size": 1200,
+      "mode": 420
+    },
+    {
+      "path": "shared/search/query.js",
+      "size": 21215,
+      "mode": 420
+    },
+    {
+      "path": "shared/search/query.js.map",
+      "size": 38050,
+      "mode": 420
+    },
+    {
+      "path": "shared/triage/contracts.d.ts",
+      "size": 4378,
+      "mode": 420
+    },
+    {
+      "path": "shared/triage/contracts.js",
+      "size": 48,
+      "mode": 420
+    },
+    {
+      "path": "shared/triage/contracts.js.map",
+      "size": 3893,
+      "mode": 420
+    },
+    {
+      "path": "shared/triage/priority.d.ts",
+      "size": 532,
+      "mode": 420
+    },
+    {
+      "path": "shared/triage/priority.js",
+      "size": 10019,
+      "mode": 420
+    },
+    {
+      "path": "shared/triage/priority.js.map",
+      "size": 20774,
+      "mode": 420
+    }
+  ]
+}

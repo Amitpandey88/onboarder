@@ -6,6 +6,7 @@ import { prepareAgentProfile, agentHome, hermesBinary, hermesEnvironment, runtim
 import { runProcess, redact } from './process.js';
 import { parseAgentEvent } from './protocol.js';
 import { positiveId, repositoryFromRemote } from './github.js';
+import { createImplementationWorkspace } from './workspace.js';
 
 export interface RunnerOptions {
   home?: string;
@@ -97,10 +98,7 @@ export async function runAgent(request: AgentRequest, options: RunnerOptions = {
   try {
     await prepareAgentProfile(home, env, options.signal);
     if (permissions.files && !request.resume) {
-      manifest.root = path.join(runtimePaths(home).workspaces, id); manifest.branch = `codex/agent-${id}`;
-      const hooks = path.join(dir, 'empty-hooks'); await fs.mkdir(hooks, { mode: 0o700 });
-      await git(['-c', `core.hooksPath=${hooks}`, 'worktree', 'add', '-b', manifest.branch, manifest.root, 'HEAD']);
-      manifest.root = await fs.realpath(manifest.root);
+      await createImplementationWorkspace(manifest, home, 'HEAD', options.signal);
     }
     await persist('manifest.json', manifest);
     const args = ['chat', '--query-file', '-', '--oneshot', '--format', 'stream-json', '--toolsets', 'onboarder', '--ignore-rules', '--source', 'tool', '--max-turns', String(maxTurns), '--run-budget', String(timeoutSeconds)];

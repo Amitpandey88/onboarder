@@ -1,4 +1,5 @@
-import { showReviewPatch } from './reviewPatch.js';
+import { findingGroups, requestReview } from './reviewAI.js';
+import { showReviewEvidence, showReviewPatch } from './reviewPatch.js';
 import { reviewSarif } from '/shared/review/sarif.js';
 import { escapeHtml } from './html.js';
 import { eventElement } from './dom.js';
@@ -6,13 +7,14 @@ import { getSettings, isConfigured } from './llm.js';
 import { streamExplain } from './api.js';
 import { reviewMarkdown } from '../../shared/review/review.js';
 import type { ReviewReport } from '../../shared/review/contracts.js';
+import { showFixPanel, stopFixPanel } from './reviewFix.js';
 
-interface ReviewState { report: ReviewReport | null; mode: string; base: string; head: string; profile: string; severity: string; query: string; showAcknowledged: boolean; aiText: string; error: string }
+interface ReviewState { report: ReviewReport | null; mode: string; base: string; head: string; profile: string; severity: string; query: string; showAcknowledged: boolean; aiText: string; error: string; aiMode?: boolean; source?: string; category?: string }
 interface ReviewContext { scanId: string | null; scan: { files: { path: string }[] }; facts?: { importers?: Record<string, string[]> }; review: ReviewState }
 let active: AbortController | null = null;
 let aiController: AbortController | null = null;
 let renderVersion = 0;
-export function stopReview() { active?.abort(); aiController?.abort(); active = null; aiController = null; renderVersion++; }
+export function stopReview() { active?.abort(); aiController?.abort(); stopFixPanel(); active = null; aiController = null; renderVersion++; }
 function acknowledgements(report: ReviewReport): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem('onboarder.review.notes.v1') || '{}')[report.fingerprint] || []); } catch { return new Set(); }
 }
@@ -35,18 +37,27 @@ export function renderReviewView(container: HTMLElement, context: ReviewContext)
   const s = context.review;
   const esc = escapeHtml;
   container.innerHTML = `<div class="review-shell">
+    ${s.report?.evidence?.source === 'github-pr-patch' ? '<p class="review-comparison-note">Captured GitHub PR review. Patch links use exact captured evidence. Running again reviews the local checkout. Fix application requires a matching local source revision.</p><button class="btn" data-return-triage>Return to PR triage</button>' : ''}
     <header class="review-heading"><div><div class="workbench-eyebrow"><span class="review-dot"></span> CHANGE REVIEW</div><h1>Review with context.</h1><p>Catch risky patterns. Understand the impact. Keep your next change moving.</p></div><span class="review-local-badge">Local pattern review · read only</span></header>
     <form class="review-controls" aria-label="Review settings">
+      <label>Review engine<select name="engine"><option value="static">Static · offline</option><option value="ai">AI-assisted · selected source</option></select></label>
       <label>Compare<select name="mode"><option value="working">Working tree + untracked</option><option value="staged">Staged changes</option><option value="range">Branch / commit range</option></select></label>
       <label>Base reference<input name="base" value="${esc(s.base)}" list="reviewReferences" spellcheck="false" autocomplete="off" required maxlength="200"></label>
       <label data-head-label>Head reference<input name="head" value="${esc(s.head)}" list="reviewReferences" spellcheck="false" autocomplete="off" maxlength="200"></label>
       <label>Review depth<select name="profile"><option value="">Repository default</option><option value="focused">Focused · medium and above</option><option value="balanced">Balanced · low and above</option><option value="thorough">Thorough · all patterns</option></select></label>
       <button type="submit" class="btn btn-ink review-run">${s.report ? 'Run again' : 'Run review'} <span aria-hidden="true">↗</span></button><button type="button" class="btn" data-action="cancel" hidden>Cancel</button><datalist id="reviewReferences"></datalist>
     </form>
+    <p class="review-small" data-ai-notice>Static review stays on this computer. AI-assisted review sends bounded, redacted excerpts to your configured connection only when you run it.</p><button class="btn" type="button" data-resume-fix>Resume saved fix</button>
+    <details class="review-ai-budget"><summary>AI review limits</summary><label>Maximum context bytes<input name="contextBytes" type="number" min="4000" max="100000" value="60000" step="1000"></label><label>Maximum output tokens<input name="outputTokens" type="number" min="128" max="4096" value="3000"></label></details>
     <p class="review-comparison-note">Working tree includes staged, unstaged, and untracked files. Branch ranges use the merge base. Guidelines come from .onboarder-review.json. Changed-file links open the exact captured comparison, including staged and branch changes.</p>
     <div class="review-feedback" role="status" aria-live="polite" hidden></div><div class="review-error" role="alert" hidden></div><div class="review-results"></div>
   </div>`;
   const form = container.querySelector<HTMLFormElement>('form')!;
+  container.querySelector<HTMLButtonElement>('[data-return-triage]')?.addEventListener('click', () => window.dispatchEvent(new CustomEvent('triage-return')));
+  const engine = form.elements.namedItem('engine') as HTMLSelectElement;
+  const contextBytes = container.querySelector<HTMLInputElement>('[name="contextBytes"]')!;
+  const outputTokens = container.querySelector<HTMLInputElement>('[name="outputTokens"]')!;
+  container.querySelector<HTMLButtonElement>('[data-resume-fix]')!.onclick = () => { if (context.scanId) showFixPanel(context.scanId, s.report); };
   const mode = form.elements.namedItem('mode') as HTMLSelectElement;
   const base = form.elements.namedItem('base') as HTMLInputElement;
   const head = form.elements.namedItem('head') as HTMLInputElement;
@@ -56,7 +67,9 @@ export function renderReviewView(container: HTMLElement, context: ReviewContext)
   const feedback = container.querySelector<HTMLElement>('.review-feedback')!;
   const error = container.querySelector<HTMLElement>('.review-error')!;
   const results = container.querySelector<HTMLElement>('.review-results')!;
-  mode.value = s.mode; profile.value = s.profile;
+  mode.value = s.mode; profile.value = s.profile; engine.value = s.aiMode ? 'ai' : 'static';
+  const syncEngine = () => { s.aiMode = engine.value === 'ai'; container.querySelector('.review-local-badge')!.textContent = s.aiMode ? 'AI-assisted · source opt-in' : s.report?.evidence?.source === 'github-pr-patch' ? 'Captured GitHub pattern review' : 'Local pattern review · read only'; };
+  engine.onchange = syncEngine; syncEngine();
   function syncHead() { const range = mode.value === 'range'; container.querySelector<HTMLElement>('[data-head-label]')!.hidden = !range; head.required = range; }
   syncHead();
   mode.onchange = () => { if (mode.value === 'range' && base.value === 'HEAD') base.value = 'HEAD~1'; syncHead(); };
@@ -83,8 +96,8 @@ export function renderReviewView(container: HTMLElement, context: ReviewContext)
       return;
     }
     const notes = acknowledgements(report);
-    const visible = report.findings.filter(f => (s.showAcknowledged || !notes.has(f.id)) && (s.severity === 'all' || s.severity === f.severity) && `${f.path} ${f.rule} ${f.message}`.toLowerCase().includes(s.query.toLowerCase()));
-    const findingMarkup = `${visible.length ? visible.map(f => `<article class="review-finding ${notes.has(f.id) ? 'is-acknowledged' : ''}"><div class="review-finding-meta"><span class="review-severity sev-${f.severity}">${f.severity}</span><span>${esc(f.rule)}</span><button class="linklike review-location" data-path="${esc(f.path)}" data-line="${f.line}">${esc(f.path)}:${f.line}</button></div><h3>${esc(f.message)}</h3><pre>${esc(f.excerpt)}</pre><div class="review-suggestion"><strong>Suggested next step</strong><p>${esc(f.suggestion)}</p></div><label class="review-ack"><input type="checkbox" data-ack="${f.id}"${notes.has(f.id) ? ' checked' : ''}> Acknowledged — a local note, not a verified fix</label></article>`).join('') : `<div class="review-empty"><span aria-hidden="true">${report.findings.length ? '◌' : '✓'}</span><h3>${report.findings.length ? 'No findings match this view.' : 'No patterns flagged.'}</h3><p>${report.findings.length ? 'Adjust the filters or show acknowledged findings.' : 'Review the checklist and skipped files. Pattern checks cannot establish that a change is safe.'}</p></div>`}`;
+    const visible = report.findings.filter(f => (s.showAcknowledged || !notes.has(f.id)) && (s.severity === 'all' || s.severity === f.severity) && (!s.source || s.source === 'all' || (f.source || 'static') === s.source) && (!s.category || s.category === 'all' || f.category === s.category) && `${f.path} ${f.rule} ${f.message}`.toLowerCase().includes(s.query.toLowerCase()));
+    const findingMarkup = visible.length ? findingGroups(visible, notes) : `<div class="review-empty"><h3>${report.findings.length ? 'No findings match this view.' : 'No issues detected in the reviewed evidence.'}</h3><p>Check coverage and skipped files. Neither static nor AI analysis establishes that a change is safe.</p></div>`;
     if (findingsOnly) {
       const list = results.querySelector('.review-finding-list');
       const count = results.querySelector('.review-count');
@@ -94,10 +107,11 @@ export function renderReviewView(container: HTMLElement, context: ReviewContext)
     const changed = new Set(report.files.map(f => f.path));
     const affected = new Set<string>(); const queue = [...changed];
     for (let i = 0; i < queue.length; i++) for (const path of context.facts?.importers?.[queue[i]] || []) if (!changed.has(path) && !affected.has(path)) { affected.add(path); queue.push(path); }
-    const attention = report.checks.some(c => c.status === 'fail');
+    const attention = report.checks.some(c => c.status === 'fail') || Boolean(report.ai && !['completed', 'skipped'].includes(report.ai.status));
     results.innerHTML = `<div class="review-summary"><div><span class="review-status ${attention ? 'needs-review' : ''}">${!report.files.length ? 'No changes' : attention ? 'Needs attention' : 'Ready for human review'}</span><h2>${esc(report.summary)}</h2><p>${report.mode} · ${report.profile} · ${new Date(report.generatedAt).toLocaleTimeString()} · ${report.coverage.untracked} untracked files included</p></div><div class="review-export"><button class="btn" data-action="markdown">Export Markdown</button><button class="btn btn-ghost" data-action="json">JSON</button><button class="btn btn-ghost" data-action="sarif">SARIF</button></div></div>
-      <div class="review-metrics"><article><span>Changed files</span><strong>${report.stats.filesChanged}</strong><small><b class="review-add">+${report.stats.additions}</b> / <b class="review-del">−${report.stats.deletions}</b> lines</small></article><article><span>Patterns to review</span><strong>${report.findings.length}</strong><small>${blocking} high or critical</small></article><article><span>Files inspected</span><strong>${report.coverage.reviewed}<em> / ${report.files.length}</em></strong><small>${report.coverage.skipped} skipped · reasons below</small></article><article><span>Dependent files</span><strong>${affected.size}</strong><small>Estimated from the last repository scan</small></article></div>
-      <div class="review-columns"><section class="review-card review-findings"><header><div><span class="workbench-eyebrow">THE REVIEW</span><h2>Findings <span class="review-count">${visible.length}</span></h2></div></header><div class="review-filters"><label class="sr-only" for="reviewFilter">Filter findings</label><input type="search" id="reviewFilter" class="text-input" placeholder="Filter by file or rule…" value="${esc(s.query)}"><select aria-label="Finding severity" data-filter="severity"><option value="all">All severities</option>${['critical','high','medium','low','info'].map(v => `<option value="${v}"${s.severity === v ? ' selected' : ''}>${v}</option>`).join('')}</select><label class="review-notes-toggle"><input type="checkbox" data-filter="notes"${s.showAcknowledged ? ' checked' : ''}> Show acknowledged</label></div>
+      ${report.ai ? `<section class="review-card review-ai-status" role="status"><h2>AI review: ${esc(report.ai.status)}</h2><p>${esc(report.ai.message)}</p><p class="review-small">${report.ai.usage.contextBytes.toLocaleString()} context bytes · model calls: ${report.ai.usage.requests} · ${(report.ai.usage.durationMs / 1000).toFixed(1)}s${report.ai.usage.inputTokens !== undefined ? ' · ' + report.ai.usage.inputTokens + ' input tokens' : ''}${report.ai.usage.outputTokens !== undefined ? ' · ' + report.ai.usage.outputTokens + ' output tokens' : ''}</p><details><summary>Captured context, related files and limitations</summary><div class="review-evidence-links">${(report.ai.context?.evidence || []).map(e => `<button class="linklike" data-evidence="${esc(e.id)}">${esc(e.path)}:${e.startLine}–${e.endLine} · ${esc(e.reason)}</button>`).join('')}</div>${(report.ai.limitations || []).map(l => `<p class="review-small">${esc(l)}</p>`).join('')}${report.ai.rejections.map(r => `<p class="review-small">${esc(r)}</p>`).join('')}</details></section>` : ''}
+      <div class="review-metrics"><article><span>Changed files</span><strong>${report.stats.filesChanged}</strong><small><b class="review-add">+${report.stats.additions}</b> / <b class="review-del">−${report.stats.deletions}</b> lines</small></article><article><span>Findings to review</span><strong>${report.findings.length}</strong><small>${blocking} high or critical</small></article><article><span>Files inspected</span><strong>${report.coverage.reviewed}<em> / ${report.files.length}</em></strong><small>${report.coverage.skipped} skipped · reasons below</small></article><article><span>Dependent files</span><strong>${affected.size}</strong><small>Estimated from the last repository scan</small></article></div>
+      <div class="review-columns"><section class="review-card review-findings"><header><div><span class="workbench-eyebrow">THE REVIEW</span><h2>Findings <span class="review-count">${visible.length}</span></h2></div></header><div class="review-filters"><label class="sr-only" for="reviewFilter">Filter findings</label><input type="search" id="reviewFilter" class="text-input" placeholder="Filter by file or rule…" value="${esc(s.query)}"><select aria-label="Finding severity" data-filter="severity"><option value="all">All severities</option>${['critical','high','medium','low','info'].map(v => `<option value="${v}"${s.severity === v ? ' selected' : ''}>${v}</option>`).join('')}</select><select aria-label="Finding source" data-filter="source">${[['all','All sources'],['static','Static patterns'],['ai','AI inferences']].map(([v,label]) => `<option value="${v}"${(s.source || 'all') === v ? ' selected' : ''}>${label}</option>`).join('')}</select><select aria-label="Finding category" data-filter="category"><option value="all">All categories</option>${[...new Set(report.findings.map(f => f.category))].sort().map(v => `<option value="${esc(v)}"${s.category === v ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select><label class="review-notes-toggle"><input type="checkbox" data-filter="notes"${s.showAcknowledged ? ' checked' : ''}> Show acknowledged</label></div>
       <div class="review-finding-list">${findingMarkup}</div></section>
       <aside class="review-aside"><section class="review-card"><span class="workbench-eyebrow">BEFORE YOU MERGE</span><h2>Review checklist</h2>${report.checks.map(c => `<div class="review-check"><span class="review-check-icon check-${c.status}" aria-label="${c.status}">${c.status === 'pass' ? '✓' : c.status === 'skip' ? '−' : '!'}</span><div><strong>${esc(c.label)}</strong><p>${esc(c.detail)}</p></div></div>`).join('')}</section><section class="review-card"><span class="workbench-eyebrow">DEPENDENCY CONTEXT</span><h2>Potential impact</h2><p class="review-small">${affected.size ? [...affected].slice(0, 8).map(p => `<button class="review-impact-file linklike" data-path="${esc(p)}">${esc(p)}</button>`).join('') : 'No additional dependents found in the last scan.'}</p>${affected.size > 8 ? `<p class="review-small">And ${affected.size - 8} more dependent files.</p>` : ''}<p class="review-small">Rescan after structural edits. For branch ranges, this graph may differ from the compared revision.</p></section></aside></div>
       <section class="review-card review-walkthrough"><div class="review-section-heading"><div><span class="workbench-eyebrow">CHANGE WALKTHROUGH</span><h2>Start with the riskiest files</h2></div><span class="review-small">Risk is an estimate</span></div><div class="review-table-wrap"><table><thead><tr><th>File</th><th>Change</th><th>Lines</th><th>Risk</th><th>Review</th></tr></thead><tbody>${report.files.map(f => `<tr><td><button class="linklike" data-path="${esc(f.path)}">${esc(f.path)}</button><small>${esc(f.kind)}${f.instructions.length ? `<br>Guidelines: ${f.instructions.map(esc).join('; ')}` : ''}</small></td><td>${esc(f.status)}</td><td><span class="review-add">+${f.additions}</span> <span class="review-del">−${f.deletions}</span></td><td><span class="review-risk risk-${f.risk}">${f.risk}</span></td><td>${f.skipped ? esc(f.skipped) : `${f.findings} findings`}</td></tr>`).join('')}</tbody></table></div></section>
@@ -105,29 +119,37 @@ export function renderReviewView(container: HTMLElement, context: ReviewContext)
       <details class="review-limitations"><summary>What this review covers</summary>${report.coverage.limitations.map(l => `<p>${esc(l)}</p>`).join('')}<p>Exports contain fresh findings regardless of local acknowledgements. Nothing is applied to source files or posted to a pull request.</p></details>`;
     results.querySelector<HTMLInputElement>('#reviewFilter')!.oninput = event => { s.query = (event.target as HTMLInputElement).value; draw(true); };
     results.querySelector<HTMLSelectElement>('[data-filter="severity"]')!.onchange = event => { s.severity = (event.target as HTMLSelectElement).value; draw(true); };
+    for (const field of ['source', 'category']) results.querySelector<HTMLSelectElement>('[data-filter="' + field + '"]')!.onchange = event => { s[field] = (event.target as HTMLSelectElement).value; draw(true); };
     results.querySelector<HTMLInputElement>('[data-filter="notes"]')!.onchange = event => { s.showAcknowledged = (event.target as HTMLInputElement).checked; draw(true); };
   }
   draw();
   form.onsubmit = async event => {
     event.preventDefault(); if (!context.scanId) return;
     active?.abort(); aiController?.abort(); const controller = new AbortController(); active = controller;
-    Object.assign(s, { mode: mode.value, base: base.value.trim(), head: head.value.trim(), profile: profile.value, error: '', aiText: '', report: null });
+    Object.assign(s, { mode: mode.value, base: base.value.trim(), head: head.value.trim(), profile: profile.value, aiMode: engine.value === 'ai', error: '', aiText: '', report: null });
     draw(); showError(''); feedback.textContent = 'Reading the comparison and checking added lines…'; feedback.hidden = false;
     run.disabled = true; cancel.hidden = false; container.setAttribute('aria-busy', 'true');
     try {
-      const res = await fetch('/api/review', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ scanId: context.scanId, mode: s.mode, base: s.base, head: s.mode === 'range' ? s.head : '', profile: s.profile || undefined }) });
-      const data = await res.json(); if (!res.ok) throw new Error(data.error || 'The review could not complete.');
-      if (controller.signal.aborted || version !== renderVersion) return;
-      s.report = data; draw(); run.innerHTML = 'Run again <span aria-hidden="true">↗</span>'; feedback.textContent = 'Review complete. Check the findings and coverage below.';
+      const data = await requestReview({ scanId: context.scanId, mode: s.mode, base: s.base, head: s.mode === 'range' ? s.head : '', profile: s.profile || undefined,
+        ...(s.aiMode ? { ai: true, stream: true, provider: getSettings(false), limits: { maxContextBytes: Number(contextBytes.value), maxOutputTokens: Number(outputTokens.value) } } : {}) }, controller.signal,
+        phase => { if (active === controller && version === renderVersion) feedback.textContent = phase + '…'; });
+      if (controller.signal.aborted || version !== renderVersion || active !== controller) return;
+      s.report = data; draw(); run.innerHTML = 'Run again <span aria-hidden="true">↗</span>'; feedback.textContent = data.ai && !['completed', 'skipped'].includes(data.ai.status) ? 'Static review retained. AI review: ' + data.ai.status + '. Check coverage below.' : 'Review complete. Check the findings and coverage below.';
     } catch (e) {
-      if (version !== renderVersion) return;
+      if (version !== renderVersion || active !== controller) return;
       if (controller.signal.aborted) feedback.textContent = 'Review canceled.';
       else { s.error = e instanceof Error ? e.message : 'Review failed.'; showError(s.error); feedback.hidden = true; }
-    } finally { if (version === renderVersion) { run.disabled = false; cancel.hidden = true; container.removeAttribute('aria-busy'); if (active === controller) active = null; } }
+    } finally { if (version === renderVersion && active === controller) { run.disabled = false; cancel.hidden = true; container.removeAttribute('aria-busy'); if (active === controller) active = null; } }
   };
   cancel.onclick = () => active?.abort();
   results.onclick = async event => {
     const target = eventElement(event); const report = s.report; if (!target || !report) return;
+    const fix = target.closest<HTMLButtonElement>('[data-finding-fix]');
+    if (fix && context.scanId) { showFixPanel(context.scanId, report, fix.dataset.findingFix!, { maxContextBytes: Number(contextBytes.value), maxOutputTokens: Number(outputTokens.value) }); return; }
+    const explanation = target.closest<HTMLButtonElement>('[data-explain]');
+    if (explanation) { const panel = explanation.closest('article')!.querySelector<HTMLElement>('.review-finding-explanation')!; panel.hidden = !panel.hidden; explanation.setAttribute('aria-expanded', String(!panel.hidden)); explanation.textContent = panel.hidden ? 'Show AI explanation' : 'Hide AI explanation'; return; }
+    const evidence = target.closest<HTMLElement>('[data-evidence]');
+    if (evidence && showReviewEvidence(report, evidence.dataset.evidence!)) return;
     const pathButton = target.closest<HTMLElement>('[data-path]');
     if (pathButton && showReviewPatch(report, pathButton.dataset.path!, Number(pathButton.dataset.line) || 1)) return;
     if (pathButton) { document.dispatchEvent(new CustomEvent('search-select', { detail: { path: pathButton.dataset.path, line: Number(pathButton.dataset.line) || 1, target: 'code' } })); return; }

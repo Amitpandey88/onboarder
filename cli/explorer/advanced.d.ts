@@ -1,0 +1,14 @@
+export declare function loadHistory(repo: any, { force }?: Record<string, any>): Promise<any>;
+export declare function log(repo: any, { limit }?: Record<string, any>): Promise<string>;
+export declare function blame(repo: any, { target, limit }?: Record<string, any>): Promise<string>;
+export declare function coupling(repo: any): string;
+export declare function clusters(repo: any, { limit }?: Record<string, any>): string;
+export declare function blast(repo: any, { target, limit }?: Record<string, any>): string;
+export declare function hotspots(repo: any, { limit }?: Record<string, any>): Promise<string>;
+export declare function diagram(repo: any, { target }?: Record<string, any>): string;
+export declare function layerDiagram(repo: any): string;
+export declare function graph(repo: any, { target, depth, direction }?: Record<string, any>): string;
+export declare function docs(repo: any, { target }?: Record<string, any>): string;
+export declare function writeDocs(repo: any, target?: string): Promise<string>;
+export declare function symbols(repo: any, { target }?: Record<string, any>): string;
+export declare function risks(repo: any): string;

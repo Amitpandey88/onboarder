@@ -14,3 +14,11 @@ process, a 60-second timeout, and a script-disabled results panel. Repository fi
 appear in the Explorer's Onboarder view after Onboarder: Inspect Repository.
 
 This is a local extension artifact; it has not been published to the Marketplace.
+
+Extension 0.2.0, supplied with Onboarder 1.1.0, adds **Onboarder: Triage Pull Requests**. It reads the GitHub
+origin's first open-PR page, then inspects a selected PR through the same local
+CLI triage service. GitHub access uses the CLI environment's GITHUB_TOKEN/GH_TOKEN
+or public access. It performs no model calls or GitHub writes. Empty/missing CI
+and provisional priorities remain visible in the returned report. For pagination,
+filters and optional explanations, use the web Triage workspace or CLI. The
+extension's 60-second deadline also applies to PR inspection.

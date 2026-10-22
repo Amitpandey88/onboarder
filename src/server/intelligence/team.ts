@@ -70,6 +70,7 @@ export async function authorizeMember(member: TeamMember, pathname: string, body
   if (pathname.startsWith('/api/auth/')) return;
   const allowed = ['/api/health', '/api/scan', '/api/file', '/api/search', '/api/blame', '/api/diff/refs', '/api/review', '/api/intelligence', '/api/team/comments', '/api/team/me'];
   if (!allowed.includes(pathname)) throw new Error('This member cannot access server settings, AI credentials, execution, or installation controls.');
+  if (pathname === '/api/review' && body.ai === true) throw new Error('Contextual AI review requires the repository owner; member access does not grant provider credentials or source transmission.');
   if (pathname === '/api/team/me' || pathname === '/api/health') return;
   let root: string | undefined;
   if (pathname === '/api/scan') {

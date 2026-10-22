@@ -71,7 +71,7 @@ function perRepo() {
       severity: 'all', tool: 'all', q: '',
       ai: { text: '', error: '', running: false, question: '' },
     },
-    review: { report: null as ReviewReport | null, mode: 'working', base: 'HEAD', head: 'HEAD', profile: '', severity: 'all', query: '', showAcknowledged: false, aiText: '', error: '' },
+    review: { report: null as ReviewReport | null, mode: 'working', base: 'HEAD', head: 'HEAD', profile: '', severity: 'all', query: '', showAcknowledged: false, aiText: '', error: '', aiMode: false, source: 'all', category: 'all' },
   };
 }
 

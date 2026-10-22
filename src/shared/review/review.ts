@@ -1,6 +1,6 @@
 import { matchesReviewPath } from '../intelligence/pathGlob.js';
 import { analyzeSecurityFile } from '../analyzer/security.js';
-import type { GitDiff, ReviewCheck, ReviewConfig, ReviewFile, ReviewFinding, ReviewProfile, ReviewReport, Severity } from './contracts.js';
+import type { GitDiff, ReviewCheck, ReviewConfig, ReviewEvidence, ReviewFile, ReviewFinding, ReviewProfile, ReviewReport, Severity } from './contracts.js';
 
 export const SEVERITY_RANK: Record<Severity, number> = { info: 0, low: 1, medium: 2, high: 3, critical: 4 };
 export const DEFAULT_REVIEW_CONFIG: ReviewConfig = { profile: 'balanced', exclude: [], instructions: [] };
@@ -12,12 +12,12 @@ export function parseReviewConfig(value: unknown): ReviewConfig {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Review configuration must be a JSON object.');
   const v = value as Record<string, unknown>;
   if (Object.keys(v).some(k => !['profile', 'exclude', 'instructions'].includes(k))) throw new Error('Unknown review configuration field. Use profile, exclude, and instructions.');
-  const exclude = v.exclude ?? [];
-  const instructions = v.instructions ?? [];
+  const exclude = v.exclude === undefined ? [] : v.exclude;
+  const instructions = v.instructions === undefined ? [] : v.instructions;
   if (!Array.isArray(exclude) || exclude.length > 50 || exclude.some(p => typeof p !== 'string' || p.length > 200 || !p)) throw new Error('exclude must contain up to 50 path patterns.');
   if (!Array.isArray(instructions) || instructions.length > 50) throw new Error('instructions must contain up to 50 path guidelines.');
   const rules = instructions.map((rule: unknown) => {
-    if (!rule || typeof rule !== 'object') throw new Error('Each guideline needs a path and instruction.');
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule) || Object.keys(rule).some(k => !['path', 'instruction'].includes(k))) throw new Error('Each guideline needs only a path and instruction.');
     const r = rule as Record<string, unknown>;
     if (typeof r.path !== 'string' || !r.path || r.path.length > 200 || typeof r.instruction !== 'string' || !r.instruction.trim() || r.instruction.length > 2000) throw new Error('Each guideline needs a path pattern and an instruction of at most 2000 characters.');
     return { path: r.path, instruction: r.instruction };
@@ -25,6 +25,14 @@ export function parseReviewConfig(value: unknown): ReviewConfig {
   return { profile: v.profile === undefined ? 'balanced' : reviewProfile(v.profile), exclude, instructions: rules };
 }
 export { matchesReviewPath } from '../intelligence/pathGlob.js';
+
+export function parseReviewConfigText(text: string): ReviewConfig {
+  let value: unknown;
+  // JSON parser errors may quote repository-controlled credentials. Never echo them.
+  try { value = JSON.parse(text); } catch { throw new Error('Invalid .onboarder-review.json: Invalid JSON.'); }
+  try { return parseReviewConfig(value); }
+  catch (error) { throw new Error(`Invalid .onboarder-review.json: ${(error as Error).message}`); }
+}
 
 function language(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase();
@@ -53,7 +61,10 @@ const suggestions: Record<string, string> = {
   'console-log': 'Use the application logger with a suitable level and avoid logging credentials.',
   debugger: 'Remove the debugger statement before shipping.',
 };
-export function buildReview(diff: GitDiff, config = DEFAULT_REVIEW_CONFIG): ReviewReport {
+export function buildReview(diff: GitDiff, config = DEFAULT_REVIEW_CONFIG, source: ReviewEvidence['source'] = 'git-diff'): ReviewReport {
+  const generatedAt = new Date().toISOString();
+  const evidence: ReviewEvidence = { source, analyzer: 'onboarder-patterns/v1', method: 'static-pattern',
+    base: diff.base || '', head: diff.head || '', mode: diff.mode || 'working', freshness: 'captured', observedAt: generatedAt };
   const findings: ReviewFinding[] = [];
   const files: ReviewFile[] = [];
   const minSeverity = config.profile === 'focused' ? 2 : config.profile === 'balanced' ? 1 : 0;
@@ -87,7 +98,7 @@ export function buildReview(diff: GitDiff, config = DEFAULT_REVIEW_CONFIG): Revi
           if (fileFindings.some(x => x.id === id)) continue;
           fileFindings.push({ id, path, line: actual, rule: f.rule, severity, category: f.category, message: f.message,
             suggestion: suggestions[f.rule] || 'Check whether this pattern is safe in its actual calling context and use the safer API where appropriate.',
-            excerpt: secretLines.has(actual) ? '[credential content redacted]' : f.excerpt });
+            excerpt: secretLines.has(actual) ? '[credential content redacted]' : f.excerpt, evidence, source: 'static', verification: 'static-pattern' });
         }
       }
     }
@@ -103,22 +114,27 @@ export function buildReview(diff: GitDiff, config = DEFAULT_REVIEW_CONFIG): Revi
   const hasSource = files.some(f => f.kind === 'Source' && f.status !== 'deleted' && !f.skipped);
   const hasTests = files.some(f => f.kind === 'Tests' && f.status !== 'deleted' && (f.additions || f.deletions));
   const checks: ReviewCheck[] = [
-    { id: 'security', label: 'High-severity patterns', status: blocking ? 'fail' : 'pass', detail: blocking ? `${blocking} high or critical patterns need human review.` : 'No high or critical patterns detected in reviewed added lines.' },
+    { id: 'security', label: 'Static high-severity patterns', status: blocking ? 'fail' : 'pass', detail: blocking ? `${blocking} high or critical patterns need human review.` : 'No high or critical static patterns detected in reviewed added lines.' },
     { id: 'conflicts', label: 'Conflict markers', status: conflicts ? 'fail' : 'pass', detail: conflicts ? `${conflicts} added conflict markers found.` : 'No conflict markers in reviewed added lines.' },
     { id: 'tests', label: 'Test changes', status: !hasSource ? 'skip' : hasTests ? 'pass' : 'warn', detail: !hasSource ? 'No reviewed source changes.' : hasTests ? 'Test files changed. Execution and coverage have not been verified.' : 'Source changed without test-file changes. Confirm existing coverage or add tests.' },
     { id: 'size', label: 'Review size', status: diff.stats.additions + diff.stats.deletions > 1000 ? 'warn' : 'pass', detail: `${diff.stats.additions + diff.stats.deletions} changed lines. Large changes may benefit from separate reviews.` },
     { id: 'coverage', label: 'Review coverage', status: files.some(f => f.skipped && f.status !== 'deleted') ? 'warn' : 'pass', detail: `${files.filter(f => !f.skipped).length} files inspected; ${files.filter(f => f.skipped).length} skipped. See each file for its reason.` },
   ];
   const groups = [...new Set(files.map(f => f.kind))].map(k => `${files.filter(f => f.kind === k).length} ${k.toLowerCase()}`).join(', ');
-  return { fingerprint: '', generatedAt: new Date().toISOString(), mode: diff.mode || 'working', base: diff.base || '', head: diff.head || '', profile: config.profile,
+  return { schemaVersion: 2, fingerprint: '', generatedAt, evidence, mode: diff.mode || 'working', base: diff.base || '', head: diff.head || '', profile: config.profile,
     summary: files.length ? `${files.length} changed files (${groups}), with ${diff.stats.additions} additions and ${diff.stats.deletions} deletions. ${findings.length} patterns flagged on added lines.` : 'No changes in this comparison.', files, findings, checks, stats: diff.stats,
-    coverage: { reviewed: files.filter(f => !f.skipped).length, skipped: files.filter(f => f.skipped).length, untracked: diff.untracked || 0,
+    coverage: { status: files.some(f => f.skipped) ? 'partial' : 'complete', reviewed: files.filter(f => !f.skipped).length, skipped: files.filter(f => f.skipped).length, untracked: diff.untracked || 0,
       limitations: ['Local pattern checks inspect added lines with surrounding patch context; they are not a full semantic or vulnerability audit.', 'Tests are not executed. Test-change checks do not measure test coverage.', 'Risk is a heuristic based on findings, sensitive paths, and change size. Repository guidelines are prompts for human or optional AI review.'] } };
 }
 export function reviewMarkdown(report: ReviewReport): string {
   const safe = (v: string) => v.replace(/[\r\n]/g, ' ').replace(/[`|<>]/g, '');
-  return ['# Onboarder change review', '', report.summary, '', `Comparison: ${report.mode}; base ${safe(report.base)}; head ${safe(report.head) || 'local changes'}.`, `Profile: ${report.profile}.`, '', '## Checks', '',
+  return ['# Onboarder change review', '', report.summary, '', `Comparison: ${report.mode}; base ${safe(report.base)}; head ${safe(report.head) || 'local changes'}.`, `Profile: ${report.profile}.`,
+    ...(report.evidence ? [`Evidence: ${report.evidence.source}; ${report.evidence.method}; ${report.evidence.freshness} as of ${report.evidence.observedAt}.`] : []),
+    ...(report.configuration ? [`Configuration: ${report.configuration.source}; ${report.configuration.status}${report.configuration.revision ? '; revision ' + safe(report.configuration.revision) : ''}.`] : []),
+    ...(report.coverage.status ? [`Patch coverage: ${report.coverage.status}.`] : []), '', '## Checks', '',
+    ...(report.ai ? [`AI review: ${safe(report.ai.status)}. ${safe(report.ai.message)}`, `Context: ${report.ai.usage.contextBytes} bytes; ${report.ai.usage.requests} model request(s).`, ...report.ai.limitations.map(l => '- ' + safe(l)), ''] : []),
     ...report.checks.map(c => `- ${c.status.toUpperCase()}: ${c.label} — ${c.detail}`), '', '## Findings', '',
-    ...(report.findings.length ? report.findings.map(f => `- **${f.severity}** — ${safe(f.path)}:${f.line}: ${f.message}\n  ${f.suggestion}`) : ['No patterns detected in the reviewed added lines.']), '', '## Change walkthrough', '',
+    ...(report.findings.length ? report.findings.map(f => `- **${f.severity}** — ${safe(f.path)}:${f.line}: ${f.title ? safe(f.title) + '. ' : ''}${safe(f.message)}\n  ${safe(f.suggestion)}` +
+      (f.source === 'ai' ? `\n  AI inference; ${f.confidence} model confidence: ${safe(f.confidenceReason || '')}. Cited locations validated; behavior unverified.\n  Potential impact: ${safe(f.impact || '')}\n  Evidence: ${(f.relatedEvidence || []).map(e => safe(e.path) + ':' + e.startLine + '-' + e.endLine + ' at ' + safe(e.revision) + ' (SHA-256 ' + e.sourceHash + ')').join('; ')}` : '')) : ['No patterns detected in the reviewed added lines.']), '', '## Change walkthrough', '',
     ...report.files.map(f => `- ${safe(f.path)} — ${f.status}, +${f.additions}/-${f.deletions}, ${f.risk} risk.${f.skipped ? ' Skipped: ' + f.skipped + '.' : ''}${f.instructions.length ? ' Guidelines: ' + f.instructions.map(safe).join('; ') : ''}`), '', '## Scope', '', ...report.coverage.limitations.map(l => '- ' + l), '', 'Finding acknowledgements in the browser are local notes, not proof of a fix.', ''].join('\n');
 }

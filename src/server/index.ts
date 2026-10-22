@@ -52,7 +52,7 @@ export const CONFIG = {
 
 // The tests want a server they can put on an ephemeral port; `npm start` wants
 // one from the settings file. Same router either way.
-export function createServer(config: typeof CONFIG & { configPath?: string; getSettings?: () => Promise<import('../shared/contracts.js').Settings>; boot?: { host: string; port: number; domain: string; https: boolean } } = CONFIG) {
+export function createServer(config: typeof CONFIG & import('./apiTriage.js').TriageIntegrations & { fixStore?: import('./fixStore.js').FixStore; configPath?: string; getSettings?: () => Promise<import('../shared/contracts.js').Settings>; boot?: { host: string; port: number; domain: string; https: boolean } } = CONFIG) {
     const router = createRouter(config);
   return http.createServer((req, res) => {
     const start = Date.now();

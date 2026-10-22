@@ -181,3 +181,71 @@
 @media (prefers-reduced-motion: reduce) {
  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+/* Contextual review uses the existing theme, keyboard controls and retained evidence. */
+.review-finding-group > h3 { margin: 22px 0 10px; font: 600 14px var(--mono); text-transform: capitalize; }
+.review-finding h4 { font: 600 19px var(--serif); margin: 12px 0; }
+.review-evidence-links { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 12px 0; overflow-wrap: anywhere; }
+.review-evidence-links button { text-align: left; overflow-wrap: anywhere; max-width: 100%; }
+.review-evidence-source { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; font: 12px/1.7 var(--mono); }
+.review-ai-status { margin: 18px 0; border-left: 4px solid var(--accent); }
+.review-ai-budget { margin: 10px 0; font-size: 13px; }
+.review-ai-budget label { display: inline-flex; flex-direction: column; gap: 5px; padding: 12px 16px 12px 0; max-width: 100%; }
+.review-ai-budget input { max-width: 180px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); padding: 8px; }
+.review-filters { flex-wrap: wrap; }
+
+/* Finding-linked proposal and verification panel. */
+.review-fix-dialog { width: min(1120px, 94vw); max-height: 92dvh; }
+.review-fix-body { padding: 18px; display: grid; gap: 18px; }
+.review-fix-body section { min-width: 0; }
+.review-fix-body .review-feedback { background: var(--paper-2); color: var(--ink); border-color: var(--line); }
+.review-fix-body h3 { margin: 12px 0 8px; }
+.review-fix-body label { display: block; margin: 10px 0; }
+.review-fix-body pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow: auto; padding: 12px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; }
+.fix-source-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fix-hash, .review-fix-body code { overflow-wrap: anywhere; }
+.fix-actions, .fix-file-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.fix-file-nav [aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fix-state { font-weight: 700; text-transform: capitalize; }
+.fix-state[data-state="verified-by-checks"], .fix-state[data-state="accepted"] { color: var(--green, #25835a); }
+.fix-state[data-state="verification-failed"], .fix-state[data-state="stale"] { color: var(--red, #b34242); }
+.fix-monaco { height: 360px; border: 1px solid var(--line); }
+.fix-checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+@media (max-width: 700px) { .fix-source-pair { grid-template-columns: 1fr; } .review-fix-body { padding: 10px; } }
+
+/* PR triage shares the review workspace and theme tokens. */
+.triage-shell { max-width: 1500px; }
+.triage-controls { display: grid; grid-template-columns: minmax(220px, 1fr) 150px auto auto; }
+.triage-filters, .triage-pagination, .triage-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin: 16px 0; }
+.triage-filters label, .triage-detail label { display: grid; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.triage-filters input, .triage-filters select, .triage-detail input, .triage-detail select { border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; background: var(--card); color: var(--ink); font: inherit; }
+.triage-filters label:last-child { flex: 1; min-width: 200px; }
+.triage-layout { display: grid; grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.7fr); gap: 24px; align-items: start; }
+.triage-queue { display: grid; gap: 10px; }
+.triage-row { text-align: left; border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 16px; border-radius: 12px; cursor: pointer; display: grid; gap: 9px; width: 100%; overflow-wrap: anywhere; }
+.triage-row:hover, .triage-row.is-selected { border-color: var(--ink); }
+.triage-row strong { font-size: 14px; line-height: 1.5; }
+.triage-row span:not(.triage-priority), .triage-row small { font-size: 12px; color: var(--ink-2); }
+.triage-priority { font-size: 11px; font-weight: 700; padding: 5px 8px; border-radius: 6px; background: var(--paper-2); border: 1px solid var(--line); justify-self: start; }
+.triage-priority.priority-P0 { color: #b42318; border-color: #d92d20; }
+.triage-priority.priority-P1 { color: #b45309; border-color: #d97706; }
+[data-theme="dark"] .triage-priority.priority-P0 { color: #fda29b; }
+[data-theme="dark"] .triage-priority.priority-P1 { color: #fecd89; }
+.triage-detail { border: 1px solid var(--line); border-radius: 14px; padding: 24px; min-width: 0; overflow-wrap: anywhere; }
+.triage-detail h2 { font-size: 22px; line-height: 1.4; margin: 14px 0; }
+.triage-detail h3 { font-size: 14px; margin: 0 0 12px; }
+.triage-detail p, .triage-detail li { font-size: 13px; line-height: 1.7; }
+.triage-detail section { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 24px; }
+.triage-detail code, .triage-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
+.triage-revisions code { display: block; }
+.triage-files { padding-left: 18px; }
+.triage-files li { margin-bottom: 12px; }
+.triage-files small { color: var(--ink-2); display: block; }
+.triage-detail details { margin: 12px 0; }
+.triage-detail summary { cursor: pointer; font-size: 13px; padding: 8px 0; }
+.triage-detail details label { margin: 10px 0; }
+.triage-ai { padding: 20px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.triage-row:focus-visible, .triage-shell button:focus-visible, .triage-shell a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+@media (max-width: 1000px) { .triage-layout { grid-template-columns: 1fr; } .triage-controls { display: grid; grid-template-columns: 1fr 140px; } }
+@media (max-width: 560px) { .triage-controls { display: grid; grid-template-columns: 1fr; } .triage-detail { padding: 16px; } .triage-filters label { width: 100%; } }
+
+.triage-detail a { color: var(--accent); text-underline-offset: 3px; }

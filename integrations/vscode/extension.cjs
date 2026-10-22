@@ -37,7 +37,9 @@ function activate(context) {
       listener.dispose();
       try {
         if (error && !stdout.trim()) throw new Error(stderr.trim().slice(0, 1000) || 'Install the current source build or configure onboarder.cliPath.');
-        resolve(JSON.parse(stdout));
+        const value = JSON.parse(stdout);
+        if (value.error) throw new Error(String(value.error).slice(0, 1000));
+        resolve(value);
       } catch (parseError) { reject(parseError); }
     });
   }));
@@ -65,6 +67,15 @@ function activate(context) {
     show('Change Impact', await run(['intelligence', 'impact', cwd, file, '--json'], cwd));
   });
   command('onboarder.review', async () => { const cwd = root(); show('Change Review', await run(['review', cwd, '--json'], cwd)); });
+  command('onboarder.triage', async () => {
+    const cwd = root(); const page = await run(['triage', 'list', cwd, '--json'], cwd);
+    if (!Array.isArray(page.items)) throw new Error('Update the local Onboarder CLI to a build containing triage.');
+    if (!page.items.length) { show('PR Triage — no open PRs', page); return; }
+    const selected = await vscode.window.showQuickPick([{ label: 'View this queue page', page: true }, ...page.items.map(item => ({ label: '#' + item.pull.number + ' ' + item.pull.title,
+      description: item.priority + ' (provisional) · @' + item.pull.author, number: item.pull.number }))], { title: 'Onboarder PR triage', placeHolder: 'Select a PR to inspect its exact revisions; this command never runs AI or writes to GitHub' });
+    if (!selected) return;
+    show(selected.page ? 'PR Triage Queue' : 'PR Triage #' + selected.number, selected.page ? page : await run(['triage', 'inspect', cwd, '--pr', String(selected.number), '--json'], cwd));
+  });
   command('onboarder.journeys', async () => { const cwd = root(); show('Onboarding Journeys', await run(['intelligence', 'journeys', cwd, '--json'], cwd)); });
   command('onboarder.open', async () => {
     const url = vscode.workspace.getConfiguration('onboarder').get('serverUrl', 'http://localhost:4310');

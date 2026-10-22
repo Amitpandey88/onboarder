@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "auditedAt": "2026-10-22T11:31:40.115Z",
+  "node": "v24.20.0",
+  "mode": "e2e",
+  "model": "mocked; no live provider evaluation",
+  "checks": "Real Node.js tests executed against isolated baseline and result worktrees.",
+  "externalWrites": 0,
+  "completeRequestedWorkflow": false,
+  "rows": [
+    {
+      "stage": "open-and-analyze",
+      "status": "passed",
+      "files": 3
+    },
+    {
+      "stage": "engineering-plan",
+      "status": "missing",
+      "reason": "No dedicated Phase 4C planner. Existing agent dry-run is a permission plan, not an engineering planner."
+    },
+    {
+      "stage": "review",
+      "status": "passed",
+      "finding": "eval",
+      "fingerprint": "8a2cc15c1eaa6adcc2a883a96fb1c4dd2cb35f160dd2febab9243df9e6a10ab6"
+    },
+    {
+      "stage": "propose",
+      "status": "passed",
+      "model": "mocked replacement; real proposal validation, context and source checks",
+      "readOnly": true
+    },
+    {
+      "stage": "approve-and-implement",
+      "status": "passed",
+      "isolatedWorktree": true,
+      "checkpoint": true
+    },
+    {
+      "stage": "execute-checks",
+      "status": "passed",
+      "unapproved": "inconclusive",
+      "receipts": [
+        {
+          "phase": "baseline",
+          "status": "failed",
+          "sourceMatches": null
+        },
+        {
+          "phase": "result",
+          "status": "passed",
+          "sourceMatches": true
+        }
+      ]
+    },
+    {
+      "stage": "re-review",
+      "status": "passed",
+      "noLongerDetected": 1,
+      "note": "No-longer-detected is not proof of correctness; real regression checks supply separate evidence."
+    },
+    {
+      "stage": "saved-run-resumption",
+      "status": "passed"
+    },
+    {
+      "stage": "rollback",
+      "status": "passed",
+      "restored": [
+        "completed"
+      ]
+    },
+    {
+      "stage": "prepare-pr",
+      "status": "partial",
+      "localDraft": true,
+      "agentPermissionPlan": true,
+      "githubWrites": false,
+      "reason": "Local draft and PR permission plan verified; live Hermes PR drafting and external PR creation were not exercised."
+    },
+    {
+      "stage": "original-checkout-preserved",
+      "status": "passed"
+    }
+  ]
+}

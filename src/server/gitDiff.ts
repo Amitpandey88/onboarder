@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { isInside, resolveInside } from './paths.js';
+import { safeGitArguments } from '../cli/agent/gitSafety.js';
 import type { GitDiff, PatchFile, PatchHunk, ReviewMode } from '../shared/review/contracts.js';
 const execFileAsync = promisify(execFile);
 const MAX_DIFF_BYTES = 5 * 1024 * 1024;
@@ -14,9 +15,9 @@ export class GitDiffError extends Error {
 }
 async function git(root: string, args: string[], signal?: AbortSignal): Promise<string> {
   try {
-    const { stdout } = await execFileAsync('git', ['--literal-pathspecs', '-c', 'core.quotePath=false', ...args], {
+    const { stdout } = await execFileAsync('git', [...await safeGitArguments(root, signal), ...args], {
       cwd: root, maxBuffer: MAX_DIFF_BYTES, timeout: 15000, killSignal: 'SIGKILL', signal,
-      env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_NO_REPLACE_OBJECTS: '1', GIT_TERMINAL_PROMPT: '0' },
     });
     return stdout;
   } catch (error) {
@@ -26,6 +27,20 @@ async function git(root: string, args: string[], signal?: AbortSignal): Promise<
     if (e.killed) throw new GitDiffError('Git took too long. Choose a smaller comparison and try again.', 408);
     throw new GitDiffError('Git could not read this comparison. Check the repository and its available history.');
   }
+}
+/** Read only the root configuration blob; never check out or execute repository content. */
+export async function gitReviewConfig(root: string, revision: string, signal?: AbortSignal): Promise<{ text?: string; blob?: string }> {
+  if (revision && !/^[a-f0-9]{40}$/.test(revision)) throw new GitDiffError('Invalid configuration revision.', 400);
+  const entries = (await git(root, revision ? ['ls-tree', '-z', revision, '--', '.onboarder-review.json'] :
+    ['ls-files', '--stage', '-z', '--', '.onboarder-review.json'], signal)).split('\0').filter(Boolean);
+  if (!entries.length) return {};
+  const entry = entries[0].match(revision ? /^(100644|100755) blob ([a-f0-9]{40})\t.onboarder-review\.json$/ :
+    /^(100644|100755) ([a-f0-9]{40}) 0\t.onboarder-review\.json$/);
+  if (entries.length !== 1 || !entry) throw new GitDiffError('Review configuration must be a regular JSON file without index conflicts.', 400);
+  const blob = entry[2];
+  const size = Number((await git(root, ['cat-file', '-s', blob], signal)).trim());
+  if (!Number.isSafeInteger(size) || size < 0 || size > 65536) throw new GitDiffError('Review configuration exceeds 64 KB.', 400);
+  return { text: await git(root, ['cat-file', 'blob', blob], signal), blob };
 }
 async function resolveRef(root: string, ref: string, signal?: AbortSignal): Promise<string> {
   if (!ref || ref.length > 200 || ref.startsWith('-') || !/^[a-zA-Z0-9_./~^@{}-]+$/.test(ref)) throw new GitDiffError('Use a valid branch, tag, or commit reference.', 400);

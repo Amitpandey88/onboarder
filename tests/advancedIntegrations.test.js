@@ -103,7 +103,10 @@ async function automationFixture(t, publish = false, stale = false) {
     request: async (route, method = 'GET', body) => {
       if (method !== 'GET') { writes.push({ route, method, body }); return { data: { id: 42 } }; }
       if (route.includes('/check-runs')) return { data: { check_runs: [] } };
-      return { data: { state: 'open', head: { sha: stale ? 'c'.repeat(40) : head }, base: { sha: base } } };
+      if (route.startsWith('/git/commits/')) return { data: { sha: head, tree: { sha: 'd'.repeat(40) } } };
+      if (route.startsWith('/git/trees/')) return { data: { sha: 'd'.repeat(40), truncated: false, tree: [] } };
+      assert.equal(route, '/pulls/3');
+      return { data: { state: 'open', head: { sha: stale ? 'c'.repeat(40) : head }, base: { sha: base, repo: { full_name: 'fixture/repo' } } } };
     },
     list: async () => ({ items: [{ filename: 'app.ts', status: 'modified', patch: '@@ -1 +1 @@\n-export const a = 1;\n+export const a = eval("1");' }], truncated: false }),
   };

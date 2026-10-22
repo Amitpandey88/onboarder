@@ -1,9 +1,31 @@
-# Repository intelligence — Onboarder 1.0.5
+# Repository intelligence — Onboarder 1.1.0
 
-Version 1.0.5 includes these capabilities in the CLI and web workspace. Optional
+Version 1.1.0 includes these capabilities in the CLI and web workspace. Optional
 compiler, AI, editor, team and GitHub integrations require the setup below.
 
 ## Start
+
+Contextual AI review is available through
+`onboarder review . --ai` and the Review tab's **AI-assisted** selector. Offline
+review remains the default. It sends bounded, redacted, revision-pinned excerpts
+through the existing configured endpoint or Hermes bridge and validates cited
+locations before accepting model findings. Confidence is model-stated; locations
+are checked and behavior remains unverified. See
+[Contextual AI review](CONTEXTUAL_AI_REVIEW.md) for setup, limits, tests and caveats.
+
+The fix workflow adds finding-linked proposals, exact-patch approval, isolated
+worktree application, checkpoints/rollback, real authorized baseline/result checks
+and fresh review comparisons in both CLI and Review. This extends the existing
+implementation harness; normal Hermes task workflows remain available. Read
+[AI Fix & Verification](AI_FIX_VERIFICATION.md) before enabling check execution.
+Passing checks cover only the selected checks, and worktrees are not OS sandboxes.
+
+Phase 4A adds **Triage**: a real GitHub PR queue, deterministic factor
+priorities, filters, target-revision ownership suggestions, optional model explanations
+and navigation to captured Review findings. CLI, MCP and the existing VS Code
+extension share this service. Only Milestone 4A is delivered; other Phase 4
+milestones remain unfinished. See [PR triage](PR_TRIAGE.md) and the
+[verification record](PHASE4A_VERIFICATION.md).
 
 Run npm run build, start the server, load a repository and open **Intelligence**.
 The landing goal opens exploration, review, investigation or implementation.
@@ -206,10 +228,52 @@ limited contents/pull-request read and checks write permissions.
 
 Keep publish false to retain results privately. Setting publish true explicitly
 enables Check Run publication. The worker checks PR head/base before reading
-patches and immediately before publication. Changed heads become stale; duplicate
-events reuse a durable receipt. Queued/running jobs recover after restart.
-Missing patches or truncated pagination produce a neutral, incomplete result.
+patches, after analysis and after Check Run lookup immediately before publication.
+Changed heads/bases and closed PRs become stale. Concurrent duplicate events reuse
+one durable receipt; queued/running jobs recover after restart. Recovery looks up
+the existing Check Run by revision and external identity without re-appending its
+annotations. This uses one worker/store; separate server processes must not share
+the same job directory.
+
+In the unified-review foundation, both local and GitHub reviews use
+the same .onboarder-review.json parser, profiles, exclusions and guidelines.
+Working reviews read the working-tree file; staged reviews read the index blob;
+range reviews read the resolved head commit. GitHub reads the exact reviewed
+commit's root tree and regular configuration blob through GitHub's Git API,
+verifies its blob identity and enforces 64 KB. Only a complete root tree proving
+the file absent enables the existing balanced defaults. Invalid JSON/schema,
+symlinks, truncated trees, denied requests and unavailable objects fail the job
+visibly. Fork heads use the allowlisted base repository's object API; credentials
+are never sent to a fork URL. If GitHub cannot expose that object through the
+granted repository, the review fails without publishing. Head-branch config is
+repository-controlled input; it can exclude paths and reduce the selected profile.
+
+Missing or malformed patches, file-count discrepancies, skipped files and bounded
+pagination produce an explicit partial report and a neutral Check Run. Per-file
+skip reasons and available line counts are retained. Complete/partial refers only
+to the changed patch scope, never full repository analysis or runtime coverage.
+Reports retain redacted compared patches within the private receipt bound; large
+patch source can be omitted with a visible limitation. The GitHub base field
+identifies the target tip, while GitHub's PR patch uses its merge-base comparison;
+the report discloses that distinction.
+
+Legacy finding IDs, paths/lines, rule IDs and severities remain compatible. Optional
+evidence/configuration fields identify static-pattern provenance, reviewed mode
+and revisions, capture/recheck time and freshness, configuration origin and blob,
+and coverage status. Local evidence is a captured snapshot; GitHub evidence is
+current only as of its last PR check and is marked stale on detected revision
+changes. SARIF retains the existing v1 finding fingerprint and adds this metadata.
+Finding IDs are stable for identical path/line/rule locations; they are not semantic
+identities that survive arbitrary line movement. Browser acknowledgements remain
+scoped to the full report fingerprint and never certify a fix.
+
 No repository scripts, build hooks or model calls run during webhook analysis.
+The final GitHub read and Check Run write cannot be atomic; publication is pinned
+to the reviewed head_sha so a later commit cannot receive these findings.
+
+See [Unified review foundation](UNIFIED_REVIEW_FOUNDATION.md) for implementation,
+regression coverage and current local verification results. These changes are
+source development toward v1.1, not a new published release.
 
 The protected /api/github/automation endpoint lists the latest job states.
 Completed receipts remain in github-jobs beside the private configuration.

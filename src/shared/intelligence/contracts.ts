@@ -19,6 +19,7 @@ export interface PackageInfo { name: string; path: string; dependencies: Record<
 export interface PackageMap { packages: PackageInfo[]; edges: { from: string; to: string; range: string }[]; duplicateDeclarations: { name: string; ranges: string[] }[] }
 export interface RouteInfo { path: string; line: number; method: string; route: string; handler: string; middleware: string[]; confidence: 'inferred' | 'declared' }
 export interface Snapshot {
+  scanCoverage?: { truncated: boolean; unavailable: number; unsupported: number };
   schemaVersion: 1; id: string; createdAt: string; revision: string;
   fingerprint: string; sourceFingerprint?: string; configurationHash?: string; analyzerVersion: string; files: { path: string; hash: string; exports: string[] }[];
   edges: ImportEdge[]; cycles: string[][]; violations: RuleViolation[];

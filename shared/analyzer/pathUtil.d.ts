@@ -1,0 +1,10 @@
+export declare function normalize(path: any): string;
+export declare function joinPath(...parts: any[]): string;
+export declare function dirOf(path: any): any;
+export declare function baseName(path: any): any;
+export declare function extOf(path: any): any;
+export declare function depthOf(path: any): any;
+export declare function topFolderOf(path: any): any;
+export declare const TEST_PATH_RE: RegExp;
+export declare function isTestPath(path: any): boolean;
+export declare function pathFilter({ text, showTests }?: Record<string, any>): (p: any) => any;

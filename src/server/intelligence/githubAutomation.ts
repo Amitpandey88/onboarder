@@ -3,8 +3,9 @@ import path from 'node:path';
 import { createHmac, createSign, timingSafeEqual, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { ReviewReport } from '../../shared/review/contracts.js';
-import { buildReview, DEFAULT_REVIEW_CONFIG } from '../../shared/review/review.js';
-import { parseUnifiedDiff } from '../gitDiff.js';
+import { buildReview } from '../../shared/review/review.js';
+import { retainReviewEvidence } from '../reviewEvidence.js';
+import { githubReviewConfig, githubReviewDiff } from './githubReview.js';
 import { GithubClient } from '../../cli/agent/github.js';
 import { sendError, sendJSON } from '../http.js';
 import { evidenceText, hash } from './workspace.js';
@@ -24,7 +25,7 @@ export function appJwt(appId: string, privateKey: string, now = Math.floor(Date.
   const sign = createSign('RSA-SHA256'); sign.update(unsigned); sign.end();
   return unsigned + '.' + sign.sign(privateKey).toString('base64url');
 }
-async function installationToken(repository: string, installationId: number) {
+async function installationToken(repository: string, installationId: number, readOnly = false, signal?: AbortSignal) {
   const keyFile = process.env.ONBOARDER_GITHUB_APP_KEY_FILE;
   const appId = process.env.ONBOARDER_GITHUB_APP_ID;
   if (!keyFile || !appId) return process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
@@ -33,9 +34,9 @@ async function installationToken(repository: string, installationId: number) {
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 32768) throw new Error('GitHub App key must be a regular private file under 32 KB.');
   const jwt = appJwt(appId, await fs.readFile(keyFile, 'utf8'));
   const response = await fetch('https://api.github.com/app/installations/' + installationId + '/access_tokens', {
-    method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
+    method: 'POST', redirect: 'error', signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(15000)]),
     headers: { authorization: 'Bearer ' + jwt, accept: 'application/vnd.github+json', 'content-type': 'application/json', 'x-github-api-version': '2022-11-28' },
-    body: JSON.stringify({ repositories: [repository.split('/')[1]], permissions: { contents: 'read', pull_requests: 'read', checks: 'write' } }),
+    body: JSON.stringify({ repositories: [repository.split('/')[1]], permissions: { contents: 'read', pull_requests: 'read', checks: readOnly ? 'read' : 'write', ...(readOnly ? { statuses: 'read' } : {}) } }),
   });
   if (!response.ok) throw new Error('GitHub App installation authentication failed.');
   const text = await response.text();
@@ -48,6 +49,8 @@ export class GithubAutomation {
   private pending: Job[] = [];
   private running = false;
   private initialized = false;
+  private starting: Promise<void> | null = null;
+  private intake: Promise<void> = Promise.resolve();
   constructor(readonly file: string, readonly secret: string, private createClient?: (repository: string) => GithubClient) {}
   private async config(): Promise<AutomationConfig> {
     const stat = await fs.lstat(this.file);
@@ -58,6 +61,16 @@ export class GithubAutomation {
     return cfg;
   }
   private folder() { return path.join(path.dirname(this.file), 'github-jobs'); }
+  async assertReadRepository(repository: string) {
+    const cfg = await this.config();
+    if (!Object.hasOwn(cfg.repositories, repository)) throw new Error('GitHub repository is outside the configured allowlist.');
+    return cfg.repositories[repository];
+  }
+  /** Triage reuses App authentication while requesting read-only installation permissions. */
+  async readClient(repository: string, signal?: AbortSignal) {
+    const entry = await this.assertReadRepository(repository);
+    return this.createClient ? this.createClient(repository) : new GithubClient(repository, { token: await installationToken(repository, entry.installationId || 0, true, signal), signal });
+  }
   private async save(job: Job) {
     await fs.mkdir(this.folder(), { recursive: true, mode: 0o700 });
     if ((await fs.lstat(this.folder())).isSymbolicLink()) throw new Error('Jobs directory cannot be a symbolic link.');
@@ -81,11 +94,20 @@ export class GithubAutomation {
   }
   async start() {
     if (this.initialized) return;
-    await this.config();
-    this.pending.push(...(await this.jobs()).filter(j => j.status === 'queued' || j.status === 'running'));
-    this.initialized = true; void this.drain();
+    if (!this.starting) this.starting = (async () => {
+      await this.config();
+      this.pending.push(...(await this.jobs()).filter(j => j.status === 'queued' || j.status === 'running'));
+      this.initialized = true; void this.drain();
+    })().finally(() => { this.starting = null; });
+    await this.starting;
   }
-  async accept(event: string, payload: any) {
+  accept(event: string, payload: any) {
+    // Serialize the read/check/save sequence, including concurrent first deliveries.
+    const result = this.intake.then(() => this.acceptSerialized(event, payload));
+    this.intake = result.then(() => {}, () => {});
+    return result;
+  }
+  private async acceptSerialized(event: string, payload: any) {
     await this.start();
     if (event === 'ping') return { accepted: true, ping: true };
     if (event !== 'pull_request' || !['opened', 'reopened', 'synchronize', 'ready_for_review'].includes(payload?.action)) return { accepted: false, ignored: true };
@@ -102,13 +124,13 @@ export class GithubAutomation {
     await this.save(job); this.pending.push(job); void this.drain();
     return { accepted: true, id };
   }
-  async idle() { while (this.running || this.pending.length) await new Promise(resolve => setTimeout(resolve, 10)); }
+  async idle() { await this.intake; while (this.running || this.pending.length) await new Promise(resolve => setTimeout(resolve, 10)); }
   private async drain() {
     if (this.running) return;
     this.running = true;
     try {
       for (let job = this.pending.shift(); job; job = this.pending.shift()) {
-        try { job.status = 'running'; await this.save(job); await this.run(job); }
+        try { job.status = 'running'; delete job.report; delete job.error; await this.save(job); await this.run(job); }
         catch (error) { job.status = 'failed'; job.error = evidenceText(error instanceof Error ? error.message : 'Automation failed.').slice(0, 2000); }
         await this.save(job);
       }
@@ -118,44 +140,76 @@ export class GithubAutomation {
   private async run(job: Job) {
     const cfg = await this.config();
     if (!Object.hasOwn(cfg.repositories, job.repository)) throw new Error('Repository grant was removed.');
-    const token = this.createClient ? '' : await installationToken(job.repository, cfg.repositories[job.repository].installationId || 0);
+    const token = this.createClient ? '' : await installationToken(job.repository, cfg.repositories[job.repository].installationId || 0, !cfg.publish);
     const client = this.createClient?.(job.repository) || new GithubClient(job.repository, { token });
+    const freshness = (value: 'current' | 'stale') => {
+      if (job.report?.evidence) { job.report.evidence.freshness = value; job.report.evidence.observedAt = new Date().toISOString(); }
+      for (const finding of job.report?.findings || []) if (finding.evidence) { finding.evidence.freshness = value; finding.evidence.observedAt = job.report!.evidence!.observedAt; }
+    };
+    const stale = () => { job.status = 'stale'; freshness('stale'); };
     const current = async () => {
       const value = (await client.request('/pulls/' + job.number)).data as any;
-      return value?.state === 'open' && value?.head?.sha === job.head && value?.base?.sha === job.base;
+      return value?.state === 'open' && value?.head?.sha === job.head && value?.base?.sha === job.base && value?.base?.repo?.full_name === job.repository ? value : null;
     };
-    if (!await current()) { job.status = 'stale'; return; }
+    const pr = await current();
+    if (!pr) { stale(); return; }
+    const { config, configuration } = await githubReviewConfig(client, job.head);
     const files = await client.list('/pulls/' + job.number + '/files', 3);
-    let raw = '';
-    for (const value of files.items) {
-      const f = value as any;
-      if (typeof f.filename !== 'string') throw new Error('Invalid pull-request file.');
-      const old = f.previous_filename || f.filename;
-      raw += 'diff --git ' + JSON.stringify('a/' + old) + ' ' + JSON.stringify('b/' + f.filename) + '\n' +
-        '--- ' + (f.status === 'added' ? '/dev/null' : JSON.stringify('a/' + old)) + '\n+++ ' +
-        (f.status === 'removed' ? '/dev/null' : JSON.stringify('b/' + f.filename)) + '\n' + (typeof f.patch === 'string' ? f.patch + '\n' : '');
-      if (Buffer.byteLength(raw) > 5 * 1024 * 1024) throw new Error('Pull-request patch exceeds 5 MB.');
-    }
-    const diff = { ...parseUnifiedDiff(raw), base: job.base, head: job.head, mode: 'range' as const };
-    const report = buildReview(diff, DEFAULT_REVIEW_CONFIG); report.fingerprint = hash(raw + job.head);
+    const diff = githubReviewDiff(files.items, job.base, job.head);
+    const report = retainReviewEvidence(buildReview(diff, config, 'github-pr-patch'), diff, config, configuration);
     report.coverage.limitations.push('GitHub webhook review uses changed-file patches and does not execute repository code or checks.');
-    const incomplete = files.truncated || files.items.some((f: any) => typeof f.patch !== 'string');
-    if (incomplete) report.coverage.limitations.push('GitHub omitted patches or file pagination reached its bound. Review coverage is incomplete.');
+    report.coverage.limitations.push('GitHub base identifies the PR target tip; the PR patch uses GitHub’s merge-base comparison. It is not a locally resolved merge-base SHA.');
+    if (Number.isSafeInteger(pr.changed_files) && pr.changed_files >= 0) report.coverage.expectedFiles = pr.changed_files;
+    const unavailable = files.truncated || files.items.some((f: any) => typeof f.patch !== 'string') ||
+      report.coverage.expectedFiles !== undefined && report.coverage.expectedFiles !== files.items.length;
+    if (unavailable) report.coverage.limitations.push('GitHub omitted patches or files, or file pagination reached its bound. Review coverage is incomplete.');
+    if (unavailable || report.coverage.status === 'partial') {
+      report.coverage.status = 'partial';
+      const check = report.checks.find(c => c.id === 'coverage')!;
+      check.status = 'warn'; check.detail += ' Analysis is incomplete; consult skipped files and limitations.';
+    }
+    // Retaining redacted patches must not defeat the existing 8 MB receipt read bound.
+    if (Buffer.byteLength(JSON.stringify(report)) > 7 * 1024 * 1024) {
+      delete report.comparison;
+      report.coverage.limitations.push('Retained patch source exceeds the receipt limit and was omitted; finding locations and redacted excerpts remain available.');
+      if (Buffer.byteLength(JSON.stringify(report)) > 7 * 1024 * 1024) throw new Error('Review report exceeds the durable receipt size limit. Narrow the pull request.');
+    }
     job.report = report;
-    if (!await current()) { job.status = 'stale'; return; }
+    if (!await current()) { stale(); return; }
+    freshness('current');
     if (cfg.publish) {
-      const existing = (await client.request('/commits/' + job.head + '/check-runs?check_name=Onboarder')).data as any;
-      const prior = existing?.check_runs?.find((r: any) => r.external_id === job.id);
+      let prior: any;
+      for (let page = 1; page <= 3; page++) {
+        const existing = await client.request('/commits/' + job.head + '/check-runs?check_name=Onboarder&filter=all&per_page=100&page=' + page);
+        const checks = (existing.data as any)?.check_runs;
+        if (!Array.isArray(checks)) throw new Error('Invalid GitHub Check Run response.');
+        prior = checks.find((r: any) => r.external_id === job.id && r.head_sha === job.head && r.name === 'Onboarder');
+        if (prior) { if (!Number.isSafeInteger(prior.id) || prior.id < 1) throw new Error('Invalid GitHub Check Run identity.'); break; }
+        if (!existing.more) break;
+        if (page === 3) throw new Error('Check Run lookup is incomplete. Publication stopped to prevent duplicates.');
+      }
       const annotations = report.findings.slice(0, 50).map(f => ({ path: f.path, start_line: f.line, end_line: f.line,
         annotation_level: ['critical', 'high'].includes(f.severity) ? 'failure' : f.severity === 'medium' ? 'warning' : 'notice',
         message: f.message + '\n' + f.suggestion }));
+      const skipped = report.files.filter(f => f.skipped);
+      const scope = [`Patch coverage: ${report.coverage.status}. ${report.coverage.reviewed} files inspected; ${report.coverage.skipped} skipped${report.coverage.expectedFiles !== undefined ? '; ' + report.coverage.expectedFiles + ' expected' : ''}.`,
+        `Configuration: ${report.profile}; ${configuration.status} at ${job.head}.`,
+        ...skipped.slice(0, 20).map(f => '- `' + f.path.replace(/[`<>\r\n]/g, '').slice(0, 200) + '`: ' + f.skipped),
+        ...(skipped.length > 20 ? ['Additional skip reasons are retained in the local receipt.'] : []),
+        ...report.coverage.limitations].join('\n');
       const payload = { name: 'Onboarder', head_sha: job.head, external_id: job.id, status: 'completed',
-        conclusion: incomplete ? 'neutral' : report.findings.some(f => ['critical', 'high'].includes(f.severity)) ? 'failure' : 'success',
-        output: { title: report.summary, summary: report.coverage.limitations.join('\n') + '\nShowing up to 50 annotations; complete findings are retained in the local receipt.', annotations } };
+        conclusion: report.coverage.status === 'partial' ? 'neutral' : report.findings.some(f => ['critical', 'high'].includes(f.severity)) ? 'failure' : 'success',
+        output: { title: report.summary, summary: scope + '\nShowing up to 50 annotations; complete findings are retained in the local receipt.', annotations } };
       // Updating an existing receipt never appends duplicate annotations.
       if (prior) { delete (payload.output as any).annotations; }
+      const latest = await this.config();
+      if (!Object.hasOwn(latest.repositories, job.repository) || latest.repositories[job.repository].installationId !== cfg.repositories[job.repository].installationId) throw new Error('Repository grant changed before publication.');
+      if (!await current()) { stale(); return; }
+      freshness('current');
+      if (!latest.publish) { job.status = 'completed'; return; }
       const published = (await client.request(prior ? '/check-runs/' + prior.id : '/check-runs', prior ? 'PATCH' : 'POST', payload)).data as any;
-      job.checkId = published?.id;
+      if (!Number.isSafeInteger(published?.id) || published.id < 1) throw new Error('GitHub returned an invalid Check Run receipt.');
+      job.checkId = published.id;
     }
     job.status = 'completed';
   }
