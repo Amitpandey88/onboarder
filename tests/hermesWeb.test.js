@@ -33,12 +33,19 @@ async function fixture(t, run, configured = true) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); await fs.rm(temp, { recursive: true, force: true }); });
   const url = 'http://127.0.0.1:' + server.address().port;
-  return { url, calls: () => calls, post: body => fetch(url + '/api/explain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ connection: 'hermes', messages, apiKey: 'browser-secret', model: 'override-model', ...body }) }) };
+  return { hermes, url, calls: () => calls, post: body => fetch(url + '/api/explain', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ connection: 'hermes', messages, apiKey: 'browser-secret', model: 'override-model', ...body }) }) };
 }
 const completed = (options, text = 'Hello from Hermes') => {
   options.onLine(JSON.stringify({ type: 'result', text, exit_code: 0 }));
   return { code: 0, stdout: '', stderr: '' };
 };
+
+test('structured Hermes review reuses the tool-free bridge and bounds completed output', async t => {
+  const f = await fixture(t, options => completed(options, '{"schemaVersion":1,"findings":[],"limitations":[]}'));
+  const result = await f.hermes.complete(messages); assert.ok(result.text.includes('"schemaVersion":1')); assert.equal(f.calls(), 1);
+  const large = await fixture(t, options => completed(options, 'x'.repeat(131073)));
+  await assert.rejects(large.hermes.complete(messages), /could not finish the review/);
+});
 
 test('Hermes status shares only display fields and obeys origin guards', async t => {
   const f = await fixture(t, completed);

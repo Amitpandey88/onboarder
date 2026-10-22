@@ -1,6 +1,17 @@
 import type { ReviewReport } from '../../shared/review/contracts.js';
 import { escapeHtml as esc } from './html.js';
 
+export function showReviewEvidence(report: ReviewReport, id: string) {
+  const item = report.ai?.context?.evidence.find(e => e.id === id);
+  if (!item) return false;
+  const dialog = document.createElement('dialog'); dialog.className = 'review-patch-dialog'; dialog.setAttribute('aria-label', 'Captured source evidence for ' + item.path);
+  dialog.innerHTML = `<header><div><h2>${esc(item.path)}:${item.startLine}–${item.endLine}</h2><p>Captured revision: ${esc(item.revision)}</p><small>SHA-256 ${esc(item.sourceHash)} · ${esc(item.reason)}</small></div><button class="btn" type="button">Close</button></header><pre class="review-evidence-source">${esc(item.text.split('\n').map((text, i) => (item.startLine + i) + '  ' + text).join('\n'))}</pre>`;
+  const origin = document.activeElement;
+  const close = () => { dialog.close(); dialog.remove(); if (origin instanceof HTMLElement) origin.focus(); };
+  dialog.querySelector('button')!.onclick = close;
+  dialog.addEventListener('cancel', event => { event.preventDefault(); close(); }); document.body.append(dialog); dialog.showModal(); return true;
+}
+
 /** Render only the retained comparison; never fetch current source as evidence. */
 export function showReviewPatch(report: ReviewReport, path: string, target = 1) {
   const comparison = report.comparison;

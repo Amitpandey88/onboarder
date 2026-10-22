@@ -15,10 +15,15 @@ export function reviewSarif(report: ReviewReport) {
         level: ['critical', 'high'].includes(f.severity) ? 'error' : f.severity === 'medium' ? 'warning' : 'note',
         message: { text: f.message + '\n' + f.suggestion },
         partialFingerprints: { 'onboarderFinding/v1': f.id },
+        ...(f.evidence ? { properties: { evidence: f.evidence, source: f.source || 'static', verification: f.verification,
+          ...(f.source === 'ai' ? { confidence: f.confidence, confidenceReason: f.confidenceReason, relatedEvidence: f.relatedEvidence, sourceFingerprint: f.sourceFingerprint, impact: f.impact } : {}) } } : {}),
         locations: [{ physicalLocation: { artifactLocation: { uri: f.path.split('/').map(encodeURIComponent).join('/'), uriBaseId: '%SRCROOT%' },
           region: { startLine: Math.max(1, f.line) } } }],
       })),
-      properties: { comparisonFingerprint: report.fingerprint, mode: report.mode, limitations: report.coverage.limitations },
+      properties: { comparisonFingerprint: report.fingerprint, mode: report.mode, limitations: report.coverage.limitations,
+        ...(report.ai ? { aiReview: { status: report.ai.status, message: report.ai.message, usage: report.ai.usage, limits: report.ai.limits, limitations: report.ai.limitations } } : {}),
+        ...(report.evidence ? { evidence: report.evidence } : {}), ...(report.configuration ? { configuration: report.configuration } : {}),
+        ...(report.coverage.status ? { coverageStatus: report.coverage.status } : {}) },
     }],
   };
 }

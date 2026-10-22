@@ -1,0 +1,12 @@
+export declare const CLI_ENTRY: string;
+export declare function logPath(configFile?: string): string;
+export declare const MAX_LOG_BYTES: number;
+export declare function rotateLogIfNeeded(file?: string, maxBytes?: number): Promise<boolean>;
+export declare function readLog(file?: string, bytes?: number): Promise<string>;
+export declare function tailLog(file?: string, count?: number): Promise<string[]>;
+export declare function logExists(file?: string): Promise<boolean>;
+export declare function probe(url: any, timeoutMs?: number): Promise<unknown>;
+export declare function waitForReady(url: any, { timeoutMs, intervalMs, check }?: Record<string, any>): Promise<boolean>;
+export declare function spawnDetached({ configFile, entry, env, log }?: Record<string, any>): number;
+export declare function waitForPidFile(configFile: any, { timeoutMs, intervalMs, readPid, isAlive }?: Record<string, any>): Promise<any>;
+export declare function followLog(file: any, onLine: any, { intervalMs, from }?: Record<string, any>): () => void;

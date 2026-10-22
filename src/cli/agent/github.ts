@@ -1,4 +1,8 @@
 export interface GithubOptions { token?: string; fetchImpl?: typeof fetch; signal?: AbortSignal }
+export interface GithubRateLimit { remaining: number | null; resetAt: string | null; retryAfterSeconds: number | null }
+export class GithubApiError extends Error {
+  constructor(message: string, readonly status: number, readonly rateLimit?: GithubRateLimit) { super(message); this.name = 'GithubApiError'; }
+}
 export function githubToken(env: NodeJS.ProcessEnv = process.env): string {
   return [env.GITHUB_TOKEN, env.GH_TOKEN].map(t => (t || '').trim()).find(t => t && !t.startsWith('${')) || '';
 }
@@ -17,6 +21,7 @@ export function positiveId(value: unknown, label: string): number {
   return id;
 }
 export class GithubClient {
+  rateLimit?: GithubRateLimit;
   constructor(readonly repository: string, private options: GithubOptions = {}) {
     if (!validRepository(repository)) throw new Error('Use a GitHub repository in owner/name form.');
   }
@@ -30,9 +35,13 @@ export class GithubClient {
     const res = await (this.options.fetchImpl || fetch)(`https://api.github.com/repos/${this.repository}${route}`, {
       method, headers, signal, redirect: 'error', ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
+    const count = (name: string) => { const raw = res.headers.get(name); return raw !== null && /^\d{1,12}$/.test(raw) ? Number(raw) : null; };
+    const reset = count('x-ratelimit-reset');
+    this.rateLimit = { remaining: count('x-ratelimit-remaining'), resetAt: reset !== null ? new Date(reset * 1000).toISOString() : null, retryAfterSeconds: count('retry-after') };
     if (!res.ok) {
       const reasons: Record<number, string> = { 401: 'GitHub authentication failed. Set GITHUB_TOKEN or GH_TOKEN.', 403: 'GitHub denied the request or its rate limit was reached.', 404: 'GitHub could not find this repository or resource; private repositories require a token.', 422: 'GitHub rejected the request. Check the issue, branch, or pull-request fields.' };
-      throw new Error(reasons[res.status] || `GitHub returned ${res.status}.`);
+      await res.body?.cancel().catch(() => {});
+      throw new GithubApiError(reasons[res.status] || `GitHub returned ${res.status}.`, res.status, this.rateLimit);
     }
     if (Number(res.headers.get('content-length')) > 2 * 1024 * 1024) throw new Error('GitHub response exceeds the size limit.');
     if (res.status === 204) return { data: null, more: false };

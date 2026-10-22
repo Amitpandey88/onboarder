@@ -34,6 +34,7 @@ export interface RunManifest {
   timeoutSeconds: number;
   maxTurns: number;
   auditFile: string;
+  fix?: { proposalId: string; proposalDigest: string; findingId: string; sourceRevision: string; allowedPaths: string[]; role?: 'application' | 'baseline' };
 }
 export interface AgentEvent {
   type: 'system' | 'text' | 'tool_use' | 'tool_result' | 'result';

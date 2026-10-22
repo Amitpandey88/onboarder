@@ -1,0 +1,6 @@
+[
+  { "id": "typescript-async-auth-bug", "language": "typescript", "awaitCaller": false, "buggy": true, "expectedRule": "ai/async-auth-caller", "description": "Authorization changes from boolean to Promise while the route still negates its result without awaiting." },
+  { "id": "javascript-async-auth-bug", "language": "javascript", "awaitCaller": false, "buggy": true, "expectedRule": "ai/async-auth-caller", "description": "Same cross-file contract regression in plain JavaScript." },
+  { "id": "typescript-awaited-auth-clean", "language": "typescript", "awaitCaller": true, "buggy": false, "description": "The route awaits authorization both before and after its implementation becomes asynchronous." },
+  { "id": "javascript-awaited-auth-clean", "language": "javascript", "awaitCaller": true, "buggy": false, "description": "Clean JavaScript counterpart with a caller that already awaits authorization." }
+]

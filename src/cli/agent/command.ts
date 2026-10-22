@@ -108,7 +108,15 @@ export async function agentCommand(sub = 'help', positionals: string[] = [], fla
   if (sub === 'runs') {
     const names = await fs.readdir(runtimePaths(home).runs).catch(e => { if (e.code !== 'ENOENT') throw e; return []; });
     const runs = (await Promise.all(names.filter(n => /^[a-f\d-]{36}$/.test(n)).map(async id => {
-      try { const { manifest, result } = await savedRun(id, home); return { id, mode: manifest.mode, status: result?.status || 'unfinished', startedAt: manifest.startedAt, workspace: manifest.root, repository: manifest.repository }; }
+      try {
+        const { manifest, result } = await savedRun(id, home);
+        let status: string = result?.status || 'unfinished';
+        if (manifest.fix) {
+          if (manifest.fix.role === 'baseline') status = 'baseline-check-worktree';
+          else { const { FixStore } = await import('../../server/fixStore.js'); status = (await new FixStore(home).read<{ run: { status: string } }>('run', id)).run.status; }
+        }
+        return { id, mode: manifest.fix ? 'fix' : manifest.mode, status, startedAt: manifest.startedAt, workspace: manifest.root, repository: manifest.repository };
+      }
       catch { return { id, status: 'unreadable' }; }
     }))).sort((a, b) => (b.startedAt || '').localeCompare(a.startedAt || ''));
     print(runs); return 0;

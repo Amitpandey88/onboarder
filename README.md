@@ -17,7 +17,41 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 
 ---
 
-## What's new in 1.0.5
+## What's new in 1.1.0
+
+Version 1.1.0 adds contextual code review, human-approved fixes and GitHub PR
+triage while preserving the offline explorer, intelligence workspace, terminal
+chat, Hermes workflows and zero runtime dependencies.
+
+- **Consistent review evidence:** working, staged and exact-revision comparisons
+  share configuration, captured patches, source fingerprints and JSON/Markdown/SARIF.
+- **Optional contextual AI review:** `onboarder review . --ai` retrieves bounded,
+  redacted callers, dependencies and tests through your configured provider or
+  Hermes profile. Findings require validated source references; model reasoning
+  remains an inference rather than proven execution behavior.
+- **Human-approved fixes:** generate a read-only patch, approve its exact digest,
+  apply it in an isolated Git worktree, then separately authorize real checks.
+  Checkpoints, conflicting-edit protection, rollback and fresh review comparisons
+  preserve the source checkout. A worktree does not sandbox code execution.
+- **Read-only PR triage:** web, CLI, MCP and VS Code share a GitHub queue,
+  explainable priorities, CODEOWNERS suggestions and exact-head CI observations.
+  Missing signals stay unknown; publication remains separately opt-in.
+- **Production-readiness hardening:** safer provider diagnostics and redirects,
+  bounded/cancellable streaming, raw check-definition approval hashes, reduced
+  GitHub App permissions and reliable Node 20 AI deadlines.
+
+This release includes Phase 4A triage. The dedicated Change Stack, engineering
+planner, full team collaboration platform and post-merge drafts remain incomplete.
+AI quality has been tested with controlled model responses; live provider/Hermes
+and GitHub App/private-account verification remain limited. Static review is
+heuristic and can miss bugs or produce false positives. An empty review does not
+establish that a change is safe.
+
+Install with `npm install -g codebase-onboarder@1.1.0`. See the
+[release notes](docs/RELEASE_1.1.0.md), [changelog](CHANGELOG.md), and
+[upgrade and migration guide](docs/MIGRATING_TO_1.1.md).
+
+## Included from 1.0.5
 
 Version 1.0.5 adds an **Intelligence** workspace with source evidence
 and saved conversations, optional TypeScript semantic references, live refresh,
@@ -106,7 +140,7 @@ is optional for repository browsing.
 npm install -g codebase-onboarder
 
 # Update an existing installation to this release
-npm install -g codebase-onboarder@1.0.5
+npm install -g codebase-onboarder@1.1.0
 
 # Open the repository chat harness in your terminal
 onboarder
@@ -437,6 +471,32 @@ onboarder review . --base main --head feature/my-change
 onboarder review . --profile focused --fail-on high
 ```
 
+Version 1.1.0 also supports `onboarder review . --ai` (including
+`--staged`, revision ranges, JSON and SARIF). The Review tab has the same explicit
+AI-assisted mode. It retrieves bounded callers, dependencies and test excerpts,
+uses your configured endpoint/model or Hermes profile, and validates source
+citations before accepting model inferences. Offline review sends no model request.
+AI confidence is self-reported, and source validation does not prove runtime behavior.
+See [Contextual AI review](docs/CONTEXTUAL_AI_REVIEW.md) for provider setup, cost
+controls, failure statuses, benchmark scope and security limits.
+
+Version 1.1.0 adds **Explain & propose fix** to Review findings and
+`onboarder fix propose|show|apply|verify|status|rollback|accept`. Proposals are
+read-only. Applying requires the exact preview digest, creates an isolated Git
+worktree and saves a checkpoint. Explicitly authorized checks run on baseline and
+result source with real receipts and fresh review comparisons. Worktrees do not
+sandbox execution; only trusted checks should run locally. Nothing commits,
+merges or transfers changes to your checkout automatically. See
+[AI Fix & Verification](docs/AI_FIX_VERIFICATION.md) for commands, permissions,
+recovery, supported checks and current limits.
+
+Version 1.1.0 adds a read-only **Triage** workspace, `onboarder triage list|inspect`,
+explainable P0–P3 priorities, target-revision CODEOWNERS suggestions and optional
+bounded model explanations. CLI, MCP and VS Code reuse the same evidence contracts.
+Missing CI and branch-policy signals remain unknown. This delivers Milestone 4A;
+full Change Stack, planner, collaboration and post-merge modules remain unfinished.
+See [PR triage](docs/PR_TRIAGE.md) for setup, commands and limits.
+
 `--fail-on` exits with status 1 for findings at or above the selected severity.
 Conflict markers also return 1. Invalid comparisons return a failure instead
 of falling back to a different diff. Reviews use the Git repository root;
@@ -457,8 +517,10 @@ Optional `.onboarder-review.json` in the repository root:
 Profiles: `focused` includes medium/above, `balanced` low/above, and `thorough`
 all patterns. Exclusions use `*`, `**`, and `?` path globs. Guidelines are shown
 for human review and included in the optional AI brief; the pattern engine
-does not claim to enforce natural-language guidelines. Configuration always
-comes from the current working tree, including for staged and branch reviews.
+does not claim to enforce natural-language guidelines. In version 1.1.0,
+working reviews read working-tree configuration, staged reviews use the index,
+and branch reviews use the exact reviewed head commit. GitHub automation uses
+that commit's regular configuration blob through the allowlisted repository.
 This project's configuration excludes generated JavaScript and vendored files
 so changes are reviewed in their canonical TypeScript source.
 

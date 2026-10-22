@@ -26,6 +26,10 @@ import { runExternalAnalysis, toolsStatus } from '../tools/scan.js';
 import { TOOL_DEFS } from '../tools/registry.js';
 import { validateArguments } from './protocol.js';
 import { workspaceFor, compareRevisions } from '../intelligence/workspace.js';
+import { GithubClient } from '../../cli/agent/github.js';
+import { GithubProvider, safeProviderError } from '../providers/github.js';
+import { listTriage, inspectTriage, localGithubRepository } from '../triage.js';
+import { redactTriageValue } from '../triageAI.js';
 
 const PATH_PROPERTY = {
   type: 'string',
@@ -306,6 +310,28 @@ function tourPayload(a) {
 // ---- the tool table ---------------------------------------------------------
 
 export const TOOLS = [
+  {
+    name: 'onboarder_triage',
+    description: 'Read-only GitHub PR queue or exact-head inspection for this repository’s GitHub origin. Reuses CLI/web review, priority and evidence. No AI calls, tests, fetches, assignments or GitHub writes. Metadata-only priorities are provisional; missing checks stay unknown. Source patches require explicit includeSource.',
+    inputSchema: { type: 'object', properties: { path: PATH_PROPERTY, action: { type: 'string', enum: ['list', 'inspect'] },
+      number: { type: 'integer', minimum: 1, maximum: 2147483647 }, page: { type: 'integer', minimum: 1, maximum: 100 },
+      limit: { type: 'integer', minimum: 1, maximum: 30 }, state: { type: 'string', enum: ['open', 'closed', 'all'] }, includeSource: { type: 'boolean' } }, required: ['action'] },
+    async run(args) {
+      try {
+        const a = await resolve(args), signal = AbortSignal.timeout(120000);
+        const repository = await localGithubRepository(a.root, signal), provider = new GithubProvider(new GithubClient(repository, { signal }));
+        const result = args.action === 'list' ? await listTriage(provider, { state: args.state, page: args.page, limit: args.limit, signal }) : await inspectTriage(provider, args.number, { root: a.root, signal });
+        const payload = redactTriageValue(JSON.parse(JSON.stringify(result)));
+        if (!args.includeSource && payload.report) {
+          delete payload.report.comparison;
+          for (const f of payload.report.findings) { delete f.excerpt; if (f.relatedEvidence) f.relatedEvidence = f.relatedEvidence.map(({ text: _text, ...e }) => e); }
+          for (const f of payload.report.files) delete f.instructions;
+        }
+        if (Buffer.byteLength(JSON.stringify(payload)) > 512 * 1024) throw new ToolError('Triage MCP output exceeds 512 KB. Use CLI/web export for the complete report or omit includeSource.');
+        return payload;
+      } catch (e) { if (e instanceof ToolError) throw e; throw new ToolError(safeProviderError(e)); }
+    },
+  },
   {
     name: 'onboarder_intelligence',
     description: 'Refresh repository intelligence: architecture boundaries, measured coverage, packages, routes, journeys, knowledge freshness and optional semantic symbols. Retrieve revision-pinned evidence or compare exact Git revisions. Source excerpts require includeSource; otherwise read cited files with onboarder_read_file.',
@@ -711,7 +737,7 @@ export function toolDefinitions() {
       readOnlyHint: t.name !== 'onboarder_deep_analysis',
       destructiveHint: t.name === 'onboarder_deep_analysis',
       idempotentHint: t.name !== 'onboarder_deep_analysis',
-      openWorldHint: t.name === 'onboarder_deep_analysis',
+      openWorldHint: t.name === 'onboarder_deep_analysis' || t.name === 'onboarder_triage',
     },
   }));
 }

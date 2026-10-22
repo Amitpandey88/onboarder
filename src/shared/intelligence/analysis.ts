@@ -166,13 +166,18 @@ export function detectDataModels(texts: Map<string, string>) {
 }
 export function ownersFor(file: string, codeowners: string): string[] {
   let owners: string[] = [];
+  const segments = file.split('/'), parentPaths = segments.slice(0, -1).map((_, i) => segments.slice(0, i + 1).join('/'));
   for (const line of codeowners.split('\n')) {
-    const [raw, ...people] = line.trim().split(/\s+/);
-    if (!raw || raw.startsWith('#')) continue;
-    let pattern = raw.replace(/^\//, '');
-    if (pattern.endsWith('/')) pattern += '**';
-    if (!pattern.includes('/')) pattern = '**/' + pattern;
-    if (matchesReviewPath(file, pattern)) owners = people.filter(s => s.startsWith('@') || s.includes('@'));
+    const [raw, ...people] = line.split('#')[0].trim().split(/\s+/);
+    if (!raw || /[!\[\]\\]/.test(raw)) continue;
+    const directory = raw.endsWith('/'), anchored = raw.startsWith('/');
+    let pattern = raw.replace(/^\//, '').replace(/\/$/, '');
+    if (!pattern) continue;
+    if (!anchored && !pattern.includes('/')) pattern = '**/' + pattern;
+    const literalEnd = !/[?*]/.test(pattern.split('/').at(-1)!);
+    // Bare directory names own descendants; docs/* deliberately owns only its immediate files.
+    const ancestors = literalEnd && !directory ? parentPaths : [];
+    if (matchesReviewPath(file, directory ? pattern + '/**' : pattern) || ancestors.some(p => matchesReviewPath(p, pattern))) owners = people.filter(s => s.startsWith('@') || s.includes('@'));
   }
   return owners;
 }

@@ -1,0 +1,10 @@
+import type { GitDiff, ReviewConfig, ReviewEvidence, ReviewProfile, ReviewReport, Severity } from './contracts.js';
+export declare const SEVERITY_RANK: Record<Severity, number>;
+export declare const DEFAULT_REVIEW_CONFIG: ReviewConfig;
+export declare function reviewProfile(value: unknown): ReviewProfile;
+export declare function parseReviewConfig(value: unknown): ReviewConfig;
+export { matchesReviewPath } from '../intelligence/pathGlob.js';
+export declare function parseReviewConfigText(text: string): ReviewConfig;
+export declare function changeKind(path: string): string;
+export declare function buildReview(diff: GitDiff, config?: ReviewConfig, source?: ReviewEvidence['source']): ReviewReport;
+export declare function reviewMarkdown(report: ReviewReport): string;

@@ -237,7 +237,7 @@ test('CLI prints usable config and catalogs, checks a real process, and serves c
   assert.equal(parsed.command, process.execPath); assert.ok(path.isAbsolute(parsed.args[0]));
   assert.match((await run(['config', 'toml'])).stdout, /\[mcp_servers\.onboarder\]/);
   const catalog = JSON.parse((await run(['catalog', '--json'])).stdout);
-  assert.equal(catalog.tools.length, 17); assert.equal(catalog.resources.length, 5); assert.equal(catalog.prompts.length, 3);
+  assert.deepEqual(catalog.tools.map(t => t.name), toolDefinitions().map(t => t.name)); assert.equal(catalog.resources.length, 5); assert.equal(catalog.prompts.length, 3);
   const check = await run(['check', '--json']); assert.equal(check.code, 0, check.stderr); assert.equal(JSON.parse(check.stdout).ok, true);
   const wire = await run([], JSON.stringify(message('ping', {}, 'wire')) + '\n');
   assert.equal(wire.code, 0, wire.stderr); assert.deepEqual(JSON.parse(wire.stdout), { jsonrpc: '2.0', id: 'wire', result: {} });

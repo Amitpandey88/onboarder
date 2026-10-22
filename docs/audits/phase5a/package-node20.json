@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "node": "v20.20.2",
+  "status": "passed",
+  "archiveSha256": "f348cd656f9210bf904bf1d335490fbaa1ce398a52bef68c13afa055779fa1d6",
+  "version": "1.0.5",
+  "runtimeDependencies": 0,
+  "installation": "Offline npm install --ignore-scripts --omit=dev into a fresh prefix/home; no source tree or development dependencies installed.",
+  "checks": [
+    "version",
+    "offline review",
+    "staged review",
+    "SARIF",
+    "AI unavailable is explicit",
+    "MCP self-check",
+    "separate-process mocked-provider CLI proposal/show/approval/apply/real baseline-result verification/status/rollback"
+  ],
+  "model": "mock HTTP provider; no external model",
+  "externalWrites": 0
+}

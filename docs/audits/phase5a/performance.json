@@ -1,0 +1,618 @@
+{
+  "schemaVersion": 1,
+  "auditedAt": "2026-10-22T11:22:33.031Z",
+  "node": "v24.20.0",
+  "mode": "performance",
+  "method": "Three sequential fresh processes per scenario; fixture generation excluded, module imports included. OS filesystem cache may be warm. RSS is process high-water mark, not incremental heap. No model or provider network.",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 10,
+    "memoryGiB": 16
+  },
+  "rows": [
+    {
+      "scenario": "cli-startup",
+      "medianWallMs": 64.875,
+      "rangeWallMs": [
+        62.928,
+        73.849
+      ],
+      "samples": [
+        {
+          "wallMs": 64.875,
+          "version": "1.0.5"
+        },
+        {
+          "wallMs": 62.928,
+          "version": "1.0.5"
+        },
+        {
+          "wallMs": 73.849,
+          "version": "1.0.5"
+        }
+      ]
+    },
+    {
+      "scenario": "server-startup",
+      "medianWallMs": 78.267,
+      "rangeWallMs": [
+        77.58,
+        84.083
+      ],
+      "samples": [
+        {
+          "wallMs": 84.083,
+          "scenario": "server-startup",
+          "durationMs": 44.803,
+          "maxRssMiB": 75.531,
+          "detail": {
+            "health": 200
+          }
+        },
+        {
+          "wallMs": 78.267,
+          "scenario": "server-startup",
+          "durationMs": 44.68,
+          "maxRssMiB": 75.516,
+          "detail": {
+            "health": 200
+          }
+        },
+        {
+          "wallMs": 77.58,
+          "scenario": "server-startup",
+          "durationMs": 44.705,
+          "maxRssMiB": 75.609,
+          "detail": {
+            "health": 200
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "scan-100",
+      "medianWallMs": 44.459,
+      "rangeWallMs": [
+        44.412,
+        45.071
+      ],
+      "samples": [
+        {
+          "wallMs": 45.071,
+          "scenario": "scan-100",
+          "durationMs": 12.659,
+          "maxRssMiB": 61.391,
+          "detail": {
+            "files": 100,
+            "edges": 99,
+            "skips": {
+              "ignored": 0,
+              "vendorDir": 1,
+              "notSource": 0,
+              "listFailed": 0,
+              "notCode": 1,
+              "readFailed": 0,
+              "tooLarge": 0,
+              "analyzeFailed": 0
+            },
+            "truncated": null,
+            "defaultMaxFiles": 4000
+          }
+        },
+        {
+          "wallMs": 44.459,
+          "scenario": "scan-100",
+          "durationMs": 12.354,
+          "maxRssMiB": 61.281,
+          "detail": {
+            "files": 100,
+            "edges": 99,
+            "skips": {
+              "ignored": 0,
+              "vendorDir": 1,
+              "notSource": 0,
+              "listFailed": 0,
+              "notCode": 1,
+              "readFailed": 0,
+              "tooLarge": 0,
+              "analyzeFailed": 0
+            },
+            "truncated": null,
+            "defaultMaxFiles": 4000
+          }
+        },
+        {
+          "wallMs": 44.412,
+          "scenario": "scan-100",
+          "durationMs": 12.644,
+          "maxRssMiB": 61.063,
+          "detail": {
+            "files": 100,
+            "edges": 99,
+            "skips": {
+              "ignored": 0,
+              "vendorDir": 1,
+              "notSource": 0,
+              "listFailed": 0,
+              "notCode": 1,
+              "readFailed": 0,
+              "tooLarge": 0,
+              "analyzeFailed": 0
+            },
+            "truncated": null,
+            "defaultMaxFiles": 4000
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "scan-1000",
+      "medianWallMs": 68.018,
+      "rangeWallMs": [
+        67.539,
+        73.959
+      ],
+      "samples": [
+        {
+          "wallMs": 73.959,
+          "scenario": "scan-1000",
+          "durationMs": 41.013,
+          "maxRssMiB": 69.719,
+          "detail": {
+            "files": 1000,
+            "edges": 999,
+            "skips": {
+              "ignored": 0,
+              "vendorDir": 1,
+              "notSource": 0,
+              "listFailed": 0,
+              "notCode": 1,
+              "readFailed": 0,
+              "tooLarge": 0,
+              "analyzeFailed": 0
+            },
+            "truncated": null,
+            "defaultMaxFiles": 4000
+          }
+        },
+        {
+          "wallMs": 67.539,
+          "scenario": "scan-1000",
+          "durationMs": 35.44,
+          "maxRssMiB": 69.578,
+          "detail": {
+            "files": 1000,
+            "edges": 999,
+            "skips": {
+              "ignored": 0,
+              "vendorDir": 1,
+              "notSource": 0,
+              "listFailed": 0,
+              "notCode": 1,
+              "readFailed": 0,
+              "tooLarge": 0,
+              "analyzeFailed": 0
+            },
+            "truncated": null,
+            "defaultMaxFiles": 4000
+          }
+        },
+        {
+          "wallMs": 68.018,
+          "scenario": "scan-1000",
+          "durationMs": 35.987,
+          "maxRssMiB": 69,
+          "detail": {
+            "files": 1000,
+            "edges": 999,
+            "skips": {
+              "ignored": 0,
+              "vendorDir": 1,
+              "notSource": 0,
+              "listFailed": 0,
+              "notCode": 1,
+              "readFailed": 0,
+              "tooLarge": 0,
+              "analyzeFailed": 0
+            },
+            "truncated": null,
+            "defaultMaxFiles": 4000
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "scan-5000",
+      "medianWallMs": 143.212,
+      "rangeWallMs": [
+        142.053,
+        143.979
+      ],
+      "samples": [
+        {
+          "wallMs": 142.053,
+          "scenario": "scan-5000",
+          "durationMs": 107.95,
+          "maxRssMiB": 86,
+          "detail": {
+            "files": 3999,
+            "edges": 3995,
+            "skips": {
+              "ignored": 0,
+              "vendorDir": 1,
+              "notSource": 0,
+              "listFailed": 0,
+              "notCode": 1,
+              "readFailed": 0,
+              "tooLarge": 0,
+              "analyzeFailed": 0
+            },
+            "truncated": {
+              "atFiles": 4000,
+              "dirsQueued": 0
+            },
+            "defaultMaxFiles": 4000
+          }
+        },
+        {
+          "wallMs": 143.212,
+          "scenario": "scan-5000",
+          "durationMs": 109.712,
+          "maxRssMiB": 86.078,
+          "detail": {
+            "files": 3999,
+            "edges": 3995,
+            "skips": {
+              "ignored": 0,
+              "vendorDir": 1,
+              "notSource": 0,
+              "listFailed": 0,
+              "notCode": 1,
+              "readFailed": 0,
+              "tooLarge": 0,
+              "analyzeFailed": 0
+            },
+            "truncated": {
+              "atFiles": 4000,
+              "dirsQueued": 0
+            },
+            "defaultMaxFiles": 4000
+          }
+        },
+        {
+          "wallMs": 143.979,
+          "scenario": "scan-5000",
+          "durationMs": 110.286,
+          "maxRssMiB": 86.188,
+          "detail": {
+            "files": 3999,
+            "edges": 3995,
+            "skips": {
+              "ignored": 0,
+              "vendorDir": 1,
+              "notSource": 0,
+              "listFailed": 0,
+              "notCode": 1,
+              "readFailed": 0,
+              "tooLarge": 0,
+              "analyzeFailed": 0
+            },
+            "truncated": {
+              "atFiles": 4000,
+              "dirsQueued": 0
+            },
+            "defaultMaxFiles": 4000
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "graph-10000",
+      "medianWallMs": 48.493,
+      "rangeWallMs": [
+        48.076,
+        49.778
+      ],
+      "samples": [
+        {
+          "wallMs": 49.778,
+          "scenario": "graph-10000",
+          "durationMs": 15.584,
+          "maxRssMiB": 75.125,
+          "detail": {
+            "inputNodes": 10000,
+            "inputEdges": 60000,
+            "views": [
+              {
+                "nodes": 700,
+                "edges": 1800,
+                "matches": 10000,
+                "limited": true
+              },
+              {
+                "nodes": 13,
+                "edges": 57,
+                "matches": 1,
+                "limited": true
+              },
+              {
+                "nodes": 700,
+                "edges": 1800,
+                "matches": 1111,
+                "limited": true
+              }
+            ],
+            "rendering": "Projection only; browser layout/rendering excluded."
+          }
+        },
+        {
+          "wallMs": 48.076,
+          "scenario": "graph-10000",
+          "durationMs": 15.301,
+          "maxRssMiB": 75.047,
+          "detail": {
+            "inputNodes": 10000,
+            "inputEdges": 60000,
+            "views": [
+              {
+                "nodes": 700,
+                "edges": 1800,
+                "matches": 10000,
+                "limited": true
+              },
+              {
+                "nodes": 13,
+                "edges": 57,
+                "matches": 1,
+                "limited": true
+              },
+              {
+                "nodes": 700,
+                "edges": 1800,
+                "matches": 1111,
+                "limited": true
+              }
+            ],
+            "rendering": "Projection only; browser layout/rendering excluded."
+          }
+        },
+        {
+          "wallMs": 48.493,
+          "scenario": "graph-10000",
+          "durationMs": 15.357,
+          "maxRssMiB": 75.141,
+          "detail": {
+            "inputNodes": 10000,
+            "inputEdges": 60000,
+            "views": [
+              {
+                "nodes": 700,
+                "edges": 1800,
+                "matches": 10000,
+                "limited": true
+              },
+              {
+                "nodes": 13,
+                "edges": 57,
+                "matches": 1,
+                "limited": true
+              },
+              {
+                "nodes": 700,
+                "edges": 1800,
+                "matches": 1111,
+                "limited": true
+              }
+            ],
+            "rendering": "Projection only; browser layout/rendering excluded."
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "semantic-100",
+      "medianWallMs": 157.966,
+      "rangeWallMs": [
+        151.81,
+        162.516
+      ],
+      "samples": [
+        {
+          "wallMs": 151.81,
+          "scenario": "semantic-100",
+          "durationMs": 114.867,
+          "maxRssMiB": 145.609,
+          "detail": {
+            "available": true,
+            "definitions": 200,
+            "references": 298,
+            "compiler": "5.9.3"
+          }
+        },
+        {
+          "wallMs": 157.966,
+          "scenario": "semantic-100",
+          "durationMs": 120.431,
+          "maxRssMiB": 145.797,
+          "detail": {
+            "available": true,
+            "definitions": 200,
+            "references": 298,
+            "compiler": "5.9.3"
+          }
+        },
+        {
+          "wallMs": 162.516,
+          "scenario": "semantic-100",
+          "durationMs": 122.318,
+          "maxRssMiB": 146,
+          "detail": {
+            "available": true,
+            "definitions": 200,
+            "references": 298,
+            "compiler": "5.9.3"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "review-context-1000",
+      "medianWallMs": 520.188,
+      "rangeWallMs": [
+        503.426,
+        659.642
+      ],
+      "samples": [
+        {
+          "wallMs": 659.642,
+          "scenario": "review-context-1000",
+          "durationMs": 622.218,
+          "maxRssMiB": 240.156,
+          "detail": {
+            "reviewMs": 58.626,
+            "retrievalMs": 556.064,
+            "findings": 0,
+            "contextBytes": 1843,
+            "excerpts": 2,
+            "coverage": {
+              "analyzedFiles": 1000,
+              "changedFiles": 1,
+              "totalChangedFiles": 1,
+              "truncated": false,
+              "limitations": [
+                "Context is selected from captured source; relationships are static and do not prove runtime behavior.",
+                "Only quoted locations are validated. Model confidence is self-reported, not calibrated, and behavior is not execution-verified."
+              ]
+            },
+            "modelRequests": 0
+          }
+        },
+        {
+          "wallMs": 520.188,
+          "scenario": "review-context-1000",
+          "durationMs": 482.983,
+          "maxRssMiB": 220.906,
+          "detail": {
+            "reviewMs": 59.045,
+            "retrievalMs": 415.904,
+            "findings": 0,
+            "contextBytes": 1843,
+            "excerpts": 2,
+            "coverage": {
+              "analyzedFiles": 1000,
+              "changedFiles": 1,
+              "totalChangedFiles": 1,
+              "truncated": false,
+              "limitations": [
+                "Context is selected from captured source; relationships are static and do not prove runtime behavior.",
+                "Only quoted locations are validated. Model confidence is self-reported, not calibrated, and behavior is not execution-verified."
+              ]
+            },
+            "modelRequests": 0
+          }
+        },
+        {
+          "wallMs": 503.426,
+          "scenario": "review-context-1000",
+          "durationMs": 468.516,
+          "maxRssMiB": 219.203,
+          "detail": {
+            "reviewMs": 52.722,
+            "retrievalMs": 408.151,
+            "findings": 0,
+            "contextBytes": 1843,
+            "excerpts": 2,
+            "coverage": {
+              "analyzedFiles": 1000,
+              "changedFiles": 1,
+              "totalChangedFiles": 1,
+              "truncated": false,
+              "limitations": [
+                "Context is selected from captured source; relationships are static and do not prove runtime behavior.",
+                "Only quoted locations are validated. Model confidence is self-reported, not calibrated, and behavior is not execution-verified."
+              ]
+            },
+            "modelRequests": 0
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "repeated-analysis-1000",
+      "medianWallMs": 309.85,
+      "rangeWallMs": [
+        299.875,
+        333.843
+      ],
+      "samples": [
+        {
+          "wallMs": 309.85,
+          "scenario": "repeated-analysis-1000",
+          "durationMs": 274.429,
+          "maxRssMiB": 121.531,
+          "detail": {
+            "coldMs": 261.764,
+            "warmMs": [
+              0.007,
+              0.002,
+              0.002,
+              0.001,
+              0.001,
+              0.001,
+              0.001,
+              0.001,
+              0.002
+            ],
+            "retainedHeapMiB": 4.495,
+            "note": "Ten cached operations, not a sustained memory-leak or filesystem-change invalidation test."
+          }
+        },
+        {
+          "wallMs": 333.843,
+          "scenario": "repeated-analysis-1000",
+          "durationMs": 297.936,
+          "maxRssMiB": 132.781,
+          "detail": {
+            "coldMs": 286.293,
+            "warmMs": [
+              0.008,
+              0.002,
+              0.003,
+              0.001,
+              0.001,
+              0.001,
+              0.001,
+              0.001,
+              0.002
+            ],
+            "retainedHeapMiB": 4.489,
+            "note": "Ten cached operations, not a sustained memory-leak or filesystem-change invalidation test."
+          }
+        },
+        {
+          "wallMs": 299.875,
+          "scenario": "repeated-analysis-1000",
+          "durationMs": 264.931,
+          "maxRssMiB": 132.891,
+          "detail": {
+            "coldMs": 251.41,
+            "warmMs": [
+              0.008,
+              0.002,
+              0.002,
+              0.003,
+              0.001,
+              0.001,
+              0.001,
+              0.001,
+              0.002
+            ],
+            "retainedHeapMiB": 4.486,
+            "note": "Ten cached operations, not a sustained memory-leak or filesystem-change invalidation test."
+          }
+        }
+      ]
+    }
+  ]
+}

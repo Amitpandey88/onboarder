@@ -33,7 +33,9 @@ test('editor commands activate, run the real local CLI and expose safe source en
     module, exports: module.exports, require: name => name === 'vscode' ? vscode : require(name), process, AbortController, console,
   });
   module.exports.activate({ subscriptions: [] });
-  assert.equal(commands.size, 6);
+  const manifest = JSON.parse(await readFile(path.join(project, 'integrations/vscode/package.json'), 'utf8'));
+  assert.deepEqual([...commands.keys()].sort(), manifest.contributes.commands.map(c => c.command).sort());
+  assert.ok(commands.has('onboarder.triage'));
   await commands.get('onboarder.inspect')();
   assert.deepEqual(errors, []); assert.equal(panels[0].options.enableScripts, false);
   const files = await provider.getChildren(); assert.ok(files.some(f => f.path === 'index.ts'));
@@ -42,6 +44,7 @@ test('editor commands activate, run the real local CLI and expose safe source en
   assert.ok(panels[1].webview.html.includes('greet')); assert.ok(panels[1].webview.html.includes('Source Evidence'));
   vscode.workspace.isTrusted = false; await commands.get('onboarder.inspect')();
   assert.ok(errors[0].includes('Trust this workspace'));
+  await commands.get('onboarder.triage')(); assert.ok(errors.at(-1).includes('Trust this workspace'));
   assert.equal(module.exports.escape('<script>'), '&lt;script&gt;');
 });
 test('editor package builds a self-contained VSIX without introducing dependencies', async t => {

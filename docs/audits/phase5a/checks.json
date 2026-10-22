@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "auditDate": "2026-10-22",
+  "branch": "codex/production-readiness-audit",
+  "baseCommit": "44556a8",
+  "node24": {
+    "version": "24.20.0",
+    "command": "npm run check",
+    "exitCode": 0,
+    "tests": 1041,
+    "passed": 1041,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "durationMs": 28036.612875,
+    "optionalSemanticCompiler": "TypeScript Compiler API 5.9.3, trusted temporary installation"
+  },
+  "node20": {
+    "version": "20.20.2",
+    "command": "node --test",
+    "exitCode": 0,
+    "tests": 1041,
+    "passed": 1041,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "durationMs": 24939.995167
+  },
+  "required": [
+    {
+      "command": "npm ci --ignore-scripts",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run check",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run security:audit",
+      "exitCode": 0,
+      "unacceptedAdvisories": 0,
+      "trackedLowAdvisories": [
+        "GHSA-238p-pmpm-9mq7"
+      ],
+      "reviewBy": "2026-11-09"
+    },
+    {
+      "command": "npm run editor:package",
+      "exitCode": 0,
+      "artifact": "integrations/vscode/dist/onboarder-0.1.0.vsix"
+    },
+    {
+      "command": "npm pack --dry-run",
+      "exitCode": 0,
+      "files": 822,
+      "archiveBytes": 5593969,
+      "unpackedBytes": 22175775
+    }
+  ],
+  "build": {
+    "generatedFiles": 468,
+    "lockedDependencies": 23,
+    "vendorAssets": 98,
+    "packageFiles": 822,
+    "architectureViolations": 0
+  },
+  "baseline": {
+    "tests": 1027,
+    "passed": 1026,
+    "failed": 0,
+    "skipped": 1,
+    "skipReason": "Optional semantic API compiler not present initially."
+  },
+  "regressions": {
+    "newTests": 14,
+    "initialConfirmedFailingCases": 11,
+    "node20Initial": {
+      "targetedTests": 69,
+      "passed": 63,
+      "cancelled": 6,
+      "reason": "Unref deadline let an unresponsive triage adapter end the event loop; fixed and full suite rerun."
+    }
+  },
+  "modelEvaluation": "Mocked completions and local mock HTTP provider only; no live AI model evaluation.",
+  "externalWrites": 0,
+  "archiveContentVerification": {
+    "filesCompared": 822,
+    "mismatches": [],
+    "sha256": "f348cd656f9210bf904bf1d335490fbaa1ce398a52bef68c13afa055779fa1d6"
+  }
+}

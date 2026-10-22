@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { isInside, resolveInside } from './paths.js';
+import { safeGitArguments } from '../cli/agent/gitSafety.js';
 const execFileAsync = promisify(execFile);
 const MAX_DIFF_BYTES = 5 * 1024 * 1024;
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
@@ -16,9 +17,9 @@ export class GitDiffError extends Error {
 }
 async function git(root, args, signal) {
     try {
-        const { stdout } = await execFileAsync('git', ['--literal-pathspecs', '-c', 'core.quotePath=false', ...args], {
+        const { stdout } = await execFileAsync('git', [...await safeGitArguments(root, signal), ...args], {
             cwd: root, maxBuffer: MAX_DIFF_BYTES, timeout: 15000, killSignal: 'SIGKILL', signal,
-            env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
+            env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_NO_REPLACE_OBJECTS: '1', GIT_TERMINAL_PROMPT: '0' },
         });
         return stdout;
     }
@@ -32,6 +33,24 @@ async function git(root, args, signal) {
             throw new GitDiffError('Git took too long. Choose a smaller comparison and try again.', 408);
         throw new GitDiffError('Git could not read this comparison. Check the repository and its available history.');
     }
+}
+/** Read only the root configuration blob; never check out or execute repository content. */
+export async function gitReviewConfig(root, revision, signal) {
+    if (revision && !/^[a-f0-9]{40}$/.test(revision))
+        throw new GitDiffError('Invalid configuration revision.', 400);
+    const entries = (await git(root, revision ? ['ls-tree', '-z', revision, '--', '.onboarder-review.json'] :
+        ['ls-files', '--stage', '-z', '--', '.onboarder-review.json'], signal)).split('\0').filter(Boolean);
+    if (!entries.length)
+        return {};
+    const entry = entries[0].match(revision ? /^(100644|100755) blob ([a-f0-9]{40})\t.onboarder-review\.json$/ :
+        /^(100644|100755) ([a-f0-9]{40}) 0\t.onboarder-review\.json$/);
+    if (entries.length !== 1 || !entry)
+        throw new GitDiffError('Review configuration must be a regular JSON file without index conflicts.', 400);
+    const blob = entry[2];
+    const size = Number((await git(root, ['cat-file', '-s', blob], signal)).trim());
+    if (!Number.isSafeInteger(size) || size < 0 || size > 65536)
+        throw new GitDiffError('Review configuration exceeds 64 KB.', 400);
+    return { text: await git(root, ['cat-file', 'blob', blob], signal), blob };
 }
 async function resolveRef(root, ref, signal) {
     if (!ref || ref.length > 200 || ref.startsWith('-') || !/^[a-zA-Z0-9_./~^@{}-]+$/.test(ref))

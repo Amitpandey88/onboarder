@@ -56,6 +56,7 @@ import { renderInsights } from '/js/insightsView.js';
 import { createServerDrawer } from '/js/serverSettings.js';
 import { renderDiffView, stopDiff } from '/js/diffView.js';
 import { renderReviewView, stopReview } from '/js/reviewView.js';
+import { renderTriage, stopTriage } from '/js/triageView.js';
 import { renderWorkflows } from '/js/workflowsView.js';
 import { renderSbom } from '/js/sbomView.js';
 import { initMobilePanels } from '/js/mobilePanels.js';
@@ -74,7 +75,7 @@ const dom = {};
     'setConnection', 'apiConnection', 'hermesConnection', 'hermesConnectionStatus', 'hermesModel', 'hermesProvider', 'refreshHermes', 'aiConnectionNote',
     'graphView', 'graphCanvas', 'graphControls', 'graphReset', 'graphZoomIn', 'graphZoomOut', 'graphFit', 'graphSearchInput', 'graphSummary', 'graphTooltip',
     'heatmapView', 'heatmapCanvas', 'heatmapTooltip', 'blameGutter', 'codeTabContainer',
-    'insightsView', 'diffView', 'reviewView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView',
+    'insightsView', 'diffView', 'reviewView', 'triageView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView',
     'mcpBtn', 'mcpBtnLabel', 'mcpDot', 'mcpDrawer', 'mcpScrim', 'mcpClose', 'mcpPanelDot', 'mcpPanelState',
     'mcpStart', 'mcpStop', 'mcpStatus', 'mcpConfig', 'mcpCommandInput', 'mcpCopy', 'mcpTabJson', 'mcpTabToml',
     'mcpConfigBlock', 'mcpToolsHint', 'serverBtn',
@@ -310,6 +311,7 @@ function buildPatterns(scan, facts, manifest) {
 }
 dom.newRepoBtn.addEventListener('click', () => {
     fileNavigation.close();
+    stopTriage();
     stopAiDraft();
     stopReview();
     stopIntelligence();
@@ -414,13 +416,15 @@ function clearFocus() {
 }
 function setView(view) {
     fileNavigation.close();
+    if (view !== 'triage')
+        stopTriage();
     if (view !== 'review')
         stopReview();
     if (view !== 'intelligence')
         stopIntelligence();
     if (view !== 'diff')
         stopDiff();
-    dom.explorer.classList.toggle('review-workspace', view === 'review' || view === 'intelligence');
+    dom.explorer.classList.toggle('review-workspace', view === 'review' || view === 'intelligence' || view === 'triage');
     state.view = view;
     rememberView(state.scan.root, { name: view, path: state.code.path || state.selected || '', filter: state.filters.text });
     if (isExplorerView(view))
@@ -446,6 +450,18 @@ function setView(view) {
         syncInspector();
     renderSidebar();
 }
+window.addEventListener('triage-review', ((event) => {
+    if (!state.scan || !event.detail?.report || event.detail.report.evidence?.source !== 'github-pr-patch')
+        return;
+    state.review.report = event.detail.report;
+    state.review.mode = 'range';
+    state.review.base = event.detail.report.base;
+    state.review.head = event.detail.report.head;
+    state.review.error = '';
+    setView('review');
+}));
+window.addEventListener('triage-return', () => { if (state.scan)
+    setView('triage'); });
 function openFile(path) {
     focusFile(path);
     state.code.path = path; // the Code tab follows the current file
@@ -553,11 +569,12 @@ async function renderCanvas({ preserveViewport = false } = {}) {
     const isInsights = state.view === 'insights';
     const isDiff = state.view === 'diff';
     const isReview = state.view === 'review';
+    const isTriage = state.view === 'triage';
     const isWorkflows = state.view === 'workflows';
     const isSbom = state.view === 'sbom';
     const isIntelligence = state.view === 'intelligence';
     const isAnalysis = state.view === 'analysis';
-    const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isReview || isWorkflows || isSbom || isAnalysis || isIntelligence;
+    const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isReview || isTriage || isWorkflows || isSbom || isAnalysis || isIntelligence;
     forceGraphCtl?.setActive(isGraph && !searchCtl?.isShowing());
     const isAtlasList = state.view === 'atlas' && !state.atlasOpen;
     const focusSubject = state.view === 'files' ? state.detail ? 'file:' + state.detail : 'folder:' + state.folder
@@ -582,6 +599,7 @@ async function renderCanvas({ preserveViewport = false } = {}) {
         dom.diffView.hidden = !isDiff;
     if (dom.reviewView)
         dom.reviewView.hidden = !isReview;
+    dom.triageView.hidden = !isTriage;
     if (dom.workflowsView)
         dom.workflowsView.hidden = !isWorkflows;
     if (dom.sbomView)
@@ -611,6 +629,8 @@ async function renderCanvas({ preserveViewport = false } = {}) {
             renderDiffView(dom.diffView, state);
         else if (isReview)
             renderReviewView(dom.reviewView, state);
+        else if (isTriage)
+            renderTriage(dom.triageView, state);
         else if (isWorkflows)
             renderWorkflows(dom.workflowsView, state);
         else if (isSbom)

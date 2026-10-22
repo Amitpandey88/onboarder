@@ -2,6 +2,8 @@
 // streams the answer straight back. The API key passes through in memory
 // only — it is never written anywhere, and never appears in logs.
 import { sendError, sendJSON } from './http.js';
+import { evidenceText } from './intelligence/workspace.js';
+import { once } from 'node:events';
 const UPSTREAM_TIMEOUT_MS = 60_000;
 const MAX_MESSAGES_BYTES = 120_000;
 const EXTRA_ALLOWED = new Set(['reasoning', 'temperature', 'top_p', 'presence_penalty', 'frequency_penalty']);
@@ -27,24 +29,18 @@ export function extractRequestId(headers) {
         || headers.get('x-goog-request-id')
         || null;
 }
-export async function proxyChat(res, body) {
-    const { baseUrl, apiKey, model, messages } = body || {};
-    const stream = body.stream !== false;
+export function buildChatRequest(body, stream = false) {
+    const { baseUrl, apiKey, model, messages } = body;
     const maxTokens = Math.min(Number(body.max_tokens) || 700, 4096);
-    if (!model || typeof model !== 'string') {
-        return sendError(res, 400, 'A model name is needed.');
-    }
-    if (!Array.isArray(messages) || !messages.length) {
-        return sendError(res, 400, 'No messages to send.');
-    }
-    if (JSON.stringify(messages).length > MAX_MESSAGES_BYTES) {
-        return sendError(res, 413, 'That prompt is too large. Try a smaller file.');
-    }
     const provider = detectProvider(apiKey, baseUrl);
     let url;
     let headers = { 'content-type': 'application/json' };
     let payload = { stream };
-    const isAzure = /\.openai\.azure\.com|\.cognitiveservices\.azure\.com/i.test(baseUrl || '');
+    let isAzure = false;
+    try {
+        isAzure = /\.(?:openai\.azure\.com|cognitiveservices\.azure\.com)$/i.test(new URL(baseUrl).hostname);
+    }
+    catch { }
     if (provider === 'anthropic') {
         url = 'https://api.anthropic.com/v1/messages';
         headers['x-api-key'] = apiKey;
@@ -67,7 +63,7 @@ export async function proxyChat(res, body) {
     }
     else if (provider === 'gemini') {
         const streamSuffix = stream ? 'streamGenerateContent?alt=sse' : 'generateContent';
-        url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${streamSuffix}&key=${apiKey}`;
+        url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:${streamSuffix}${stream ? '&' : '?'}key=${encodeURIComponent(apiKey)}`;
         let system_instruction = null;
         const contents = [];
         for (const m of messages) {
@@ -87,9 +83,13 @@ export async function proxyChat(res, body) {
     else {
         // OpenAI default
         if (!baseUrl || !/^https?:\/\/\S+$/.test(baseUrl)) {
-            return sendError(res, 400, 'A valid base URL is needed — something like https://api.openai.com/v1.');
+            throw new Error('A valid AI base URL is needed.');
         }
-        url = baseUrl.replace(/\/+$/, '') + '/chat/completions';
+        const endpoint = new URL(baseUrl);
+        if (endpoint.username || endpoint.password || endpoint.hash)
+            throw new Error('Use an AI endpoint without URL credentials or fragments.');
+        endpoint.pathname = endpoint.pathname.replace(/\/+$/, '') + '/chat/completions';
+        url = endpoint.href;
         if (apiKey) {
             if (isAzure)
                 headers['api-key'] = apiKey;
@@ -106,59 +106,205 @@ export async function proxyChat(res, body) {
                 payload[key] = body[key];
         }
     }
-    let upstream;
+    return { url, headers, payload, provider };
+}
+/** Bounded non-streaming adapter shared by contextual review and configured providers. */
+export async function completeChat(body, options = {}) {
+    if (typeof body.model !== 'string' || !body.model.trim() || body.model.length > 200 ||
+        !Array.isArray(body.messages) || body.messages.some(m => !m || !['system', 'user', 'assistant'].includes(m.role) || typeof m.content !== 'string') ||
+        Buffer.byteLength(JSON.stringify(body.messages)) > MAX_MESSAGES_BYTES)
+        throw new Error('AI review needs a configured model and bounded text messages.');
+    if (body.apiKey !== undefined && (typeof body.apiKey !== 'string' || body.apiKey.length > 4096))
+        throw new Error('Invalid AI credential format.');
+    const { url, headers, payload, provider } = buildChatRequest(body, false);
+    const parsed = new URL(url);
+    if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password)
+        throw new Error('Use an HTTP(S) AI endpoint without URL credentials.');
+    const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(60000)]) : AbortSignal.timeout(60000);
+    let response;
     try {
-        upstream = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-            signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-        });
+        response = await (options.fetchImpl || fetch)(url, { method: 'POST', headers, body: JSON.stringify(payload), redirect: 'error', signal });
     }
-    catch (err) {
-        const why = err.name === 'TimeoutError' ? 'The endpoint took too long to answer.' : 'Could not reach ' + url + '.';
-        return sendError(res, 502, why);
+    catch (error) {
+        if (signal.aborted)
+            signal.throwIfAborted();
+        throw new Error('Could not reach the AI provider. Check its endpoint and connection.');
     }
-    if (!upstream.ok) {
-        const text = await upstream.text().catch(() => '');
-        let detail = text.slice(0, 400);
-        try {
-            const parsed = JSON.parse(text);
-            detail = parsed.error?.message || detail;
+    if (!response.ok) {
+        await response.body?.cancel().catch(() => { });
+        throw new Error('AI provider returned HTTP ' + response.status + '. Check its authentication, model and usage limits.');
+    }
+    if (Number(response.headers.get('content-length')) > 262144) {
+        await response.body?.cancel().catch(() => { });
+        throw new Error('AI response exceeds 256 KB.');
+    }
+    const reader = response.body?.getReader();
+    let text = '', bytes = 0;
+    const decoder = new TextDecoder();
+    if (!reader)
+        throw new Error('AI provider returned no response body.');
+    try {
+        for (;;) {
+            signal.throwIfAborted();
+            const { value, done } = await reader.read();
+            if (done)
+                break;
+            bytes += value.byteLength;
+            if (bytes > 262144)
+                throw new Error('AI response exceeds 256 KB.');
+            text += decoder.decode(value, { stream: true });
         }
-        catch { }
-        // The provider's request id, when it sends one. Most providers do —
-        // OpenAI, Anthropic, Google all set one of these on every response —
-        // and "ask the user to paste this" is far more useful than "ask the
-        // user to describe what they did". `extractRequestId` is the one place
-        // that knows the spelling; the response body only carries the field
-        // when there is one to carry, so missing ids stay out of the payload.
-        const requestId = extractRequestId(upstream.headers);
-        const body = {
-            error: `The provider answered ${upstream.status}.`,
-            detail,
+        text += decoder.decode();
+    }
+    finally {
+        await reader.cancel().catch(() => { });
+    }
+    let json;
+    try {
+        json = JSON.parse(text);
+    }
+    catch {
+        throw new Error('AI provider returned an unreadable response.');
+    }
+    const content = provider === 'anthropic' ? json.content?.filter(p => p.type === 'text').map(p => p.text).join('') :
+        provider === 'gemini' ? json.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') : json.choices?.[0]?.message?.content;
+    const answer = Array.isArray(content) ? content.map(p => p.text || '').join('') : content;
+    if (typeof answer !== 'string' || !answer.trim() || Buffer.byteLength(answer) > 131072)
+        throw new Error('AI provider returned empty or oversized review content.');
+    const inputTokens = provider === 'anthropic' ? json.usage?.input_tokens : provider === 'gemini' ? json.usageMetadata?.promptTokenCount : json.usage?.prompt_tokens;
+    const outputTokens = provider === 'anthropic' ? json.usage?.output_tokens : provider === 'gemini' ? json.usageMetadata?.candidatesTokenCount : json.usage?.completion_tokens;
+    const truncated = json.choices?.[0]?.finish_reason === 'length' || json.stop_reason === 'max_tokens' || json.candidates?.[0]?.finishReason === 'MAX_TOKENS';
+    return { text: answer, truncated, ...(Number.isSafeInteger(inputTokens) && inputTokens >= 0 ? { inputTokens } : {}),
+        ...(Number.isSafeInteger(outputTokens) && outputTokens >= 0 ? { outputTokens } : {}) };
+}
+/** Redact strings individually so source-oriented masking cannot corrupt JSON/SSE framing. */
+function publicChatValue(value, credential, depth = 0) {
+    if (depth > 40)
+        throw new Error('AI response nesting exceeds its limit.');
+    if (typeof value === 'string') {
+        let text = value;
+        if (credential)
+            text = text.split(credential).join('[credential redacted]');
+        return evidenceText(text);
+    }
+    if (Array.isArray(value))
+        return value.map(v => publicChatValue(v, credential, depth + 1));
+    if (value && typeof value === 'object')
+        return Object.fromEntries(Object.entries(value).map(([key, v]) => [key, publicChatValue(v, credential, depth + 1)]));
+    return value;
+}
+export async function proxyChat(res, body) {
+    if (!body || typeof body !== 'object' || Array.isArray(body))
+        return sendError(res, 400, 'Provide AI connection settings and text messages.');
+    if (typeof body.model !== 'string' || !body.model.trim() || body.model.length > 200 ||
+        !Array.isArray(body.messages) || !body.messages.length || body.messages.length > 200 ||
+        body.messages.some(m => !m || !['system', 'user', 'assistant'].includes(m.role) || typeof m.content !== 'string') ||
+        body.apiKey !== undefined && (typeof body.apiKey !== 'string' || body.apiKey.length > 4096) ||
+        body.max_tokens !== undefined && (!Number.isSafeInteger(body.max_tokens) || body.max_tokens < 1))
+        return sendError(res, 400, 'Provide a model, valid text messages and bounded connection settings.');
+    if (Buffer.byteLength(JSON.stringify(body.messages)) > MAX_MESSAGES_BYTES)
+        return sendError(res, 413, 'That prompt is too large. Try a smaller file.');
+    const credential = body.apiKey || '', stream = body.stream !== false;
+    let request;
+    try {
+        const messages = publicChatValue(body.messages, credential);
+        if (Buffer.byteLength(JSON.stringify(messages)) > MAX_MESSAGES_BYTES)
+            return sendError(res, 413, 'Redacted prompt exceeds its byte limit.');
+        request = buildChatRequest({ ...body, messages }, stream);
+    }
+    catch {
+        return sendError(res, 400, 'Use a valid HTTP(S) AI endpoint without URL credentials.');
+    }
+    const abort = new AbortController(), signal = AbortSignal.any([abort.signal, AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)]);
+    let disconnected = false, reader;
+    const close = () => { if (!res.writableEnded) {
+        disconnected = true;
+        abort.abort();
+    } };
+    res.once('close', close);
+    try {
+        const upstream = await fetch(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(request.payload), redirect: 'error', signal });
+        signal.throwIfAborted();
+        if (!upstream.ok) {
+            await upstream.body?.cancel().catch(() => { });
+            const requestId = publicChatValue(extractRequestId(upstream.headers) || '', credential).replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200);
+            return sendJSON(res, upstream.status >= 400 ? upstream.status : 502, { error: `The provider answered ${upstream.status}.`,
+                detail: 'Check the provider authentication, model and usage limits. Private upstream diagnostics were withheld.', ...(requestId ? { requestId } : {}) });
+        }
+        const limit = stream ? 2 * 1024 * 1024 : 262144;
+        if (Number(upstream.headers.get('content-length')) > limit) {
+            await upstream.body?.cancel().catch(() => { });
+            throw new Error('AI response exceeds its byte limit.');
+        }
+        reader = upstream.body?.getReader();
+        if (!reader)
+            throw new Error('AI provider returned no response body.');
+        let buffer = '', bytes = 0, emittedBytes = 0;
+        const decoder = new TextDecoder();
+        if (stream)
+            res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive' });
+        const emit = async (frame) => {
+            signal.throwIfAborted();
+            if (res.writableLength > 512 * 1024)
+                throw new Error('AI client is receiving output too slowly.');
+            const clean = frame.split('\n').map(line => {
+                if (!line.startsWith('data:'))
+                    return line.startsWith('event:') ? line : '';
+                const data = line.slice(5).trim();
+                return data === '[DONE]' ? 'data: [DONE]' : 'data: ' + JSON.stringify(publicChatValue(JSON.parse(data), credential));
+            }).join('\n') + '\n\n';
+            emittedBytes += Buffer.byteLength(clean);
+            if (emittedBytes > limit)
+                throw new Error('Redacted AI response exceeds its byte limit.');
+            if (!res.write(clean))
+                await once(res, 'drain', { signal });
         };
-        if (requestId)
-            body.requestId = requestId;
-        return sendJSON(res, upstream.status, body);
+        for (;;) {
+            const part = await reader.read();
+            signal.throwIfAborted();
+            if (part.done)
+                break;
+            bytes += part.value.byteLength;
+            if (bytes > limit)
+                throw new Error('AI response exceeds its byte limit.');
+            buffer += decoder.decode(part.value, { stream: true });
+            if (stream) {
+                buffer = buffer.replace(/\r\n/g, '\n');
+                const frames = buffer.split('\n\n');
+                buffer = frames.pop();
+                for (const frame of frames)
+                    if (frame.trim())
+                        await emit(frame);
+                if (Buffer.byteLength(buffer) > 262144)
+                    throw new Error('AI event frame exceeds its limit.');
+            }
+        }
+        buffer += decoder.decode();
+        if (!stream) {
+            const value = publicChatValue(JSON.parse(buffer), credential);
+            if (Buffer.byteLength(JSON.stringify(value)) > limit)
+                throw new Error('Redacted AI response exceeds its byte limit.');
+            return sendJSON(res, 200, value);
+        }
+        if (buffer.trim())
+            await emit(buffer);
+        res.end();
     }
-    if (!stream) {
-        const json = await upstream.json().catch(() => null);
-        return sendJSON(res, 200, json || {});
-    }
-    res.writeHead(200, {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-cache',
-        connection: 'keep-alive',
-    });
-    res.on('close', () => upstream.body?.cancel().catch((..._args) => { }));
-    try {
-        for await (const chunk of upstream.body) {
-            if (!res.write(chunk))
-                await new Promise((r) => res.once('drain', r));
+    catch {
+        if (!disconnected) {
+            const message = signal.aborted ? 'The AI provider timed out; its answer is incomplete.' : 'AI provider request failed or exceeded its response limit. Check the connection and retry.';
+            if (res.headersSent) {
+                res.write('data: ' + JSON.stringify({ error: message }) + '\n\n');
+                res.end();
+            }
+            else
+                sendError(res, 502, message);
         }
     }
-    catch { }
-    res.end();
+    finally {
+        res.off('close', close);
+        await reader?.cancel().catch(() => { });
+        abort.abort();
+    }
 }
 //# sourceMappingURL=llmProxy.js.map

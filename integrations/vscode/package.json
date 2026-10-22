@@ -2,7 +2,7 @@
   "name": "onboarder",
   "displayName": "Onboarder",
   "description": "Repository evidence, architecture, onboarding and change review using your local Onboarder CLI.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "amitpandey88",
   "license": "MIT",
   "engines": {
@@ -23,6 +23,7 @@
   ],
   "contributes": {
     "commands": [
+      { "command": "onboarder.triage", "title": "Onboarder: Triage Pull Requests" },
       {
         "command": "onboarder.inspect",
         "title": "Onboarder: Inspect Repository"

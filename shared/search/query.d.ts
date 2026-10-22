@@ -1,0 +1,32 @@
+export declare function parseQuery(raw: any, options?: Record<string, any>): {
+    raw: string;
+    clauses: any[];
+    terms: any[];
+    phrases: any[];
+    negatives: any[];
+    exts: any[];
+    paths: any[];
+    kinds: any[];
+    isTest: boolean;
+    isSource: boolean;
+    regex: any;
+    regexSource: string;
+    regexFlags: string;
+    regexGlobal: any;
+    caseSensitive: boolean;
+    error: any;
+};
+export declare function removeClause(raw: any, clause: any): string;
+export declare function queryIsEmpty(parsed: any): boolean;
+export declare function hasFilters(parsed: any): boolean;
+export declare function isAdvanced(parsed: any): any;
+export declare function matchesPathFilters(parsed: any, path: any): boolean;
+export declare function scorePath(parsed: any, path: any): number;
+export declare function scoreSymbol(parsed: any, name: any, kind: any): number;
+export declare function scoreContent(parsed: any, text: any): {
+    score: number;
+    index: number;
+};
+export declare function highlightRanges(text: any, parsed: any): any[];
+export declare function lineOfIndex(text: any, index: any): number;
+export declare function snippetAt(text: any, index: any, maxLength?: number): any;

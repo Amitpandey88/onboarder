@@ -26,7 +26,7 @@ export function createAgentTools(manifest: RunManifest, options: { client?: Gith
     if (!manifest.repository) throw new Error('This checkout needs a github.com origin to use GitHub tools.');
     return options.client || new GithubClient(manifest.repository, { signal: options.signal });
   };
-  const requireFiles = () => { if (!manifest.permissions.files || !manifest.branch || manifest.root === manifest.sourceRoot) throw new Error('File changes are available only in an isolated implement/pr workspace.'); };
+  const requireFiles = () => { if (manifest.fix) throw new Error('Finding-linked fixes apply only the exact approved patch through the fix lifecycle.'); if (!manifest.permissions.files || !manifest.branch || manifest.root === manifest.sourceRoot) throw new Error('File changes are available only in an isolated implement/pr workspace.'); };
   const requireGithub = () => { if (!manifest.permissions.github) throw new Error('GitHub writes were not enabled. Rerun with --allow-github-writes to publish.'); if (!githubToken() && !options.client) throw new Error('GitHub writes require GITHUB_TOKEN or GH_TOKEN.'); };
   const git = async (args: string[]) => {
     const result = await runProcess('git', ['-C', manifest.root, ...args], { timeoutMs: 30_000, signal: options.signal, maxBytes: 2 * 1024 * 1024 });
@@ -56,6 +56,7 @@ export function createAgentTools(manifest: RunManifest, options: { client?: Gith
     tools: { type: 'array', items: { type: 'string', enum: ['semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck'] } },
     kind: { type: 'string', enum: ['all', 'security', 'dead-code'] }, options: { type: 'object', description: 'Per-engine settings from onboarder_agent_engines, sanitized by the shared registry.' },
   }, [], async args => {
+    if (manifest.fix) throw new Error('Finding-linked execution is limited to the approved fix check plan.');
     if (!manifest.permissions.checks) throw new Error('Deep-analysis execution was not enabled. Use /permissions checks on or --allow-checks.');
     if (args.kind !== undefined && !['all', 'security', 'dead-code'].includes(String(args.kind))) throw new Error('Choose all, security or dead-code.');
     if (args.tools !== undefined && (!Array.isArray(args.tools) || !args.tools.length || args.tools.some(id => !['semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck'].includes(String(id))))) throw new Error('Choose registered analyzers only.');
@@ -81,6 +82,7 @@ export function createAgentTools(manifest: RunManifest, options: { client?: Gith
   });
   add('onboarder_agent_diff', 'Inspect the workspace patch and changed file list. Read-only.', {}, [], async () => ({ status: await git(['status', '--short']), patch: await git(['diff', 'HEAD', '--', '.']), untracked: await git(['ls-files', '--others', '--exclude-standard']) }));
   add('onboarder_agent_run_check', 'Run a fixed npm check or install lockfile dependencies with lifecycle scripts disabled. Requires --allow-checks; test/build scripts may execute repository code.', { check: { type: 'string', enum: ['install', 'test', 'typecheck', 'build'] } }, ['check'], async args => {
+    if (manifest.fix) throw new Error('Finding-linked checks require the approved check plan through fix verify.');
     if (!manifest.permissions.checks) throw new Error('Check execution was not enabled. Rerun with --allow-checks.');
     const check = field(args, 'check', 20); if (!['install', 'test', 'typecheck', 'build'].includes(check)) throw new Error('Choose install, test, typecheck, or build.');
     const commandArgs = check === 'install' ? ['ci', '--ignore-scripts', '--no-audit', '--no-fund'] : check === 'test' ? ['test'] : ['run', check];
@@ -97,7 +99,7 @@ export function createAgentTools(manifest: RunManifest, options: { client?: Gith
     return { ...receipt, output: redact((result.stdout + result.stderr).slice(-16000)), truncated: result.stdout.length + result.stderr.length > 16000 };
   });
   add('onboarder_agent_local_review', 'Run the project\'s deterministic review of local changes and report its coverage. No model call.', {}, [], async () => {
-    const module = await import('../../server/review.js'); return module.runReview(manifest.root, { mode: 'working', base: 'HEAD' });
+    const module = await import('../../server/review.js'); return module.runReview(manifest.root, { mode: 'working', base: 'HEAD', signal: options.signal });
   });
   add('github_repository', 'Get facts about the pinned GitHub origin repository.', {}, [], async () => clip((await client().request('')).data));
   add('github_list_issues', 'List up to 200 GitHub issues, excluding pull requests, with an explicit truncation flag.', { state: { type: 'string', enum: ['open', 'closed', 'all'] } }, [], async args => {

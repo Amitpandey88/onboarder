@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { RunManifest } from './contracts.js';
-import { readAgentFile, writeAgentFile, deleteAgentFile, safeRelative } from './files.js';
+import { readAgentFile, writeAgentFile, deleteAgentFile, safeRelative, hashText } from './files.js';
 
 interface Checkpoint { version: 1; id: string; root: string; createdAt: string; files: { file: string; content: string | null; sha256: string | null }[] }
 function requireWorkspace(manifest: RunManifest) {
@@ -29,14 +29,16 @@ export async function createCheckpoint(manifest: RunManifest, files: string[]) {
   if ((await fs.readdir(folder(manifest))).length >= 100) throw new Error('Checkpoint limit reached for this run.');
   if ((await fs.lstat(folder(manifest))).isSymbolicLink()) throw new Error('Checkpoint storage cannot be a symbolic link.');
   await fs.writeFile(path.join(folder(manifest), checkpoint.id + '.json'), JSON.stringify(checkpoint), { flag: 'wx', mode: 0o600 });
-  return { id: checkpoint.id, createdAt: checkpoint.createdAt, files: entries.map(({ content: _content, ...f }) => f) };
+  return { id: checkpoint.id, digest: hashText(JSON.stringify(checkpoint)), createdAt: checkpoint.createdAt, files: entries.map(({ content: _content, ...f }) => f) };
 }
-export async function restoreCheckpoint(manifest: RunManifest, id: string, expectedHashes: Record<string, unknown>) {
+export async function restoreCheckpoint(manifest: RunManifest, id: string, expectedHashes: Record<string, unknown>, expectedDigest?: string) {
   requireWorkspace(manifest);
   if (!/^[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid checkpoint ID.');
   const file = path.join(folder(manifest), id + '.json'); const stat = await fs.lstat(file);
   if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 3 * 1024 * 1024) throw new Error('Invalid checkpoint file.');
-  const checkpoint = JSON.parse(await fs.readFile(file, 'utf8')) as Checkpoint;
+  const source = await fs.readFile(file, 'utf8');
+  if (expectedDigest && hashText(source) !== expectedDigest) throw new Error('Checkpoint content changed after creation. Nothing was restored.');
+  const checkpoint = JSON.parse(source) as Checkpoint;
   if (checkpoint.version !== 1 || checkpoint.root !== await fs.realpath(manifest.root) || !Array.isArray(checkpoint.files) || checkpoint.files.length > 30) throw new Error('Checkpoint belongs to a different workspace.');
   if (!expectedHashes || typeof expectedHashes !== 'object' || Array.isArray(expectedHashes)) throw new Error('Supply fresh expected hashes for every file.');
   for (const entry of checkpoint.files) {
@@ -57,6 +59,6 @@ export async function restoreCheckpoint(manifest: RunManifest, id: string, expec
       else await writeAgentFile(manifest.root, entry.file, entry.content, expected);
       restored.push(entry.file);
     }
-  } catch (error) { throw new Error('Restore stopped; completed files: ' + restored.join(', ') + '. ' + (error as Error).message); }
+  } catch (error) { throw Object.assign(new Error('Restore stopped; completed files: ' + restored.join(', ') + '. ' + (error as Error).message), { restored }); }
   return { id, restored, note: 'Selected source files restored. Run relevant checks again.' };
 }

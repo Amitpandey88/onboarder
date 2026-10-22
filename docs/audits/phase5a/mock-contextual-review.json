@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "mode": "mock-pipeline",
+  "node": "v24.20.0",
+  "disclaimer": "Canned model responses test context retrieval, evidence validation and reporting. Detection/false-positive counts are harness outcomes, not measured model intelligence. No live provider or token usage was exercised.",
+  "detection": {
+    "detected": 2,
+    "knownBugCases": 2
+  },
+  "falsePositives": {
+    "findingsOnCleanCases": 0,
+    "cleanCases": 2
+  },
+  "cases": [
+    {
+      "id": "typescript-async-auth-bug",
+      "buggy": true,
+      "status": "completed",
+      "expectedDetected": true,
+      "findings": 1,
+      "rejected": 0,
+      "contextBytes": 2842,
+      "latencyMs": 223.45,
+      "requests": 1,
+      "inputTokens": null,
+      "outputTokens": null,
+      "retrievedFiles": [
+        "auth.ts",
+        "route.ts",
+        "tests/auth.test.ts"
+      ]
+    },
+    {
+      "id": "javascript-async-auth-bug",
+      "buggy": true,
+      "status": "completed",
+      "expectedDetected": true,
+      "findings": 1,
+      "rejected": 0,
+      "contextBytes": 2699,
+      "latencyMs": 198.79,
+      "requests": 1,
+      "inputTokens": null,
+      "outputTokens": null,
+      "retrievedFiles": [
+        "auth.js",
+        "route.js",
+        "tests/auth.test.js"
+      ]
+    },
+    {
+      "id": "typescript-awaited-auth-clean",
+      "buggy": false,
+      "status": "completed",
+      "expectedDetected": false,
+      "findings": 0,
+      "rejected": 0,
+      "contextBytes": 2856,
+      "latencyMs": 198.2,
+      "requests": 1,
+      "inputTokens": null,
+      "outputTokens": null,
+      "retrievedFiles": [
+        "auth.ts",
+        "route.ts",
+        "tests/auth.test.ts"
+      ]
+    },
+    {
+      "id": "javascript-awaited-auth-clean",
+      "buggy": false,
+      "status": "completed",
+      "expectedDetected": false,
+      "findings": 0,
+      "rejected": 0,
+      "contextBytes": 2713,
+      "latencyMs": 212.46,
+      "requests": 1,
+      "inputTokens": null,
+      "outputTokens": null,
+      "retrievedFiles": [
+        "auth.js",
+        "route.js",
+        "tests/auth.test.js"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "auditDate": "2026-10-22",
+  "repository": "Amitpandey88/onboarder",
+  "authentication": "unauthenticated public API; empty temporary home/config",
+  "queue": {
+    "returned": 5,
+    "complete": true
+  },
+  "inspection": {
+    "number": 7,
+    "head": "9ded9655a515cec94d6f7f3a91fb220edfa821b0",
+    "priority": "P1",
+    "readiness": "blocked",
+    "freshness": "current",
+    "checkState": "failed",
+    "observedChecks": [
+      {
+        "name": "Socket Security: Pull Request Alerts",
+        "state": "passed",
+        "source": "check-run"
+      },
+      {
+        "name": "Socket Security: Project Report",
+        "state": "passed",
+        "source": "check-run"
+      },
+      {
+        "name": "Tests and release guards (20)",
+        "state": "failed",
+        "source": "check-run"
+      },
+      {
+        "name": "Tests and release guards (24)",
+        "state": "failed",
+        "source": "check-run"
+      },
+      {
+        "name": "Tests and release guards (22)",
+        "state": "failed",
+        "source": "check-run"
+      }
+    ],
+    "coverage": {
+      "status": "complete",
+      "reviewed": 2,
+      "skipped": 0,
+      "untracked": 0,
+      "limitations": [
+        "Local pattern checks inspect added lines with surrounding patch context; they are not a full semantic or vulnerability audit.",
+        "Tests are not executed. Test-change checks do not measure test coverage.",
+        "Risk is a heuristic based on findings, sensitive paths, and change size. Repository guidelines are prompts for human or optional AI review.",
+        "GitHub PR patches use its merge-base comparison; the declared base SHA is the target tip. Repository code/tests were not executed."
+      ],
+      "expectedFiles": 2
+    },
+    "findings": 0,
+    "architecture": "unavailable",
+    "architectureLimitations": [
+      "Exact commits, matching origin, or supported architecture configuration are unavailable locally. Fetch the PR revisions explicitly before retrying; triage never fetches or changes the checkout."
+    ]
+  },
+  "limitations": [
+    "Point-in-time observations; required branch-policy completeness not established.",
+    "Failed CI belongs to public PR #7, not this audited local branch. Failure logs/root cause were not evaluated.",
+    "Private repositories, live GitHub App installation and write operations not exercised."
+  ],
+  "externalWrites": 0,
+  "modelRequests": 0
+}
