@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "release": "1.1.0",
-  "sha256": "b9a306b8c2b209278cd6ad970e2dfd398834f0394066b5925744b434af7378f0",
+  "sha256": "4a7da166bba0471c7e6531267437c627091f98bbd30b23bb5aaa5c7f37c00c13",
   "files": [
     {
       "path": "CHANGELOG.md",
-      "size": 2523,
+      "size": 2745,
       "mode": 420
     },
     {
@@ -15,7 +15,7 @@
     },
     {
       "path": "README.md",
-      "size": 68281,
+      "size": 68231,
       "mode": 420
     },
     {
@@ -880,7 +880,7 @@
     },
     {
       "path": "docs/MIGRATING_TO_1.1.md",
-      "size": 3608,
+      "size": 3792,
       "mode": 420
     },
     {
@@ -895,12 +895,12 @@
     },
     {
       "path": "docs/RELEASE_1.1.0.md",
-      "size": 5684,
+      "size": 5772,
       "mode": 420
     },
     {
       "path": "docs/SUPPLY_CHAIN_SECURITY.md",
-      "size": 6733,
+      "size": 7615,
       "mode": 420
     },
     {
@@ -965,7 +965,7 @@
     },
     {
       "path": "public/index.html",
-      "size": 27743,
+      "size": 27742,
       "mode": 420
     },
     {
@@ -1190,12 +1190,12 @@
     },
     {
       "path": "public/js/diagramPane.js",
-      "size": 8862,
+      "size": 8880,
       "mode": 420
     },
     {
       "path": "public/js/diagramPane.js.map",
-      "size": 17608,
+      "size": 17646,
       "mode": 420
     },
     {
@@ -1770,7 +1770,7 @@
     },
     {
       "path": "public/vendor/manifest.json",
-      "size": 12136,
+      "size": 12201,
       "mode": 420
     },
     {
@@ -1780,7 +1780,7 @@
     },
     {
       "path": "public/vendor/mermaid.min.js",
-      "size": 3572661,
+      "size": 5494801,
       "mode": 420
     },
     {
@@ -3955,17 +3955,17 @@
     },
     {
       "path": "shared/diagram/mermaid.d.ts",
-      "size": 2202,
+      "size": 2240,
       "mode": 420
     },
     {
       "path": "shared/diagram/mermaid.js",
-      "size": 19068,
+      "size": 19203,
       "mode": 420
     },
     {
       "path": "shared/diagram/mermaid.js.map",
-      "size": 40743,
+      "size": 40922,
       "mode": 420
     },
     {

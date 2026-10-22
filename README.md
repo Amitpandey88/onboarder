@@ -98,7 +98,7 @@ Try the installed CLI, or build from source:
 - **Trace and lock connections.** Hover or focus a node to highlight its connections and gently fade and blur the surrounding map. Use **Lock thread**, the Tree pin, or Shift-click to keep the highlight while panning and zooming. Escape unlocks it. Connection tracing works across all nine Explore views and the Graph tab.
 - **Stronger supply-chain checks.** npm installation runs no install hooks. Optional analyzer packages use exact versions; Hermes bootstrap scripts and Gitleaks downloads are checked against pinned hashes before execution. Browser assets have an integrity inventory, and CI audits both development tools and vendored libraries.
 
-One low-severity upstream KaTeX advisory remains in the official Mermaid bundle. Strict rendering and SVG sanitization mitigate the application path; the [security guide](docs/SUPPLY_CHAIN_SECURITY.md#known-upstream-advisory) records the remaining risk and review deadline.
+Version 1.1.0 upgrades the official Mermaid bundle to 12.2.0, including patched KaTeX 0.18.11. The previous KaTeX advisory exception is removed; see the [security guide](docs/SUPPLY_CHAIN_SECURITY.md#resolved-katex-advisory).
 
 ---
 
@@ -917,4 +917,4 @@ This project is licensed under the [MIT License](LICENSE) — see the [LICENSE](
 
 The published package has no installation hooks and no runtime npm dependencies. Development dependencies use exact versions and lockfile integrity. Optional Hermes scripts and Gitleaks archives are verified before execution; analyzer installs use private working directories and an isolated environment. Vendored Mermaid and Monaco assets are checked against a versioned hash inventory, with separate advisory coverage.
 
-Run `npm run security:check` for offline integrity and package checks, and `npm run security:audit` for current advisory checks. The audit explicitly reports the known low-severity KaTeX advisory and rejects new findings or an expired exception. See the [supply-chain security guide](docs/SUPPLY_CHAIN_SECURITY.md) for trust boundaries and release verification. Report vulnerabilities using [SECURITY.md](SECURITY.md).
+Run `npm run security:check` for offline integrity and package checks, and `npm run security:audit` for current advisory checks. Both development and vendor graphs must pass the advisory policy; no advisory exceptions are currently configured. See the [supply-chain security guide](docs/SUPPLY_CHAIN_SECURITY.md) for trust boundaries and release verification. Report vulnerabilities using [SECURITY.md](SECURITY.md).

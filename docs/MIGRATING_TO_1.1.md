@@ -16,6 +16,9 @@ repository modification, GitHub publication or deployment.
 
 ## Existing users
 
+- The updated Mermaid browser asset targets ES2024 (Safari 17.4+). Classic
+  Dagre diagrams and existing palettes are preserved; Node 20+ remains supported
+  for CLI/server execution.
 - Existing settings, `.onboarder.json`, `.onboarder-review.json`, team grants,
   local workspace data and Hermes profiles are retained. No automatic storage
   conversion or new external account is required.

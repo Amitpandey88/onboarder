@@ -75,6 +75,32 @@ test('release guard rejects added automatic installation hooks', async t => {
   const result = run(); assert.notEqual(result.status, 0); assert.match(result.stderr, /Install hook postinstall is forbidden/);
 });
 
+test('release guard refuses an audit version different from the inventoried embedded dependency', async t => {
+  const { root, write, run } = await fixture(t);
+  const manifest = JSON.parse(await fs.readFile(path.join(root, 'public/vendor/manifest.json'), 'utf8'));
+  manifest.components[0].bundledDependencies = { katex: '0.18.11' };
+  await write('public/vendor/manifest.json', manifest);
+  assert.match(run().stderr, /Vendor audit and embedded dependency versions differ: mermaid\/katex/);
+  const lock = JSON.parse(await fs.readFile(path.join(root, 'security/vendor/package-lock.json'), 'utf8'));
+  lock.packages['node_modules/katex'] = { version: '0.18.11', resolved: 'https://registry.npmjs.org/katex/-/katex-0.18.11.tgz', integrity: 'sha512-YQ==' };
+  await write('security/vendor/package-lock.json', lock);
+  const result = run(); assert.equal(result.status, 0, result.stderr);
+});
+
+test('shipped Mermaid contains the reviewed patched KaTeX, without the obsolete exception', async () => {
+  const root = new URL('../', import.meta.url);
+  const manifest = JSON.parse(await fs.readFile(new URL('public/vendor/manifest.json', root), 'utf8'));
+  const component = manifest.components.find(component => component.name === 'mermaid');
+  assert.equal(component.version, '12.2.0');
+  assert.equal(component.bundledDependencies.katex, '0.18.11');
+  const bundle = await fs.readFile(new URL('public/vendor/mermaid.min.js', root), 'utf8');
+  // This literal is the KaTeX version export in the integrity-reviewed upstream build.
+  assert.ok(bundle.includes('="0.18.11",'));
+  assert.ok(!bundle.includes('"0.16.47"'));
+  const exceptions = JSON.parse(await fs.readFile(new URL('security/vendor/advisory-exceptions.json', root), 'utf8'));
+  assert.ok(!exceptions.some(exception => exception.url.endsWith('GHSA-238p-pmpm-9mq7')));
+});
+
 test('release guard rejects modified browser bytes and missing integrity attributes', async t => {
   const { write, run } = await fixture(t);
   await write('public/vendor/mermaid.min.js', 'tampered');

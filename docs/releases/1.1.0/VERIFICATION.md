@@ -26,14 +26,14 @@ proof of compatibility with every downstream consumer or saved development run.
 | Check | Result |
 | --- | --- |
 | `npm ci --ignore-scripts` | Passed; no install hooks. |
-| `npm run check`, Node 24.20.0 | 1,042 passed; 0 failed/cancelled/skipped. Typechecks, generated output, supply chain and architecture passed. |
-| Full tests, Node 20.20.2 | 1,042 passed; 0 failed/cancelled/skipped. |
-| npm 11/12 inventory regression | 6 targeted tests pass on Node 26.8.1/npm 12.0.2, validating both formats and fail-closed malformed/credential inventory handling. |
-| Full `npm run check`, Node 26.8.1/npm 12.0.2 | 1,042 passed; 0 failed/cancelled/skipped; repaired package-inventory guard and all release checks pass. |
+| `npm run check`, Node 24.20.0 | 1,045 passed; 0 failed/cancelled/skipped. Typechecks, generated output, supply chain and architecture passed. |
+| Full `npm run check`, Node 20.20.2 | 1,045 passed; 0 failed/cancelled/skipped. |
+| npm 11/12 inventory regression | 8 release-guard tests pass within the Node 26.8.1/npm 12.0.2 full suite, validating both formats and fail-closed malformed/credential inventory handling. |
+| Full `npm run check`, Node 26.8.1/npm 12.0.2 | 1,045 passed; 0 failed/cancelled/skipped; repaired package-inventory guard and all release checks pass. |
 | Optional semantics | Real pinned TypeScript Compiler API 5.9.3 configured outside the project; no runtime dependency added. |
-| `npm run security:audit` | 0 unaccepted advisories; 1 existing tracked low KaTeX advisory, review due 2026-11-09. |
+| `npm run security:audit` | 0 advisories in both development and vendor graphs; no exceptions. |
 | `npm run editor:package` | VS Code 0.2.0 VSIX built; no Marketplace publication. |
-| `npm pack --dry-run` | 829 allowlisted files; 5,603,196 compressed / 22,203,830 unpacked bytes. |
+| `npm pack --dry-run` | 829 allowlisted files; 6,199,656 compressed / 24,127,768 unpacked bytes. |
 | Clean archive installs, Node 20 and 24 | Passed version/help, repository report/intelligence, offline/staged review, SARIF, explicit no-provider state, MCP, mocked read-only triage, packaged editor generation, web health/assets/scan and separate-process fixes. |
 | Fix verification in installed archive | Actual Node baseline test fails; approved result test passes; status and rollback succeed. Model response is mocked, checks are executed. |
 | Preliminary `npm publish` dry run | Passed against the exact tested tarball; no registry write. Final dry run is repeated after remote CI. |
@@ -44,14 +44,16 @@ array. The guard was repaired and regression-tested before tagging. This does
 not change the shipped runtime archive; final exact-commit results are recorded
 in the local approval packet.
 
-The canonical fresh-checkout archive also normalizes two public JavaScript
-modules from owner-only 0600 to normal 0644 permissions. All 829 file contents
-match the preliminary archive. The canonical tarball was reinstalled and its
-complete workflow reverified on Node 20 and Node 24 before freezing this hash.
+The candidate supersedes the earlier unpublished archive to fix bundled KaTeX.
+The exact upstream Mermaid 12.2.0 bytes embed KaTeX 0.18.11; the audit graph,
+asset inventory, HTML integrity and documentation now match. The obsolete
+advisory exception is removed. Both updated archive installations passed real
+workflow verification on Node 20 and Node 24.
 
-Machine-readable details: [verification](verification.json) and
+Machine-readable details: [security remediation](security-remediation.json),
+[verification](verification.json) and
 [package inventory](package-files.json). The archive SHA-256 is
-`b9a306b8c2b209278cd6ad970e2dfd398834f0394066b5925744b434af7378f0`.
+`4a7da166bba0471c7e6531267437c627091f98bbd30b23bb5aaa5c7f37c00c13`.
 VSIX SHA-256 is
 `2221b731a579e12886c16e3d5ed98db3fb936b06fd624771a225030ceaf4b3fb`.
 The core has zero runtime dependencies. The npm archive includes all generated
@@ -62,9 +64,10 @@ credentials, VSIX build output and unrelated local work are excluded from npm.
 
 ## Warnings and unverified integrations
 
-- Existing low [KaTeX advisory](https://github.com/advisories/GHSA-238p-pmpm-9mq7)
-  remains accepted under the current policy, not fixed. Strict Mermaid rendering
-  and output sanitization mitigate the application path. Review by 2026-11-09.
+- Mermaid 12 targets ES2024 browsers (Safari 17.4+); Node 20+ server/CLI support
+  remains intact. Chromium regression passed 22 light/dark renders, actual node
+  navigation, configuration/CSS attacks and inherited-trust mathematical input.
+  Services, Atlas mobile redraw and Monaco workers also passed; Safari was not run.
 - Model tests are controlled responses/local mock HTTP. Live AI/Hermes quality,
   live GitHub App/private accounts and actual VS Code GUI activation were not
   verified. Public read-only GitHub triage was verified during Phase 5A.

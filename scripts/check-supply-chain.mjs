@@ -27,6 +27,9 @@ const vendorLock = JSON.parse(await read('security/vendor/package-lock.json'));
 for (const name of ['mermaid', 'monaco-editor']) {
   const component = manifest.components.find(component => component.name === name);
   if (!component || !/^\d+\.\d+\.\d+$/.test(component.version) || vendorPackage.dependencies[name] !== component.version || vendorLock.packages['node_modules/' + name]?.version !== component.version) fail(`Vendor audit and asset versions differ: ${name}`);
+  for (const [dependency, version] of Object.entries(component.bundledDependencies || {})) {
+    if (!/^\d+\.\d+\.\d+$/.test(version) || vendorLock.packages['node_modules/' + dependency]?.version !== version) fail(`Vendor audit and embedded dependency versions differ: ${name}/${dependency}`);
+  }
 }
 for (const [name, entry] of Object.entries(vendorLock.packages)) {
   if (!name) continue;

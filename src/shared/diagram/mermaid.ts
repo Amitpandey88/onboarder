@@ -60,6 +60,9 @@ const PALETTES = {
 export function diagramThemeConfig() {
   const p = PALETTES[currentTheme];
   return {
+    // Preserve Onboarder's layout and appearance across Mermaid major releases.
+    layout: 'dagre',
+    look: 'classic',
     theme: 'base',
     themeVariables: {
       darkMode: currentTheme === 'dark', background: p.background,

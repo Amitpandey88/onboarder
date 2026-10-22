@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-22",
+  "status": "fixed",
+  "advisory": "GHSA-238p-pmpm-9mq7",
+  "patchedMinimumKaTeX": "0.18.2",
+  "before": {
+    "mermaid": "11.17.2",
+    "katex": "0.16.47"
+  },
+  "after": {
+    "mermaid": "12.2.0",
+    "katex": "0.18.11"
+  },
+  "provenance": {
+    "archive": "https://registry.npmjs.org/mermaid/-/mermaid-12.2.0.tgz",
+    "integrity": "sha512-w7nr/SFrLO7BaVTs3dQTvYSV6nYSBj0Yy9DjBhsIJtAcHqRzXSq4Pg32ujHZ/AdWsAMNEvvhbm5dt9E2tOiHzw==",
+    "shippedBundleSha256": "a8a6a6f805b074a8261a2825c86f99c8054acb3b35f50bb7e24a4f9f2c3c3b9f",
+    "exactUpstreamBytes": true,
+    "manualLibraryEdits": false
+  },
+  "advisoryExceptions": [],
+  "audit": {
+    "development": {
+      "unaccepted": 0,
+      "tracked": 0
+    },
+    "vendor": {
+      "unaccepted": 0,
+      "tracked": 0
+    }
+  },
+  "targetedTests": {
+    "tests": 29,
+    "passed": 29,
+    "failed": 0
+  },
+  "browser": {
+    "passed": true,
+    "rendered": [
+      "light:flowchart",
+      "light:sequence",
+      "light:class",
+      "light:state",
+      "light:entity",
+      "light:journey",
+      "light:gantt",
+      "light:pie",
+      "light:mindmap",
+      "light:timeline",
+      "light:git",
+      "dark:flowchart",
+      "dark:sequence",
+      "dark:class",
+      "dark:state",
+      "dark:entity",
+      "dark:journey",
+      "dark:gantt",
+      "dark:pie",
+      "dark:mindmap",
+      "dark:timeline",
+      "dark:git"
+    ],
+    "nodeNavigation": true,
+    "strictPolicy": true,
+    "protectedLayout": true,
+    "cssContained": true,
+    "pollutedTrustMath": true,
+    "browserErrors": [],
+    "externalRequests": []
+  },
+  "additionalBrowserChecks": [
+    "six populated Explore overview modes",
+    "services edges, locked navigation and theme redraw",
+    "Atlas mobile viewport and dark redraw",
+    "Monaco editor and actual TypeScript worker diagnostics"
+  ],
+  "compatibility": {
+    "coreRuntimeDependencies": 0,
+    "node": ">=20",
+    "browser": "ES2024 / Safari >=17.4; tested Chromium, Safari not executed",
+    "layout": "Dagre, classic appearance; repository/AI overrides refused"
+  },
+  "externalWrites": 0
+}

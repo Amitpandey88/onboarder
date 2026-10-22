@@ -7,8 +7,21 @@ import { detectManifest } from '../shared/analyzer/services.js';
 import { explainFile, explainOverview } from '../shared/analyzer/explainLocal.js';
 import {
   overviewDiagram, folderDiagram, fileDetailDiagram, callsDiagram, servicesDiagram,
+  diagramThemeConfig, setDiagramTheme,
 } from '../shared/diagram/mermaid.js';
 import { memSource } from './helpers.js';
+
+test('diagram themes preserve classic Dagre layouts across browser library upgrades', () => {
+  for (const theme of ['light', 'dark']) {
+    setDiagramTheme(theme);
+    const config = diagramThemeConfig();
+    assert.equal(config.layout, 'dagre');
+    assert.equal(config.look, 'classic');
+    assert.equal(config.themeVariables.darkMode, theme === 'dark');
+    assert.equal(config.flowchart.htmlLabels, false);
+  }
+  setDiagramTheme('light');
+});
 
 const REPO = {
   'index.js': `import { a } from './a.js';\nimport { b } from './lib/b.js';\na(); b();`,

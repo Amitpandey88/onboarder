@@ -16,7 +16,7 @@ function ensureMermaid() {
     securityLevel: 'strict',
     // Repository labels and AI diagrams cannot relax these global policies.
     secure: ['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'suppressErrorRendering',
-      'maxEdges', 'theme', 'themeCSS', 'fontFamily', 'altFontFamily', 'themeVariables'],
+      'maxEdges', 'layout', 'look', 'theme', 'themeCSS', 'fontFamily', 'altFontFamily', 'themeVariables'],
   });
   initializedTheme = theme;
 }

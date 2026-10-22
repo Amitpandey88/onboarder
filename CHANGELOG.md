@@ -24,6 +24,9 @@
   streaming dialects, explicit incomplete-output errors and disconnect cancellation.
 - Check-plan authorization now fingerprints raw lifecycle definitions before
   redaction; disabled GitHub publication requests read-only App permissions.
+- Upgraded the integrity-verified Mermaid browser bundle to 12.2.0 with patched
+  KaTeX 0.18.11; removed the obsolete advisory exception. Classic Dagre layouts
+  and light/dark palettes are preserved.
 - Node 20-compatible AI deadlines and bounded waits even when a completion adapter
   does not cooperate with cancellation.
 
@@ -36,8 +39,8 @@ Existing settings and review configuration require no automatic migration.
 Only the implemented Phase 4A triage milestone is included: the dedicated Change
 Stack, engineering planner, full collaboration platform and post-merge drafts
 are incomplete. Model evaluations use controlled responses; live quality is not
-established. Worktrees do not sandbox check execution. The existing tracked low
-KaTeX advisory remains; review is due 2026-11-09. See
+established. Worktrees do not sandbox check execution. Mermaid 12 requires a
+modern ES2024 browser (Safari 17.4+); the server and CLI retain Node 20+. See
 [release notes](docs/RELEASE_1.1.0.md) and [migration notes](docs/MIGRATING_TO_1.1.md).
 
 ## Earlier releases

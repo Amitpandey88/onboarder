@@ -1,6 +1,8 @@
 export declare function setDiagramTheme(theme: any): void;
 export declare function getDiagramTheme(): string;
 export declare function diagramThemeConfig(): {
+    layout: string;
+    look: string;
     theme: string;
     themeVariables: {
         darkMode: boolean;

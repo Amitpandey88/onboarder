@@ -1,13 +1,16 @@
 {
   "format": 1,
-  "reviewed": "2026-10-10",
+  "reviewed": "2026-10-22",
   "components": [
     {
       "name": "mermaid",
-      "version": "11.17.2",
-      "tarball": "https://registry.npmjs.org/mermaid/-/mermaid-11.17.2.tgz",
-      "integrity": "sha512-V6K3C8EBdEsPFZXSKMJe6ppQOENxuHARr9GvHX4hh47lAbhMRD9qf4oEK7LoaRQxULMa80/qt5gHO73aCleBBg==",
-      "license": "MIT"
+      "version": "12.2.0",
+      "tarball": "https://registry.npmjs.org/mermaid/-/mermaid-12.2.0.tgz",
+      "integrity": "sha512-w7nr/SFrLO7BaVTs3dQTvYSV6nYSBj0Yy9DjBhsIJtAcHqRzXSq4Pg32ujHZ/AdWsAMNEvvhbm5dt9E2tOiHzw==",
+      "license": "MIT",
+      "bundledDependencies": {
+        "katex": "0.18.11"
+      }
     },
     {
       "name": "monaco-editor",
@@ -25,7 +28,7 @@
   ],
   "files": {
     "MERMAID-LICENSE.txt": "ec9fb67dcb25eccc416ed56e1aab819222c805a2a4bfe4cb19e7556bf2ffde80",
-    "mermaid.min.js": "581ed7d74bd9048d0e3a91363927d72ef22942d7722546b27f7cc29e35390eb8",
+    "mermaid.min.js": "a8a6a6f805b074a8261a2825c86f99c8054acb3b35f50bb7e24a4f9f2c3c3b9f",
     "monaco/LICENSE.txt": "33e4ff1a06ef62ba21788ea162564ee8165269a24a9ce6ef301837447eab0ac6",
     "monaco/vs/base/browser/ui/codicons/codicon/codicon.ttf": "0f1d5219934e96e83b8db162d60b4d8c09b5de1e7d38031cbafe4a3c0f2889c9",
     "monaco/vs/base/worker/workerMain.js": "dbe4aa4f2874f5768e8d98e94281667c0bc493e02dd9760adca930699ff3279b",

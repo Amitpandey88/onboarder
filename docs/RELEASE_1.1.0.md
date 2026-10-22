@@ -88,10 +88,11 @@ See [the upgrade guide](MIGRATING_TO_1.1.md).
   checks locally; untrusted code needs an appropriate external isolation environment.
 - Triage cannot establish all required branch policies; absent CI/ownership and
   missing local revision context remain unavailable, not approved or safe.
-- One existing low KaTeX advisory remains in the official Mermaid bundle:
-  [GHSA-238p-pmpm-9mq7](https://github.com/advisories/GHSA-238p-pmpm-9mq7), review due
-  **2026-11-09**. Strict rendering and SVG sanitization mitigate the application
-  path; the embedded library is not fixed. The audit accepts no new advisory.
+- The official Mermaid 12.2.0 bundle includes patched KaTeX 0.18.11, resolving
+  [GHSA-238p-pmpm-9mq7](https://github.com/advisories/GHSA-238p-pmpm-9mq7). No advisory
+  exception remains. Classic Dagre layouts and palettes are preserved. Mermaid
+  now requires an ES2024 browser (Safari 17.4+); the Node 20+ CLI/server minimum
+  is unchanged because Mermaid is a browser asset, not a runtime npm dependency.
 
 The dated [Phase 5A audit](https://github.com/Amitpandey88/onboarder/blob/main/docs/PRODUCTION_READINESS_AUDIT.md) records the development
 snapshot, measurements and remaining platform work. It is not a claim that every

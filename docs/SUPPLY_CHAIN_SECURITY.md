@@ -13,17 +13,19 @@ These controls verify the bootstrap and release archive, not every operation an 
 
 ## Browser libraries
 
-`public/vendor/manifest.json` records Mermaid 11.17.2 and Monaco 0.52.2, upstream npm archive integrity, licenses and SHA-256 hashes for every shipped asset. The baseline was compared with the integrity-verified official npm archives; the Onboarder worker bootstrap is maintained locally. `security:check` rejects added, removed or changed assets without a reviewed manifest update. HTML uses SHA-384 Subresource Integrity for both initial library scripts. The Monaco worker selector accepts only shipped language workers and rejects arbitrary URLs/modules before loading code.
+`public/vendor/manifest.json` records Mermaid 12.2.0 (embedded KaTeX 0.18.11) and Monaco 0.52.2, upstream npm archive integrity, licenses and SHA-256 hashes for every shipped asset. The baseline was compared with the integrity-verified official npm archives; the Onboarder worker bootstrap is maintained locally. `security:check` rejects added, removed or changed assets without a reviewed manifest update. HTML uses SHA-384 Subresource Integrity for both initial library scripts. The Monaco worker selector accepts only shipped language workers and rejects arbitrary URLs/modules before loading code.
 
 Mermaid runs in strict mode, with security and CSS configuration keys protected against diagram overrides. Application node navigation uses its own event handlers.
 
 Static responses forbid external script sources, object embeds, base-URL overrides and framing. Monaco's current AMD build requires `unsafe-eval`; it remains a documented compatibility limit. Inline styles and custom AI endpoint connections remain supported. Vendored browser bundles are outside the main npm dependency audit. `security/vendor/package-lock.json` tracks their upstream dependency graph for a separate CI audit; it does not add dependencies to Onboarder or install them. That graph is advisory coverage for the release metadata, not an exact analysis of tree-shaken bundle contents. Review embedded dependencies and upstream advisories when updating assets; integrity alone is not a vulnerability or malware scan. Do not patch or re-hash a minified library simply to silence a scanner.
 
-## Known upstream advisory
+## Resolved KaTeX advisory
 
-The official Mermaid 11.17.2 bundle still embeds KaTeX 0.16.47, affected by [GHSA-238p-pmpm-9mq7](https://github.com/KaTeX/KaTeX/security/advisories/GHSA-238p-pmpm-9mq7). The advisory requires existing prototype pollution or attacker-controlled renderer options, plus unsanitized output. Patched Mermaid uses strict rendering and sanitizes SVG output; diagram configuration cannot override security/CSS policy. Browser checks cover malicious labels and configuration under a polluted `trust` property. This mitigates the application path; it does not patch KaTeX.
+On 2026-10-22, the official Mermaid 12.2.0 browser bundle replaced 11.17.2. Its embedded KaTeX version export is 0.18.11, above the 0.18.2 fix for [GHSA-238p-pmpm-9mq7](https://github.com/KaTeX/KaTeX/security/advisories/GHSA-238p-pmpm-9mq7). The shipped JavaScript and license are exact bytes from the SHA-512-verified official npm archive; the asset inventory and HTML SHA-384 integrity were updated together. No minified library code was patched manually.
 
-`security/vendor/advisory-exceptions.json` records only this low-severity advisory for this exact dependency version, with a review deadline of 2026-11-09. The audit prints it visibly. New advisories, changed versions/severity and expired exceptions fail CI. Upgrade when an official compatible bundle includes the KaTeX fix. Do not override audit metadata to a version absent from the shipped bundle or blindly apply the suggested Mermaid downgrade.
+The separate vendor audit graph pins KaTeX to 0.18.11 with an override to match the actual embedded dependency, not to conceal a different shipped version. The offline guard rejects a mismatch with the inventoried embedded version. The obsolete advisory exception was removed; the exception list is empty. Current registry audits still run at release time and fail on unaccepted findings or service errors. Dated Phase 5A reports describe the earlier bundle and remain historical.
+
+Strict rendering, SVG sanitization and protected configuration remain enabled. Dagre layout and classic appearance are selected explicitly to preserve existing diagrams. Mermaid 12 targets ES2024 browsers (Safari 17.4+); this changes browser compatibility, while the CLI/server retain Node 20+ support because this vendored asset is not imported by the Node runtime.
 
 ## Checks and releases
 
@@ -31,6 +33,8 @@ The official Mermaid 11.17.2 bundle still embeds KaTeX 0.16.47, affected by [GHS
 2. Run `npm run check` and `npm run security:audit`. The offline security guard verifies dependency pins/integrity, absence of install hooks, every browser asset, full commit pins for CI actions, and the npm package file boundary.
 3. Run `npm pack` and test the resulting archive in a fresh directory with scripts disabled. The explicit `prepack` hook builds source and checks the distribution. `prepublishOnly` runs all checks. Packaging excludes local memory, environment files, credentials, development sources and tests.
 4. Review the final archive and diff before an explicitly authorized publish. Use npm trusted publishing or provenance-capable CI where configured; this change does not create a publishing workflow or issue registry credentials.
+
+For the optional real-browser regression, open a local preview with `playwright-cli open http://127.0.0.1:PORT/`, then run `playwright-cli run-code --filename=scripts/verify-mermaid-browser.mjs` from the source checkout. It checks eleven diagram types in both themes, actual node navigation, protected configuration/CSS, and mathematical labels under inherited `trust`, rejecting browser errors and external requests. This uses a separately installed browser tool; it adds no core runtime dependency. Chromium verification does not certify every supported browser.
 
 CI has read-only repository permissions, no persisted checkout credentials, pinned action commits, finite job timeouts, lifecycle-disabled locked installs and a dependency vulnerability audit. Dependabot proposes npm and GitHub Action updates; merge only after reviewing and testing them. Vendor and optional-tool pins need manual upstream review.
 
