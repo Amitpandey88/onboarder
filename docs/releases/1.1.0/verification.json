@@ -18,7 +18,7 @@
       "passed": 1042,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 32297.744
+      "durationMs": 29361.739709
     },
     {
       "command": "npm run security:audit",
@@ -56,7 +56,7 @@
       "schemaVersion": 1,
       "node": "v20.20.2",
       "status": "passed",
-      "archiveSha256": "0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382",
+      "archiveSha256": "b9a306b8c2b209278cd6ad970e2dfd398834f0394066b5925744b434af7378f0",
       "version": "1.1.0",
       "runtimeDependencies": 0,
       "editorVersion": "0.2.0",
@@ -81,7 +81,7 @@
       "schemaVersion": 1,
       "node": "v24.20.0",
       "status": "passed",
-      "archiveSha256": "0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382",
+      "archiveSha256": "b9a306b8c2b209278cd6ad970e2dfd398834f0394066b5925744b434af7378f0",
       "version": "1.1.0",
       "runtimeDependencies": 0,
       "editorVersion": "0.2.0",
@@ -127,15 +127,26 @@
       "tests": 6,
       "failed": 0,
       "reason": "Final checkout discovered npm 12 package-keyed JSON; guard now validates npm 11 arrays and npm 12 maps, including malformed and credential-file rejection."
+    },
+    {
+      "command": "npm run check",
+      "node": "26.8.1",
+      "npm": "12.0.2",
+      "status": "passed",
+      "tests": 1042,
+      "passed": 1042,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 29372.367708
     }
   ],
   "archive": {
     "name": "codebase-onboarder-1.1.0.tgz",
     "files": 829,
-    "compressedBytes": 5603215,
+    "compressedBytes": 5603196,
     "unpackedBytes": 22203830,
-    "sha256": "0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382",
-    "integrity": "sha512-DlrpJ9DDf/W0c7m0ZIf6FoVqYKX3F49uXywUXwVtAtxKMbVshfqZaXLe5gVzyfQ4JaJkJbwtypXRzZ7eAtjz8g=="
+    "sha256": "b9a306b8c2b209278cd6ad970e2dfd398834f0394066b5925744b434af7378f0",
+    "integrity": "sha512-sZwE5HZgQa3obL9QrN0DG8cLCzOffDraHwATdiH98EhzdUr03xQ0ZApi6CB9JbcvV6qGZXRrl6YFX73x8JWgzg=="
   },
   "coreRuntimeDependencies": 0,
   "semanticCompiler": "Optional pinned TypeScript Compiler API 5.9.3 from a trusted temporary installation; no runtime dependency added.",
@@ -160,5 +171,22 @@
     "Static analysis is heuristic; worktrees are not OS sandboxes",
     "Existing tracked low KaTeX advisory not fixed"
   ],
-  "externalWrites": 0
+  "externalWrites": 0,
+  "archiveNormalization": {
+    "preliminarySha256": "0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382",
+    "contentDifferences": 0,
+    "permissionChanges": [
+      {
+        "path": "public/js/aiDraft.js",
+        "before": "0600",
+        "after": "0644"
+      },
+      {
+        "path": "server/htmlText.js",
+        "before": "0600",
+        "after": "0644"
+      }
+    ],
+    "reason": "Publish the canonical clean-checkout archive with normal readable public module permissions; both canonical archive installs passed on Node 20/24."
+  }
 }

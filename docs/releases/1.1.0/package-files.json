@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "release": "1.1.0",
-  "sha256": "0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382",
+  "sha256": "b9a306b8c2b209278cd6ad970e2dfd398834f0394066b5925744b434af7378f0",
   "files": [
     {
       "path": "CHANGELOG.md",
@@ -996,7 +996,7 @@
     {
       "path": "public/js/aiDraft.js",
       "size": 8123,
-      "mode": 384
+      "mode": 420
     },
     {
       "path": "public/js/aiDraft.js.map",
@@ -2701,7 +2701,7 @@
     {
       "path": "server/htmlText.js",
       "size": 2244,
-      "mode": 384
+      "mode": 420
     },
     {
       "path": "server/htmlText.js.map",

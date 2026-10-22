@@ -29,10 +29,11 @@ proof of compatibility with every downstream consumer or saved development run.
 | `npm run check`, Node 24.20.0 | 1,042 passed; 0 failed/cancelled/skipped. Typechecks, generated output, supply chain and architecture passed. |
 | Full tests, Node 20.20.2 | 1,042 passed; 0 failed/cancelled/skipped. |
 | npm 11/12 inventory regression | 6 targeted tests pass on Node 26.8.1/npm 12.0.2, validating both formats and fail-closed malformed/credential inventory handling. |
+| Full `npm run check`, Node 26.8.1/npm 12.0.2 | 1,042 passed; 0 failed/cancelled/skipped; repaired package-inventory guard and all release checks pass. |
 | Optional semantics | Real pinned TypeScript Compiler API 5.9.3 configured outside the project; no runtime dependency added. |
 | `npm run security:audit` | 0 unaccepted advisories; 1 existing tracked low KaTeX advisory, review due 2026-11-09. |
 | `npm run editor:package` | VS Code 0.2.0 VSIX built; no Marketplace publication. |
-| `npm pack --dry-run` | 829 allowlisted files; 5,603,215 compressed / 22,203,830 unpacked bytes. |
+| `npm pack --dry-run` | 829 allowlisted files; 5,603,196 compressed / 22,203,830 unpacked bytes. |
 | Clean archive installs, Node 20 and 24 | Passed version/help, repository report/intelligence, offline/staged review, SARIF, explicit no-provider state, MCP, mocked read-only triage, packaged editor generation, web health/assets/scan and separate-process fixes. |
 | Fix verification in installed archive | Actual Node baseline test fails; approved result test passes; status and rollback succeed. Model response is mocked, checks are executed. |
 | Preliminary `npm publish` dry run | Passed against the exact tested tarball; no registry write. Final dry run is repeated after remote CI. |
@@ -43,9 +44,14 @@ array. The guard was repaired and regression-tested before tagging. This does
 not change the shipped runtime archive; final exact-commit results are recorded
 in the local approval packet.
 
+The canonical fresh-checkout archive also normalizes two public JavaScript
+modules from owner-only 0600 to normal 0644 permissions. All 829 file contents
+match the preliminary archive. The canonical tarball was reinstalled and its
+complete workflow reverified on Node 20 and Node 24 before freezing this hash.
+
 Machine-readable details: [verification](verification.json) and
 [package inventory](package-files.json). The archive SHA-256 is
-`0269b3464c47d309c36c5e5760ee392dfb7d054e0a802275de82256f094f1382`.
+`b9a306b8c2b209278cd6ad970e2dfd398834f0394066b5925744b434af7378f0`.
 VSIX SHA-256 is
 `2221b731a579e12886c16e3d5ed98db3fb936b06fd624771a225030ceaf4b3fb`.
 The core has zero runtime dependencies. The npm archive includes all generated
