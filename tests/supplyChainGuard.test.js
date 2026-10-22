@@ -50,6 +50,25 @@ test('release guard rejects a package missing unified review modules or its guid
   }
 });
 
+test('release guard accepts npm 11 and npm 12 inventories and fails closed on malformed or forbidden files', { skip: process.platform === 'win32' }, async t => {
+  const { root, write } = await fixture(t);
+  const packed = spawnSync('npm', ['pack', '--dry-run', '--ignore-scripts', '--json'], { cwd: root, encoding: 'utf8', timeout: 15000 });
+  assert.equal(packed.status, 0, packed.stderr);
+  const data = JSON.parse(packed.stdout), entry = Array.isArray(data) ? data[0] : Object.values(data)[0];
+  const inventory = path.join(root, 'inventory.json'), shim = path.join(root, 'mock-bin', 'npm');
+  await write('mock-bin/npm', '#!/usr/bin/env node\nimport fs from "node:fs";\nprocess.stdout.write(fs.readFileSync(' + JSON.stringify(inventory) + ', "utf8"));\n');
+  await fs.chmod(shim, 0o755);
+  const run = () => spawnSync(process.execPath, ['scripts/check-supply-chain.mjs'], { cwd: root, encoding: 'utf8', timeout: 15000, env: { ...process.env, PATH: path.dirname(shim) + path.delimiter + process.env.PATH } });
+  for (const shape of [[entry], { [entry.name]: entry }]) {
+    await write('inventory.json', shape); const result = run(); assert.equal(result.status, 0, result.stderr);
+  }
+  await write('inventory.json', { [entry.name]: { ...entry, files: [...entry.files, { path: 'public/credential.pem' }] } });
+  assert.match(run().stderr, /Unexpected published file.*credential.pem/);
+  for (const shape of [[], {}, [entry, entry], { [entry.name]: { files: [null] } }]) {
+    await write('inventory.json', shape); const result = run(); assert.notEqual(result.status, 0); assert.match(result.stderr, /malformed single-package inventory/);
+  }
+});
+
 test('release guard rejects added automatic installation hooks', async t => {
   const { pkg, write, run } = await fixture(t); pkg.scripts.postinstall = 'node arbitrary.js';
   await write('package.json', pkg);

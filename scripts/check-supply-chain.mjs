@@ -61,7 +61,11 @@ for (const name of await readdir(path.join(root, '.github/workflows'))) {
 // Suppress lifecycle hooks during this read-only inspection of npm's canonical packlist.
 const pack = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['pack', '--dry-run', '--ignore-scripts', '--json'], { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, shell: process.platform === 'win32' });
 if (pack.status !== 0) fail('Could not inspect npm package: ' + pack.stderr);
-const files = JSON.parse(pack.stdout)[0].files.map(file => file.path);
+const packed = JSON.parse(pack.stdout);
+// npm <=11 emits an array; npm 12 emits a map keyed by package name.
+const entry = Array.isArray(packed) ? packed.length === 1 && packed[0] : packed && typeof packed === 'object' && Object.keys(packed).length === 1 && packed[pkg.name];
+if (!entry || !Array.isArray(entry.files) || entry.files.some(file => !file || typeof file.path !== 'string')) fail('Could not inspect npm package: malformed single-package inventory.');
+const files = entry.files.map(file => file.path);
 const allowed = /^(?:bin\/|cli\/|server\/|shared\/|public\/|docs\/(?:HERMES_RESEARCH|SUPPLY_CHAIN_SECURITY|ADVANCED_FEATURES|UNIFIED_REVIEW_FOUNDATION|CONTEXTUAL_AI_REVIEW|AI_FIX_VERIFICATION|PR_TRIAGE|PHASE4A_VERIFICATION|RELEASE_1\.1\.0|MIGRATING_TO_1\.1)\.md$|integrations\/vscode\/(?:package\.json|extension\.cjs|README\.md)$|scripts\/package-editor\.mjs$|(?:package\.json|README\.md|CHANGELOG\.md|LICENSE|SECURITY\.md)$)/;
 for (const file of files) {
   if (!allowed.test(file) || /(?:^|\/)(?:\.env(?:\.|$)|\.git|\.codex|node_modules|AGENTS\.md|PROJECT_MEMORY\.md)|\.(?:pem|key|p12|pfx)$|(?:^|\/)postinstall\.js$/.test(file)) fail(`Unexpected published file: ${file}`);

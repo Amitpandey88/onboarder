@@ -26,8 +26,9 @@ proof of compatibility with every downstream consumer or saved development run.
 | Check | Result |
 | --- | --- |
 | `npm ci --ignore-scripts` | Passed; no install hooks. |
-| `npm run check`, Node 24.20.0 | 1,041 passed; 0 failed/cancelled/skipped. Typechecks, generated output, supply chain and architecture passed. |
-| Full tests, Node 20.20.2 | 1,041 passed; 0 failed/cancelled/skipped. |
+| `npm run check`, Node 24.20.0 | 1,042 passed; 0 failed/cancelled/skipped. Typechecks, generated output, supply chain and architecture passed. |
+| Full tests, Node 20.20.2 | 1,042 passed; 0 failed/cancelled/skipped. |
+| npm 11/12 inventory regression | 6 targeted tests pass on Node 26.8.1/npm 12.0.2, validating both formats and fail-closed malformed/credential inventory handling. |
 | Optional semantics | Real pinned TypeScript Compiler API 5.9.3 configured outside the project; no runtime dependency added. |
 | `npm run security:audit` | 0 unaccepted advisories; 1 existing tracked low KaTeX advisory, review due 2026-11-09. |
 | `npm run editor:package` | VS Code 0.2.0 VSIX built; no Marketplace publication. |
@@ -35,6 +36,12 @@ proof of compatibility with every downstream consumer or saved development run.
 | Clean archive installs, Node 20 and 24 | Passed version/help, repository report/intelligence, offline/staged review, SARIF, explicit no-provider state, MCP, mocked read-only triage, packaged editor generation, web health/assets/scan and separate-process fixes. |
 | Fix verification in installed archive | Actual Node baseline test fails; approved result test passes; status and rollback succeed. Model response is mocked, checks are executed. |
 | Preliminary `npm publish` dry run | Passed against the exact tested tarball; no registry write. Final dry run is repeated after remote CI. |
+
+A clean-checkout run selected Node 26/npm 12 and exposed a release-tooling
+compatibility defect: npm 12 emits package-keyed JSON instead of the earlier
+array. The guard was repaired and regression-tested before tagging. This does
+not change the shipped runtime archive; final exact-commit results are recorded
+in the local approval packet.
 
 Machine-readable details: [verification](verification.json) and
 [package inventory](package-files.json). The archive SHA-256 is

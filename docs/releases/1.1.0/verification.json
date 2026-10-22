@@ -14,11 +14,11 @@
       "command": "npm run check",
       "node": "24.20.0",
       "status": "passed",
-      "tests": 1041,
-      "passed": 1041,
+      "tests": 1042,
+      "passed": 1042,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 21971.031917
+      "durationMs": 32297.744
     },
     {
       "command": "npm run security:audit",
@@ -46,10 +46,11 @@
       "command": "node --test",
       "node": "20.20.2",
       "status": "passed",
-      "tests": 1041,
+      "tests": 1042,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 17255.980583
+      "durationMs": 28923.426208,
+      "passed": 1042
     },
     {
       "schemaVersion": 1,
@@ -117,6 +118,15 @@
       "oldTools": 17,
       "newTools": 18,
       "scope": "Synthetic offline JS repository; does not prove compatibility of every third-party consumer or saved development run."
+    },
+    {
+      "command": "node --test tests/supplyChainGuard.test.js",
+      "node": "26.8.1",
+      "npm": "12.0.2",
+      "status": "passed",
+      "tests": 6,
+      "failed": 0,
+      "reason": "Final checkout discovered npm 12 package-keyed JSON; guard now validates npm 11 arrays and npm 12 maps, including malformed and credential-file rejection."
     }
   ],
   "archive": {
