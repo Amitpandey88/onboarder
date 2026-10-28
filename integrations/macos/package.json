@@ -21,7 +21,7 @@
     "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json"
   },
   "devDependencies": {
-    "@electron/fuses": "2.0.0",
+    "@electron/fuses": "2.1.3",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
     "electron": "45.0.0",
