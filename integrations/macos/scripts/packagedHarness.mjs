@@ -17,21 +17,32 @@ export async function launchPackaged(executablePath, args, env) {
   try {
     const until = Date.now() + 60000;
     while (Date.now() < until) {
-      if (child.exitCode !== null) throw new Error('The packaged application exited before opening.');
+      if (child.exitCode !== null || child.signalCode !== null) throw new Error('The packaged application exited before opening.');
       try { const response = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(500) }); if (response.ok) { browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`); break; } } catch {}
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     if (!browser) throw new Error('The packaged app did not open its test debugging port.');
-    const context = browser.contexts()[0];
+    // Repository sessions can appear in different CDP contexts. Do not capture
+    // the initial empty default context or depend on a page event arriving after
+    // the CDP attachment has finished.
+    const pages = () => browser.contexts().flatMap(context => context.pages());
+    const windowAfter = async (existing = new Set()) => {
+      const deadline = Date.now() + 60000;
+      while (Date.now() < deadline) {
+        const page = pages().find(candidate => !existing.has(candidate));
+        if (page) return page;
+        if (child.exitCode !== null || child.signalCode !== null) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      const targets = await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(1000) }).then(response => response.json()).catch(() => []);
+      throw new Error('No packaged application window was available.\n' + JSON.stringify({ exitCode: child.exitCode, signalCode: child.signalCode, contexts: browser.contexts().length, pages: pages().map(page => page.url()), targets }) + '\nPackaged startup diagnostics:\n' + diagnostics);
+    };
     return {
       packaged: true, process: () => child,
-      firstWindow: async () => {
-        try { return context.pages()[0] || await context.waitForEvent('page', { timeout: 60000 }); }
-        catch (error) { throw new Error(error.message + '\nPackaged startup diagnostics:\n' + diagnostics, { cause: error }); }
-      },
-      windows: () => context.pages(),
-      waitForEvent: () => context.waitForEvent('page'),
-      async close() { child.kill('SIGTERM'); await Promise.race([new Promise(resolve => child.once('exit', resolve)), new Promise(resolve => setTimeout(resolve, 3000))]); if (child.exitCode === null) child.kill('SIGKILL'); await browser.close().catch(() => {}); /* Backend disconnect cleanup can finish after its parent exits. */ await new Promise(resolve => setTimeout(resolve, 1500)); },
+      firstWindow: () => windowAfter(),
+      windows: pages,
+      waitForEvent: () => windowAfter(new Set(pages())),
+      async close() { child.kill('SIGTERM'); if (child.exitCode === null && child.signalCode === null) await Promise.race([new Promise(resolve => child.once('exit', resolve)), new Promise(resolve => setTimeout(resolve, 3000))]); if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL'); await browser.close().catch(() => {}); /* Backend disconnect cleanup can finish after its parent exits. */ await new Promise(resolve => setTimeout(resolve, 1500)); },
     };
   } catch (error) { child.kill('SIGKILL'); throw new Error(error.message + '\nPackaged startup diagnostics:\n' + diagnostics, { cause: error }); }
 }
