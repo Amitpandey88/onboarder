@@ -5,7 +5,7 @@
   "description": "Audit metadata for shipped browser libraries; never installed by Onboarder.",
   "dependencies": {
     "mermaid": "12.2.0",
-    "monaco-editor": "0.52.2"
+    "monaco-editor": "0.57.0"
   },
   "overrides": {
     "katex": "0.18.11",
