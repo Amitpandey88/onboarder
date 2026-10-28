@@ -138,3 +138,11 @@ profiles disabled. This prevents the CI host's nvm/asdf setup from substituting 
 global Node while verifying the bundled runtime. Production still uses the user's
 chosen shell and its normal profiles. The backend check verifies both the actual
 resolved Node path and its version.
+
+Unattended CI packaged UI checks use Chromium's `--use-mock-keychain` switch to
+avoid a first-use macOS Keychain dialog, following
+[Electron's own test approach](https://releases.electronjs.org/pr/53790).
+This applies only to the test launcher when CI is set. Production cookie
+protection and credential storage remain enabled. CI does not establish real
+Keychain behavior; interactive verification with a signed build remains required.
+The default local packaged launcher continues to use the system Keychain.
