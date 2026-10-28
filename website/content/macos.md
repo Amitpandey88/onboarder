@@ -38,3 +38,7 @@ Desktop private backends do not change an existing browser server's ports, netwo
 ## Build and verification
 
 The [desktop source guide](https://github.com/Amitpandey88/onboarder/blob/main/integrations/macos/README.md) contains locked build commands, signing requirements, cleanup rules and test details. Development archives are explicitly named DEVELOPMENT. Production builds require Developer ID, hardened runtime, notarization and signature verification. Apple Silicon is the only distributed architecture.
+
+## Signed distribution setup
+
+A signed and notarized replacement requires an active Apple Developer Program membership, a Developer ID Application certificate with its private key, and notarization credentials. The release builder already enforces signing, hardened runtime, notarization and verification. The [signing setup guide](https://github.com/Amitpandey88/onboarder/blob/main/docs/MACOS_SIGNING.md) describes the remaining account and Keychain steps. Preview downloads retain their development label until a verified replacement is published.

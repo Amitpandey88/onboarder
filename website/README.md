@@ -156,3 +156,12 @@ Downloads clearly disclose ad-hoc signing, no notarization and macOS 14+; no Int
 artifact is linked. npm installation examples and current docs metadata use 1.2.0.
 The website remains static; no public repository-reading server is enabled.
 Deploy only the validated dist tree and retain the existing release for rollback.
+
+## Direct downloads and terminal install — 28 October 2026
+
+Revision `20261028-downloads1` makes the hero's primary action a direct Apple
+Silicon Mac DMG download and adds the same shortcut to desktop headers. The
+versioned npm command directly beneath it has a keyboard-accessible Copy button,
+nearby status feedback and manual-copy fallback. The existing installation tabs
+keep their copy behavior. Current signing status remains visible beside the Mac
+action until a real Developer ID-signed and notarized replacement is available.

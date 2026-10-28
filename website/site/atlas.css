@@ -228,3 +228,36 @@ html[data-motion=off] .atlas-home [data-media-reveal],html[data-motion=off] .atl
 
 /* Keep every screenshot tab reachable on narrow screens. */
 .atlas-home .story-media .screenshot-tabs{flex-wrap:wrap}
+
+/* Direct installation choices stay together at the top of the product page. */
+.atlas-hero-copy .mac-download-note{font:11px/1.8 var(--mono);color:var(--muted);margin-top:14px;max-width:500px}
+.mac-download-note a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.atlas-hero-copy .hero-terminal{max-width:500px;margin-top:26px}
+.atlas-hero-copy .hero-terminal-label{font:11px/1.5 var(--mono);color:var(--muted);margin:0 0 10px}
+.atlas-home.product .hero-terminal .hero-command{margin-top:0!important;padding:12px 0!important;max-width:none;flex-wrap:nowrap}
+.hero-terminal .hero-command code{min-width:0;overflow-wrap:anywhere}
+.atlas-home .hero-copy{flex:none;min-width:68px;min-height:38px;padding:8px 12px;font:11px var(--mono);color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:4px;cursor:pointer}
+.atlas-home .hero-copy:hover{background:var(--surface-2);border-color:var(--accent)}
+.atlas-home .hero-copy:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.hero-copy-status{min-height:18px;margin:4px 0 0;font:10px/1.8 var(--mono);color:var(--accent)}
+@media(max-width:600px){
+ .atlas-home.product .hero-terminal .hero-command code{font-size:11px;line-height:1.8}
+ .atlas-hero-copy .mac-download-note{font-size:10px}
+ .atlas-hero-copy .hero-actions{flex-wrap:wrap;gap:18px}
+}
+@media(min-width:901px){
+ .atlas-home.product .atlas-hero{min-height:calc(100svh - 92px)}
+ .atlas-home.product .atlas-hero-grid{padding:24px 0 30px;flex:0 1 auto}
+ .atlas-home.product .atlas-hero-copy{padding-bottom:0}
+ .atlas-home.product .atlas-hero h1{font-size:clamp(60px,6vw,86px);margin-bottom:22px}
+ .atlas-home.product .hero-description{max-width:560px;font-size:15px;line-height:1.85}
+ .atlas-hero-copy .hero-actions{margin-top:24px}
+ .atlas-home.product .atlas-hero-copy .btn{min-height:52px;padding-block:14px}
+ .atlas-hero-copy .mac-download-note{margin-top:10px}
+ .atlas-hero-copy .hero-terminal{margin-top:16px}
+ .atlas-home.product .hero-terminal .hero-command{padding-block:8px!important}
+ .atlas-home.product .atlas-hero-copy .intro-requirement{margin-top:12px}
+ .atlas-home.product .atlas-hero .owl-art{align-self:center}
+ .atlas-home.product .atlas-hero .owl-art .art-plane{max-height:540px}
+ .atlas-home.product .atlas-hero .owl-art .sketch-image{max-height:540px}
+}

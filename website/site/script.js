@@ -33,4 +33,26 @@ renderPreview();
 const dialog=document.querySelector('#image-dialog');document.querySelector('#expand-preview').addEventListener('click',()=>{renderPreview();dialog.showModal();document.body.classList.add('modal-open');});document.querySelector('#close-dialog').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>document.body.classList.remove('modal-open'));dialog.addEventListener('click',event=>{if(event.target===dialog){const rect=dialog.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)dialog.close();}});
 const installs={npm:['npm install -g codebase-onboarder@1.2.0','onboarder explore ./your-project','onboarder start'],source:['git clone https://github.com/Amitpandey88/onboarder.git','cd onboarder && npm ci --ignore-scripts','npm run build && npm start']};
 const installTabs=document.querySelectorAll('[data-install]');const setInstallTabs=setupTabs(installTabs,button=>{setInstallTabs(button);document.querySelector('#install-panel').setAttribute('aria-labelledby',button.id);['install-command','explore-command','web-command'].forEach((id,index)=>document.getElementById(id).textContent=installs[button.dataset.install][index]);document.querySelector('#install-note').textContent=button.dataset.install==='npm'?'The web workspace runs locally at localhost:4310.':'Clone the source, install development dependencies, then open the local web workspace.';document.querySelector('#copy-status').textContent='';});
-document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{const el=document.getElementById(button.dataset.copy),status=document.querySelector('#copy-status');let copied=false;try{await navigator.clipboard.writeText(el.textContent);copied=true;}catch{const range=document.createRange();range.selectNodeContents(el);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);try{copied=document.execCommand('copy');}catch{}if(copied)selection.removeAllRanges();}if(copied){button.textContent='Copied';status.textContent='Command copied to clipboard.';toast('Command copied to clipboard.');setTimeout(()=>button.textContent='Copy',1800);}else status.textContent='Command selected. Press Ctrl+C or Command+C to copy.';}));
+document.querySelectorAll('[data-copy]').forEach(button=>{
+  const label=button.textContent;
+  let reset;
+  button.addEventListener('click',async()=>{
+    const el=document.getElementById(button.dataset.copy);
+    const status=document.getElementById(button.dataset.copyStatus||'copy-status');
+    if(!el||!status)return;
+    let copied=false;
+    try{await navigator.clipboard.writeText(el.textContent);copied=true;}
+    catch{
+      const range=document.createRange();range.selectNodeContents(el);
+      const selection=getSelection();selection.removeAllRanges();selection.addRange(range);
+      try{copied=document.execCommand('copy');}catch{}
+      if(copied)selection.removeAllRanges();
+    }
+    clearTimeout(reset);
+    if(copied){
+      button.textContent='Copied';status.textContent='Command copied to clipboard.';
+      toast('Command copied to clipboard.');
+      reset=setTimeout(()=>{button.textContent=label;status.textContent='';},1800);
+    }else status.textContent='Command selected. Press Ctrl+C or Command+C to copy.';
+  });
+});
