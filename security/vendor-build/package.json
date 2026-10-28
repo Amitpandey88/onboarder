@@ -1,0 +1,10 @@
+{
+  "name": "onboarder-diagram-build",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reproducible Mermaid browser bundle with patched embedded sanitizer; build tools only.",
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": { "mermaid": "12.2.0", "dompurify": "3.4.17", "katex": "0.18.11", "esbuild": "0.28.2" },
+  "overrides": { "dompurify": "3.4.17", "katex": "0.18.11" }
+}

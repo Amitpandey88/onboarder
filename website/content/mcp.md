@@ -3,7 +3,7 @@ or harness that speaks the [Model Context Protocol](https://modelcontextprotocol
 — Claude Code, Cursor, Cline, Windsurf, or your own.
 
 The server speaks **stdio** (the transport every major harness supports) and
-exposes **17 tools** over the same analyzers the UI uses, so a number an agent
+exposes **18 tools** over the same analyzers the UI uses, so a number an agent
 reports is the same number you see on screen.
 
 | | |
@@ -104,4 +104,4 @@ and a locked connection thread. Tree root labels retain contrasting colors.
 
 `onboarder_intelligence` supports repository scans, bounded evidence retrieval and exact-revision comparison. Source excerpts require `includeSource` in the standalone tool. The separately scoped agent integration has 42 tools and uses its own bounded reader.
 
-[All 17 tools and input schemas](/docs/mcp-reference/).
+[All 18 tools and input schemas](/docs/mcp-reference/).

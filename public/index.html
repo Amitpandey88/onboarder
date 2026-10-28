@@ -8,42 +8,27 @@
 <link rel="stylesheet" href="/workbench.css">
 <link rel="stylesheet" href="/search.css">
 <link rel="stylesheet" href="/intelligence.css">
+<link rel="stylesheet" href="/workspace.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f7f4ed'/%3E%3Ccircle cx='9' cy='16' r='4' fill='none' stroke='%232a2721' stroke-width='2'/%3E%3Ccircle cx='24' cy='8' r='3.2' fill='none' stroke='%232e5d43' stroke-width='2'/%3E%3Ccircle cx='24' cy='24' r='3.2' fill='none' stroke='%232a2721' stroke-width='2'/%3E%3Cpath d='M13 14 L21 9 M13 18 L21 23' stroke='%232a2721' stroke-width='1.6'/%3E%3C/svg%3E">
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">
-    <span class="brand-mark">onboarder</span>
+<div class="boot-status" id="bootStatus" role="status"><span class="loading-spinner" aria-hidden="true"></span><span>Opening Onboarder…</span></div>
+<header class="topbar" data-boot inert>
+  <button class="btn btn-ghost nav-toggle" id="navToggle" aria-label="Toggle workspace navigation" aria-expanded="false" data-tooltip="Hide sidebar" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></button><div class="brand">
+    <span class="brand-mark">onboarder</span><button class="btn btn-ghost home-control" id="projectHomeBtn" data-tooltip="Project home" aria-label="Project home">⌂</button>
     <span class="brand-note" id="brandNote">your code, in context</span>
   </div>
-  <nav class="views" id="viewTabs" aria-label="Repository views" hidden>
-    <button class="view-tab is-active" data-view="explorer">Explore</button>
-    <button class="view-tab" data-view="analysis">Deep Analysis</button>
-    <button class="view-tab" data-view="review">Review</button>
-    <button class="view-tab" data-view="triage">Triage</button>
-    <button class="view-tab" data-view="intelligence">Intelligence</button>
-    <button class="view-tab" data-view="graph">Graph</button>
-    <button class="view-tab" data-view="heatmap">Heatmap</button>
-    <button class="view-tab" data-view="insights">Insights</button>
-    <button class="view-tab" data-view="diff">Diff</button>
-    <button class="view-tab" data-view="workflows">Workflows</button>
-    <button class="view-tab" data-view="sbom">SBOM</button>
-    <button class="view-tab" data-view="code">Code</button>
-    <button class="view-tab" data-view="docs">Docs</button>
-    <button class="view-tab" data-view="about">About</button>
-  </nav>
-  <div class="topbar-right">
+
+  <div class="topbar-right"><button class="btn btn-ghost appearance-header" id="appearanceHeaderBtn" data-tooltip="System settings" aria-label="System"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--paper)"/><circle cx="15" cy="17" r="3" fill="var(--paper)"/></svg><span>System</span></button><button class="btn btn-ghost" id="toggleFiles" hidden aria-pressed="false">Files</button><button class="btn btn-ghost" id="toggleInspector" hidden aria-pressed="false">Details</button><button class="btn btn-ghost" id="terminalToggle" hidden aria-expanded="false">Terminal <span aria-hidden="true">⌃`</span></button>
     <button class="btn btn-ghost btn-search-trigger" id="searchTriggerBtn" title="Search files, symbols and contents — ext:, path:, is:test, &quot;phrases&quot;, /regex/ (Cmd+K / Ctrl+K)" hidden>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span class="search-trigger-label">Search</span><span class="search-key-hint">⌘K</span>
     </button>
-    <span class="repo-chip" id="repoChip" hidden></span>
+    <button type="button" class="repo-chip" id="repoChip" aria-label="Repository location" hidden></button>
     <button class="btn btn-ghost" id="mcpBtn" title="Expose this repository to any AI agent through the Model Context Protocol">
       <span class="mcp-dot" id="mcpDot" aria-hidden="true"></span><span id="mcpBtnLabel">MCP</span>
     </button>
-    <button class="btn btn-ghost" id="themeBtn" title="Switch theme">Dark</button>
-    <button class="btn btn-ghost" id="newRepoBtn" hidden>New repo</button>
-    <button class="btn btn-ghost" id="settingsBtn">AI connection</button>
+    <button class="btn btn-ghost" id="newRepoBtn" data-tooltip="Open project home" hidden>New project</button>
     <button class="btn btn-ghost" id="serverBtn" title="Server mode, network, access key, and tunnels">Server</button>
     <span class="me-links" title="Built by Amit Pandey">
       <a class="me-link" href="https://github.com/Amitpandey88" target="_blank" rel="noopener" title="Amit on GitHub" aria-label="Amit Pandey on GitHub">
@@ -56,23 +41,23 @@
   </div>
 </header>
 
+<aside class="workspace-nav" id="workspaceNav" aria-label="Workspace navigation" hidden><div class="nav-heading">WORKSPACE</div><nav class="views" id="viewTabs" aria-label="Repository views" hidden><section class="nav-group" aria-label="Explore"><h2>Explore</h2><button class="view-tab" data-view="about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h6l2 2h10v12H3z"/><path d="M12 11v1m0 3v2"/></svg><span>About project</span></button><button class="view-tab" data-view="explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z"/></svg><span>Explore</span></button><button class="view-tab" data-view="graph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M5 19L19 5M5 5v14h14V5z"/></svg><span>Graph</span></button><button class="view-tab" data-view="code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg><span>Code</span></button><button class="view-tab" data-view="docs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 3h11l5 5v13H4zM14 3v6h6M8 13h8M8 17h6"/></svg><span>Docs</span></button></section><section class="nav-group" aria-label="Analyze"><h2>Analyze</h2><button class="view-tab" data-view="intelligence"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/></svg><span>Intelligence</span></button><button class="view-tab" data-view="analysis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 20V10h4v10M10 20V4h4v16M16 20V7h4v13"/></svg><span>Deep Analysis</span></button><button class="view-tab" data-view="heatmap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg><span>Heatmap</span></button><button class="view-tab" data-view="insights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 17l6-7 5 4 7-10M15 4h6v6"/></svg><span>Insights</span></button><button class="view-tab" data-view="sbom"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M12 2l10 5-10 5L2 7zM2 12l10 5 10-5M2 17l10 5 10-5"/></svg><span>SBOM</span></button></section><section class="nav-group" aria-label="Changes"><h2>Changes</h2><button class="view-tab" data-view="review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 3h16v18H4zM8 8h8M8 12l2 2 5-5M8 18h8"/></svg><span>Review</span></button><button class="view-tab" data-view="triage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M4 5h16M4 12h11M4 19h6"/></svg><span>Triage</span></button><button class="view-tab" data-view="diff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M7 3v18M3 7l4-4 4 4M17 21V3M13 17l4 4 4-4"/></svg><span>Diff</span></button><button class="view-tab" data-view="workflows"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M3 3h6v6H3zM15 15h6v6h-6zM6 9v9h9M15 3h6v6h-6zM9 6h6"/></svg><span>Workflows</span></button></section><div class="nav-bottom"><button class="view-tab" id="aboutOnboarderBtn" aria-haspopup="dialog"><span class="nav-letter" aria-hidden="true">i</span><span>About Onboarder</span></button></div></nav><button class="btn btn-ghost nav-settings" id="navHomeBtn">Project home <span aria-hidden="true">⌂</span></button><button class="btn btn-ghost nav-settings" id="appearanceSettingsBtn">System <span aria-hidden="true">↗</span></button><button class="btn btn-ghost nav-settings" id="serverNav">Web server settings <span aria-hidden="true">↗</span></button><div class="nav-local"><span class="review-dot"></span> Local workspace</div></aside><button class="nav-scrim" id="navScrim" aria-label="Close navigation" hidden></button>
 <!-- ============================ LANDING ============================ -->
-<main class="landing" id="landing">
+<main class="landing" id="landing" data-boot inert>
   <div class="landing-inner">
-    <div class="workbench-eyebrow landing-eyebrow"><span class="review-dot"></span> LOCAL FIRST · CODE INTELLIGENCE</div>
-    <h1 class="landing-title">Find your way<br><span>through the code.</span></h1>
+    <div class="workbench-eyebrow landing-eyebrow"><span class="review-dot"></span> ONBOARDER / YOUR WORKSPACE</div>
+    <h1 class="landing-title">Your next project<br><span>starts here.</span></h1>
     <p class="landing-sub">
-      Read a repository like a new teammate would — starting at the front door,
-      following the imports, seeing who depends on whom. Get a map you can
-      navigate, then explore, understand, and review every change.
+      A map of your code, a clearer view of your changes, and the context to get moving.
     </p>
 
+    <div class="home-dropzone" id="homeDropzone"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 13h14l5 5h19v23H5z"/><path d="M24 25v10m-4-4 4 4 4-4"/></svg><strong>Drop a project folder here</strong><span>Or open a folder or clone a repository below.</span></div>
     <label class="repository-goal" for="repositoryGoal">What would you like to do? <select id="repositoryGoal"><option value="resume">Resume the previous workspace</option><option value="understand">Understand this repository</option><option value="review">Review changes</option><option value="investigate">Investigate an issue</option><option value="implement">Plan and implement a task</option></select></label>
     <div class="load-grid">
       <section class="load-card">
-        <h2 class="load-card-title">A folder on this machine</h2>
+        <h2 class="load-card-title">Open a folder</h2>
         <p class="load-card-note">The server reads it in place. Nothing is copied.</p>
-        <form id="pathForm" class="load-form">
+        <button class="btn btn-ink" id="nativeOpenBtn" hidden>Choose folder…</button><form id="pathForm" class="load-form">
           <input type="text" id="pathInput" class="text-input" aria-label="Repository folder path" placeholder="~/work/some-repo"
                  spellcheck="false" autocomplete="off">
           <button type="submit" class="btn btn-ink">Scan it</button>
@@ -80,22 +65,24 @@
       </section>
 
       <section class="load-card">
-        <h2 class="load-card-title">A git URL</h2>
-        <p class="load-card-note">Shallow-cloned to a temp folder, removed when you’re done.</p>
+        <h2 class="load-card-title">Clone a repository</h2>
+        <p class="load-card-note">Cloned to a temporary folder for this browser session.</p>
         <form id="gitForm" class="load-form">
           <input type="url" id="gitInput" class="text-input" aria-label="Git repository URL" placeholder="https://github.com/…"
                  spellcheck="false" autocomplete="off">
-          <button type="submit" class="btn btn-ink">Clone &amp; scan</button>
+          <fieldset class="clone-storage" id="cloneStorage" hidden><legend>Where should this checkout live?</legend><label><input type="radio" name="cloneStorage" value="permanent" checked><span><strong>Keep on my Mac</strong><small>Choose a folder. Keep it after closing.</small></span></label><label><input type="radio" name="cloneStorage" value="temporary"><span><strong>Temporary project</strong><small>Stored by Onboarder; removed when closed.</small></span></label></fieldset>
+          <button type="submit" class="btn btn-ink">Clone &amp; open</button>
         </form>
       </section>
 
       <section class="load-card" id="pickCard">
-        <h2 class="load-card-title">Pick it in the browser</h2>
+        <h2 class="load-card-title">Browse on your device</h2>
         <p class="load-card-note">Your files never leave this tab. Chromium browsers only.</p>
         <button class="btn btn-outline" id="pickBtn">Choose a folder…</button>
       </section>
     </div>
 
+    <section class="recent-projects" id="recentProjects" hidden><div class="recent-heading"><h2>Recent projects</h2><button class="linklike" id="clearRecents">Clear list</button></div><div id="recentProjectList"></div></section>
     <div class="landing-capabilities"><span>⌘ Architecture &amp; impact</span><span>↗ Changed-line reviews</span><span>✓ Review checklists</span><span>↓ Shareable reports</span></div>
     <p class="landing-alt">
       Just looking? <button class="linklike" id="demoBtn">Scan this app’s own source</button> and see what it makes of itself.
@@ -118,7 +105,7 @@
     <progress class="scan-progress" id="scanProgress" aria-label="Repository scan progress" hidden></progress>
   </div>
   <footer class="landing-foot" id="landingFoot">
-    <span>Everything runs locally.</span>
+    <span>Everything runs locally.</span><button class="linklike" id="landingAboutBtn">About Onboarder</button>
     <span>Diagrams export as Mermaid or SVG.</span>
     <span>Explanations optional — connect Hermes or your own AI endpoint.</span>
     <span class="foot-license" id="footCredit">MIT licensed · created by <a href="https://theamit.me" target="_blank" rel="noopener">Amit</a></span>
@@ -130,7 +117,7 @@
   <aside class="sidebar" id="fileSidebar" tabindex="-1">
     <div class="mobile-panel-top"><strong>Files</strong><button class="btn btn-ghost" id="mobileFilesClose" type="button">Close</button></div>
     <div class="sidebar-head">
-      <input type="search" id="treeFilter" class="tree-filter" placeholder="Filter files…" spellcheck="false">
+      <input type="search" id="treeFilter" class="tree-filter" aria-label="Filter files" placeholder="Filter files…" spellcheck="false">
     </div>
     <div class="tree" id="fileTree"></div>
   </aside>
@@ -227,11 +214,11 @@
     </div>
     <div class="inspector-body" id="inspectorBody" hidden>
       <header class="inspector-head">
-        <h2 class="inspector-title" id="inspTitle"></h2>
+        <h2 class="inspector-title" id="inspTitle" tabindex="0"></h2>
         <span class="role-chip" id="inspRole"></span>
         <button class="insp-back" id="inspBack" hidden></button>
       </header>
-      <p class="inspector-path" id="inspPath"></p>
+      <p class="inspector-path" id="inspPath" tabindex="0"></p>
       <div class="inspector-stats" id="inspStats"></div>
       <section class="inspector-section">
         <h3 class="inspector-h">What it does · ask the AI</h3>
@@ -265,9 +252,9 @@
 
 <!-- ============================ SETTINGS ============================ -->
 <div class="drawer-scrim" id="drawerScrim" hidden></div>
-<aside class="drawer" id="settingsDrawer" hidden>
+<aside class="drawer" id="settingsDrawer" role="dialog" aria-modal="true" aria-labelledby="aiConnectionTitle" hidden>
   <header class="drawer-head">
-    <h2>Explain with AI</h2>
+    <h2 id="aiConnectionTitle">AI connection</h2>
     <button class="btn btn-ghost btn-sm" id="drawerClose">Close</button>
   </header>
   <p class="drawer-note">
@@ -309,7 +296,7 @@
     <button class="btn btn-outline" id="testSettings">Test connection</button>
   </div>
   <p class="drawer-status" id="settingsStatus"></p>
-  <p class="drawer-fine" id="aiConnectionNote">
+  <label class="check-row" id="rememberKeyRow" hidden><input type="checkbox" id="rememberKey">Remember key on this Mac</label><p class="drawer-fine" id="aiConnectionNote">
     Connection preferences are stored in this browser. API keys stay in this tab’s memory and are forwarded through your local server,
     without being persisted by Onboarder. Enter the key again after reloading or closing this tab. Hermes uses its existing server-side login.
   </p>
@@ -465,10 +452,27 @@
   <p class="drawer-fine" id="srvConfigPath"></p>
 </aside>
 
-<div class="toast" id="toast" hidden></div>
+<div class="workspace-notice" id="workspaceNotice" role="alert" hidden><span id="workspaceNoticeText"></span><button class="btn btn-ghost btn-sm" id="dismissWorkspaceNotice" aria-label="Dismiss message">×</button></div>
+<section class="terminal-panel" id="terminalPanel" aria-label="Project terminal" hidden><button class="terminal-resizer" id="terminalResizer" role="separator" aria-label="Resize terminal" aria-orientation="horizontal" aria-valuemin="150" aria-valuenow="280"></button><div class="terminal-toolbar"><strong id="terminalProject">Terminal</strong><div id="terminalTabs" class="terminal-tabs"></div><button class="btn btn-ghost btn-sm" id="newChatTerminal">+ Chat</button><button class="btn btn-ghost btn-sm" id="newShellTerminal">+ Shell</button><button class="btn btn-ghost btn-sm" id="terminalRetry" hidden>Retry</button><button class="btn btn-ghost btn-sm" id="terminalClose" aria-label="Hide terminal">×</button></div><div id="terminalSurface"></div><p id="terminalStatus" role="status"></p></section>
+<div class="project-loading" id="projectLoading" role="status" aria-live="polite" aria-busy="true" hidden><div class="opening-card"><span class="loading-spinner" aria-hidden="true"></span><p class="workbench-eyebrow">ONBOARDER / OPENING PROJECT</p><h2 id="openingTitle">Opening your project…</h2><p id="openingDetail">Preparing the workspace.</p><progress id="openingProgress" aria-label="Project opening progress"></progress><button class="btn btn-outline" id="openingCancel">Cancel</button></div></div>
+<dialog class="app-about-dialog" id="aboutOnboarderDialog" aria-labelledby="aboutOnboarderTitle">
+  <header class="app-about-heading"><img src="/assets/onboarder-mark.svg" width="44" height="44" alt=""><div><h2 id="aboutOnboarderTitle">Onboarder</h2><p id="aboutOnboarderBuild">Local code workspace</p></div><button class="btn btn-ghost" id="aboutOnboarderClose" aria-label="Close About Onboarder">×</button></header>
+  <p class="app-about-lead">Understand your code. Find your next step.</p>
+  <p class="app-about-description">Explore repository maps, read code and documentation, review changes, and work with chat and terminals in one local workspace.</p>
+  <nav class="app-about-links" aria-label="Onboarder links">
+    <a href="https://onboarder.intellimatrix.in/" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z"/></svg><span><strong>Website</strong><small>onboarder.intellimatrix.in · Guides and documentation</small></span><span aria-hidden="true">↗</span></a>
+    <a href="https://www.npmjs.com/package/codebase-onboarder" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10M7.5 4.5l9 5"/></svg><span><strong>npm package</strong><small>codebase-onboarder · Command-line app</small></span><span aria-hidden="true">↗</span></a>
+    <a href="https://github.com/Amitpandey88/onboarder" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><path d="M6 7v10M18 7a6 6 0 0 1-6 6H6"/></svg><span><strong>GitHub</strong><small>Amitpandey88/onboarder · Source, issues and releases</small></span><span aria-hidden="true">↗</span></a>
+  </nav>
+  <div class="app-about-install"><span>Install the CLI</span><code>npm install -g codebase-onboarder</code></div>
+  <p class="app-about-note">Repository analysis runs locally. Optional AI uses the provider you choose.</p>
+  <footer class="app-about-footer">Created by Amit Pandey <span aria-hidden="true">·</span> MIT licensed</footer>
+</dialog>
+<dialog class="ui-settings-dialog" id="uiSettingsDialog" aria-labelledby="uiSettingsTitle"><div class="ui-settings-heading"><div><p class="workbench-eyebrow">MAKE IT YOURS</p><h2 id="uiSettingsTitle">System</h2></div><button class="btn btn-ghost" id="uiSettingsClose" aria-label="Close System settings">×</button></div><fieldset class="appearance-setting" id="themeOptions"><legend>Appearance</legend><div class="theme-options"><label class="theme-choice"><input id="themeLight" type="radio" name="themePreference" value="light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>Light</span></label><label class="theme-choice"><input id="themeDark" type="radio" name="themePreference" value="dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 13.1A9 9 0 0 1 10.9 3.2 9 9 0 1 0 20.8 13.1Z"/></svg><span>Dark</span></label><label class="theme-choice"><input id="themeSystem" type="radio" name="themePreference" value="system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span>System</span></label></div><p id="themeModeStatus" class="ui-setting-note"></p></fieldset><div class="ui-setting"><span><strong>AI connection</strong><small>Use Hermes or configure your own provider.</small></span><button class="btn btn-outline" id="settingsBtn" aria-haspopup="dialog">Configure <span aria-hidden="true">↗</span></button></div><label class="ui-setting"><span><strong>Animations</strong><small>macOS Reduce Motion always takes priority.</small></span><select id="motionSetting"><option value="system">Follow system</option><option value="reduced">Reduce motion</option></select></label><label class="ui-setting" id="defaultCloneSettingRow"><span><strong>Default clone storage</strong><small>Your choice is remembered for the next project.</small></span><select id="defaultCloneSetting"><option value="permanent">Keep on my Mac</option><option value="temporary">Temporary project</option></select></label></dialog>
+<div id="workspaceTooltip" class="workspace-tooltip" role="tooltip" hidden></div>
 <div class="toast" id="toast" hidden></div>
 
-<script src="/vendor/mermaid.min.js?v=12.2.0" integrity="sha384-8xUhuLNMjW/cI2Dacg3DR4WliYznvIg0LVG1stctThKD/YVrJFI9TNCFxft5NYgp" crossorigin="anonymous"></script>
+<script src="/vendor/mermaid.min.js?v=12.2.0-onboarder.1" integrity="sha384-VsaxeZYUc+woS89yxhptwVHc3rGZVs52BuO/DlXpD82TrEWKlbcAhY47Usk1KaCB" crossorigin="anonymous"></script>
 <script src="/vendor/monaco/vs/loader.js?v=0.52.2" integrity="sha384-pHG02SG8pId94Np3AbPmBEJ1yPqaH0IkJGLSNGXYmuGhkazT8Lr/57WYpbkGjJtu" crossorigin="anonymous"></script>
 <script type="module" src="/js/components/RiskBadge.js"></script>
 <script type="module" src="/js/components/MetricSparkline.js"></script>

@@ -1,11 +1,11 @@
 # Onboarder public website and documentation
 
 Static source for https://onboarder.intellimatrix.in/ and `/docs/`, describing
-Onboarder **1.0.5**. The website is separate from the repository-scanning web app.
+Onboarder **1.2.0**. The website is separate from the repository-scanning web app.
 It has no runtime package dependencies or application server.
 
 - `site/`: homepage, support/legal pages, shared theme, scripts, and local assets.
-- `content/*.md`: 26 documentation guides.
+- `content/*.md`: 33 documentation guides.
 - `content/pages.json`: titles, descriptions, groups, and reading order.
 - `content/reference.json`: versioned commands, standalone MCP schemas, languages,
   and HTTP routes extracted from the tool. No credentials or private state.
@@ -55,12 +55,9 @@ release. The metadata extraction does not call tools or read user configuration.
 - The existing `im-theme` preference is preserved across the product and
   Intellimatrix domains. `/cookies/` resets it.
 - Fonts, screenshots, the brand mark, and showcase film are hosted locally.
-- Light web screenshots show the published 1.0.4 UI. Dark screenshots preview
-  the current source build with fixed diagram surfaces and contrast; those
-  application changes are not yet published to npm/GitHub. The gallery,
-  full-image viewer, and docs follow the saved theme without filters.
-  Terminal screenshot is a 1.0.4 layout
-  preview with a controlled sample response, not a claim about a live AI run.
+- Web screenshots retain their real 1.0.5 provenance in both themes. The terminal
+  screenshot is a labeled 1.0.4 controlled example, not a live AI quality claim.
+  Version 1.1.0 review/fix/triage capabilities are documented separately.
 
 ## Deployment
 
@@ -134,3 +131,28 @@ Adds repository-intelligence, lightweight-graph and VS Code guides, refreshes
 commands/MCP schemas from 1.0.5, updates installation/release links and documents
 tab-memory provider keys. Historical terminal captures keep their real 1.0.4
 provenance. Build revision: `20261018-v105`.
+
+
+## 1.1.0 release update — 22 October 2026
+
+Build revision `20261022-v110`. Homepage installation and release copy now match
+public npm/GitHub 1.1.0. Three new guides cover contextual AI review, exact-approved
+fixes/real verification and read-only PR triage; source reference metadata contains
+70 slash commands and 18 standalone MCP tools. Review/export/policy provenance,
+VS Code 0.2.0, tab-memory credentials, source artifact privacy and the fixed KaTeX
+advisory are updated. Scope and live-provider limitations remain explicit.
+
+Preserve the 17 October owl/scroll/docs-reader design and original screenshot
+provenance. Deploy only the validated static build, with the previous release
+kept for atomic rollback. This website update does not upgrade the VPS CLI or
+change Nginx/TLS, authentication, neighboring sites or the published v1.1.0 tag.
+
+## 1.2.0 release — 28 October 2026
+
+Build revision `20261028-v120`. Preserves the existing homepage/docs-reader
+design and authored guides, adds the shared workspace refresh and a Mac guide,
+and exposes the Apple Silicon 0.1.6 development DMG/ZIP through GitHub Releases.
+Downloads clearly disclose ad-hoc signing, no notarization and macOS 14+; no Intel
+artifact is linked. npm installation examples and current docs metadata use 1.2.0.
+The website remains static; no public repository-reading server is enabled.
+Deploy only the validated dist tree and retain the existing release for rollback.

@@ -1,6 +1,6 @@
 {
   "name": "codebase-onboarder",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Drop a path. Get a map. A zero-dependency codebase visualizer with a CLI onboarding wizard, a web UI, and an optional key-gated self-hosted mode.",
   "type": "module",
   "bin": {
@@ -30,7 +30,8 @@
     "integrations/vscode/package.json",
     "integrations/vscode/extension.cjs",
     "integrations/vscode/README.md",
-    "scripts/package-editor.mjs"
+    "scripts/package-editor.mjs",
+    "docs/RELEASE_1.2.0.md"
   ],
   "scripts": {
     "build": "npm run typecheck && tsc -p tsconfig.json",

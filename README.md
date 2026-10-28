@@ -17,6 +17,24 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 
 ---
 
+## What's new in 1.2.0
+
+A shared workspace for the browser and the new Apple Silicon macOS development
+preview: grouped navigation, resizable Files and Details panels, a practical
+project home, and System settings for appearance and AI connection. About project
+and About Onboarder now have separate places. Controls use solid rounded hover
+states; Liquid Glass has been removed.
+
+The Mac preview adds repository windows, persistent or temporary clones with
+progress, bundled Node/npm, shell and Onboarder Chat terminals, native exports
+and optional Keychain-backed provider storage. It requires macOS 14+ on Apple
+Silicon. **Development preview: ad-hoc signed, not notarized; Gatekeeper may
+block it.** Intel downloads are not provided.
+
+[1.2.0 release notes](docs/RELEASE_1.2.0.md) ·
+[Mac preview downloads](https://github.com/Amitpandey88/onboarder/releases/tag/macos-v0.1.6) ·
+[Website](https://onboarder.intellimatrix.in/)
+
 ## What's new in 1.1.0
 
 Version 1.1.0 adds contextual code review, human-approved fixes and GitHub PR
@@ -47,7 +65,7 @@ and GitHub App/private-account verification remain limited. Static review is
 heuristic and can miss bugs or produce false positives. An empty review does not
 establish that a change is safe.
 
-Install with `npm install -g codebase-onboarder@1.1.0`. See the
+Install with `npm install -g codebase-onboarder@1.2.0`. See the
 [release notes](docs/RELEASE_1.1.0.md), [changelog](CHANGELOG.md), and
 [upgrade and migration guide](docs/MIGRATING_TO_1.1.md).
 
@@ -140,7 +158,7 @@ is optional for repository browsing.
 npm install -g codebase-onboarder
 
 # Update an existing installation to this release
-npm install -g codebase-onboarder@1.1.0
+npm install -g codebase-onboarder@1.2.0
 
 # Open the repository chat harness in your terminal
 onboarder

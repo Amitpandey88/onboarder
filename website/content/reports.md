@@ -22,7 +22,7 @@ Choose working-tree changes by default, staged changes with `--staged`, or a bra
 ## Example CI step
 
 ```sh
-npm install -g codebase-onboarder@1.0.5 --ignore-scripts
+npm install -g codebase-onboarder@1.2.0 --ignore-scripts
 onboarder review . --base main --head HEAD --fail-on high --json > onboarder-review.json
 ```
 
@@ -30,7 +30,7 @@ Ensure the comparison refs exist in the CI checkout. Fetch the required history 
 
 ## Export in interactive sessions
 
-- Web Review exports Markdown or JSON with all detected findings, including locally acknowledged ones.
+- Web Review exports Markdown, JSON or SARIF with all detected findings, including locally acknowledged ones.
 - `/export` saves a private Markdown conversation under the agent home.
 - `/deep export` saves the normalized analyzer report as private JSON.
 - Diagram controls export Mermaid or SVG for sharing architecture.

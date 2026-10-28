@@ -17,3 +17,17 @@ updates:
       interval: weekly
     versioning-strategy: increase
     open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /integrations/macos
+    schedule:
+      interval: weekly
+    versioning-strategy: increase
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /security/vendor-build
+    schedule:
+      interval: weekly
+    versioning-strategy: increase
+    open-pull-requests-limit: 5

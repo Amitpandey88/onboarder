@@ -5,7 +5,7 @@ You need **Node.js 20 or newer** and npm. Check your versions first:
 ```sh
 node --version
 npm --version
-npm install -g codebase-onboarder@1.0.5
+npm install -g codebase-onboarder@1.2.0
 onboarder --version
 ```
 

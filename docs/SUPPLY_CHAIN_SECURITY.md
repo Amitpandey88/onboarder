@@ -13,7 +13,7 @@ These controls verify the bootstrap and release archive, not every operation an 
 
 ## Browser libraries
 
-`public/vendor/manifest.json` records Mermaid 12.2.0 (embedded KaTeX 0.18.11) and Monaco 0.52.2, upstream npm archive integrity, licenses and SHA-256 hashes for every shipped asset. The baseline was compared with the integrity-verified official npm archives; the Onboarder worker bootstrap is maintained locally. `security:check` rejects added, removed or changed assets without a reviewed manifest update. HTML uses SHA-384 Subresource Integrity for both initial library scripts. The Monaco worker selector accepts only shipped language workers and rejects arbitrary URLs/modules before loading code.
+`public/vendor/manifest.json` records Mermaid 12.2.0 (rebuilt with embedded DOMPurify 3.4.17 and KaTeX 0.18.11) and Monaco 0.52.2, upstream npm archive integrity, licenses and SHA-256 hashes for every shipped asset. The original baseline was compared with integrity-verified official npm archives; the current diagram bundle is reproducibly built from upstream ESM as documented below; the Onboarder worker bootstrap is maintained locally. `security:check` rejects added, removed or changed assets without a reviewed manifest update. HTML uses SHA-384 Subresource Integrity for both initial library scripts. The Monaco worker selector accepts only shipped language workers and rejects arbitrary URLs/modules before loading code.
 
 Mermaid runs in strict mode, with security and CSS configuration keys protected against diagram overrides. Application node navigation uses its own event handlers.
 
@@ -21,7 +21,7 @@ Static responses forbid external script sources, object embeds, base-URL overrid
 
 ## Resolved KaTeX advisory
 
-On 2026-10-22, the official Mermaid 12.2.0 browser bundle replaced 11.17.2. Its embedded KaTeX version export is 0.18.11, above the 0.18.2 fix for [GHSA-238p-pmpm-9mq7](https://github.com/KaTeX/KaTeX/security/advisories/GHSA-238p-pmpm-9mq7). The shipped JavaScript and license are exact bytes from the SHA-512-verified official npm archive; the asset inventory and HTML SHA-384 integrity were updated together. No minified library code was patched manually.
+On 2026-10-22, the official Mermaid 12.2.0 browser bundle replaced 11.17.2. Its embedded KaTeX version export is 0.18.11, above the 0.18.2 fix for [GHSA-238p-pmpm-9mq7](https://github.com/KaTeX/KaTeX/security/advisories/GHSA-238p-pmpm-9mq7). At that release, the JavaScript and license were exact bytes from the SHA-512-verified official npm archive; the asset inventory and HTML SHA-384 integrity were updated together. No minified library code was patched manually.
 
 The separate vendor audit graph pins KaTeX to 0.18.11 with an override to match the actual embedded dependency, not to conceal a different shipped version. The offline guard rejects a mismatch with the inventoried embedded version. The obsolete advisory exception was removed; the exception list is empty. Current registry audits still run at release time and fail on unaccepted findings or service errors. Dated Phase 5A reports describe the earlier bundle and remain historical.
 
@@ -39,3 +39,32 @@ For the optional real-browser regression, open a local preview with `playwright-
 CI has read-only repository permissions, no persisted checkout credentials, pinned action commits, finite job timeouts, lifecycle-disabled locked installs and a dependency vulnerability audit. Dependabot proposes npm and GitHub Action updates; merge only after reviewing and testing them. Vendor and optional-tool pins need manual upstream review.
 
 When updating download pins, fetch from the official source, review the exact revision/release and its behavior, verify the platform artifacts independently, update URLs/hashes together, and run rejection/success tests. Never add an environment override that skips integrity checks. Keep the version, hashes, manifest and license notices in the same reviewed change.
+
+## Diagram sanitizer rebuild — 2026-10-27
+
+The fresh desktop audit found three newly reported DOMPurify advisories. The
+published Mermaid 12.2.0 minified bundle actually embeds DOMPurify 3.4.12; the old
+audit graph had resolved 3.4.16. Both are affected. Changing audit metadata alone
+would not fix the shipped JavaScript.
+
+The current development bundle is rebuilt from the official Mermaid 12.2.0 ESM
+modules with DOMPurify 3.4.17 and KaTeX 0.18.11. `security/vendor-build` contains
+exact direct pins, integrity-locked transitive dependencies, the unmodified ESM
+entry and deterministic esbuild configuration. Run `npm ci --ignore-scripts` and
+`npm run build` there to reproduce the asset, manifest hashes and HTML SRI. No
+minified upstream function is edited by hand. Mermaid's original npm archive
+integrity in the manifest identifies the source input; it is not a claim that the
+rebuilt output matches the upstream minified distribution.
+
+The new asset revision `12.2.0-onboarder.1` prevents cached old bundles from being
+reused. The audit metadata pins the actual embedded sanitizer, and offline tests
+verify its version export and reject the old embedded version. The exception list
+remains empty. The core runtime still has no npm dependencies. The separate
+vendor and build graphs are audited alongside the core development tools.
+
+The fixed advisories are [GHSA-cg2g-xh64-v4q7](https://github.com/advisories/GHSA-cg2g-xh64-v4q7),
+[GHSA-mrv2-3pqr-j5jr](https://github.com/advisories/GHSA-mrv2-3pqr-j5jr), and
+[GHSA-c6gr-qvv4-5v3f](https://github.com/advisories/GHSA-c6gr-qvv4-5v3f).
+The existing strict Mermaid policy, protected layout/configuration and hostile
+markup regression remain required. These local changes do not alter the already
+published npm 1.1.0 archive or its release artifacts.

@@ -6,7 +6,7 @@ onboarder doctor
 onboarder agent doctor
 ```
 
-Confirm version 1.0.5 if Ctrl-P, Ctrl-O, or the new conversation layout is missing. `doctor` checks server configuration; `agent doctor` checks the Hermes runtime and profile.
+Confirm version 1.2.0 if Ctrl-P, Ctrl-O, or the new conversation layout is missing. `doctor` checks server configuration; `agent doctor` checks the Hermes runtime and profile.
 
 ## Command not found or installation denied
 

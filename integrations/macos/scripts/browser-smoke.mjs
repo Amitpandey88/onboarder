@@ -1,0 +1,81 @@
+import { checkAboutPages } from './check-about-ui.mjs';
+import { checkSystemSettings } from './check-system-ui.mjs';
+import { chromium } from 'playwright';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import { root } from './setup.mjs';
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const report = { views: [], errors: [] };
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  page.on('pageerror', error => report.errors.push(error.message));
+  await page.goto('http://127.0.0.1:4329/');
+  await page.locator('#homeDropzone').waitFor();
+  report.systemSettings = await checkSystemSettings(page);
+  assert.equal(await page.locator('#liquidGlassSetting').count(), 0);
+  await page.locator('#motionSetting').selectOption('reduced');
+  assert.equal(await page.evaluate(() => document.body.dataset.motion), 'reduced');
+  await page.keyboard.press('Escape');
+  report.browserAppearanceSettings = true;
+  const regression = new Function('return (' + await fs.readFile(path.resolve(root, '../../scripts/verify-mermaid-browser.mjs'), 'utf8') + ')')();
+  report.diagrams = await regression(page);
+  await page.locator('#pathInput').fill(path.resolve(root, '../../src'));
+  await page.locator('#pathForm').evaluate(form => form.requestSubmit());
+  await page.locator('#workspaceNav:not([hidden])').waitFor({ timeout: 60000 });
+  await page.locator('#projectLoading[hidden]').waitFor({ state: 'attached' });
+  await page.evaluate(() => {
+    window.__tooltipEvents = [];
+    for (const name of ['pointerover', 'pointerout', 'focusin', 'focusout', 'scroll', 'resize']) document.addEventListener(name, event => { window.__tooltipEvents.push({ name, target: event.target.id || event.target.className || event.target.nodeName, related: event.relatedTarget?.id || event.relatedTarget?.className, hidden: document.querySelector('#workspaceTooltip').hidden }); if (window.__tooltipEvents.length > 60) window.__tooltipEvents.shift(); }, true);
+  });
+  await page.locator('#repoChip').hover(); await page.locator('#workspaceTooltip:not([hidden])').waitFor();
+  assert.ok((await page.locator('#workspaceTooltip').textContent()).includes(path.resolve(root, '../../src')));
+  await page.locator('#canvasContent').evaluate(el => el.dispatchEvent(new Event('scroll')));
+  assert.equal(await page.locator('#workspaceTooltip').isVisible(), true);
+  await page.locator('#pathInput').evaluate(el => el.dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+  assert.equal(await page.locator('#workspaceTooltip').isVisible(), true);
+  await page.keyboard.press('Escape'); report.pathTooltip = true;
+  await fs.mkdir(path.join(root, 'dist/qa'), { recursive: true });
+  await page.screenshot({ path: path.join(root, 'dist/qa/browser-light.png') });
+  for (const view of ['explorer', 'graph', 'code', 'docs', 'intelligence', 'analysis', 'heatmap', 'insights', 'sbom', 'review', 'triage', 'diff', 'workflows', 'about']) {
+    await page.locator(`#viewTabs [data-view="${view}"]`).click();
+    await page.waitForFunction(v => document.querySelector(`#viewTabs [data-view="${v}"]`).classList.contains('is-active'), view);
+    report.views.push(view);
+  }
+  report.about = await checkAboutPages(page);
+  await page.locator('#viewTabs [data-view="explorer"]').click();
+  await page.locator('#appearanceHeaderBtn').click();
+  await page.locator('#themeDark').check();
+  await page.locator('#uiSettingsClose').click();
+  await page.screenshot({ path: path.join(root, 'dist/qa/browser-dark.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#navToggle').click();
+  await page.screenshot({ path: path.join(root, 'dist/qa/browser-mobile-nav.png') });
+  await page.locator('#viewTabs [data-view="review"]').click();
+  await page.screenshot({ path: path.join(root, 'dist/qa/browser-mobile.png') });
+  report.mobileOverflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  report.navigationDrawerClosed = await page.evaluate(() => document.body.dataset.navOpen !== 'true');
+  await page.locator('#navToggle').click(); await page.locator('#appearanceSettingsBtn').click();
+  await page.locator('#uiSettingsDialog[open]').waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.locator('#themeLight').check();
+  assert.equal(await page.locator('#themeOptions svg').count(), 3);
+  await page.locator('#settingsBtn').click(); await page.locator('#settingsDrawer:not([hidden])').waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.keyboard.press('Escape');
+  if (await page.evaluate(() => document.body.dataset.navOpen !== 'true')) await page.locator('#navToggle').click();
+  await page.locator('#navHomeBtn').click(); await page.locator('#homeDropzone').waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.screenshot({ path: path.join(root, 'dist/qa/browser-home-mobile-0.1.1.png') });
+  await page.locator('#landingAboutBtn').click(); await page.locator('#aboutOnboarderDialog[open]').waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.screenshot({ path: path.join(root, 'dist/qa/about-mobile-0.1.5.png') });
+  await page.locator('#aboutOnboarderClose').click(); report.mobileHomeAndSettings = true;
+  await fs.writeFile(path.join(root, 'dist/qa/browser-smoke.json'), JSON.stringify(report, null, 2));
+  console.log(JSON.stringify(report, null, 2));
+  if (report.errors.length || report.mobileOverflow || !report.navigationDrawerClosed) throw new Error('Browser QA failed.');
+} catch (error) {
+  const page = browser.contexts()[0]?.pages()[0];
+  if (page) { console.error(await page.evaluate(() => ({ active: document.activeElement?.id, hovered: [...document.querySelectorAll(':hover')].map(el => el.id || el.className), tip: document.querySelector('#workspaceTooltip')?.outerHTML, chip: document.querySelector('#repoChip')?.outerHTML, events: window.__tooltipEvents }))); await page.screenshot({ path: path.join(root, 'dist/qa/browser-ui-failure.png') }); }
+  throw error;
+} finally { await browser.close(); }

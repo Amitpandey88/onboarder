@@ -2,6 +2,11 @@ const hashString = (value) => { let result = 2166136261; for (const char of valu
     result = Math.imul(result ^ char.charCodeAt(0), 16777619); return (result >>> 0).toString(16); };
 const views = new Set(['map', 'files', 'patterns', 'health', 'security', 'history', 'services', 'tour', 'atlas', 'analysis', 'review', 'graph', 'heatmap', 'insights', 'diff', 'workflows', 'sbom', 'code', 'docs', 'about', 'intelligence', 'triage']);
 const key = (root) => 'onboarder.view.v1.' + hashString(root);
+function validPosition(value) {
+    const viewport = value.viewport;
+    return (!viewport || viewport.scale >= 0.12 && viewport.scale <= 4 && ['scale', 'tx', 'ty'].every(k => typeof viewport[k] === 'number' && Number.isFinite(viewport[k]) && Math.abs(viewport[k]) < 10000000)) &&
+        (!value.expanded || Array.isArray(value.expanded) && value.expanded.length <= 1000 && value.expanded.every(s => typeof s === 'string' && s.length <= 500));
+}
 export function rememberView(root, view) {
     try {
         localStorage.setItem(key(root), JSON.stringify(view));
@@ -11,7 +16,7 @@ export function rememberView(root, view) {
 export function rememberedView(root) {
     try {
         const value = JSON.parse(localStorage.getItem(key(root)) || 'null');
-        return value && views.has(value.name) && typeof value.path === 'string' && value.path.length <= 500 && typeof value.filter === 'string' && value.filter.length <= 500 ? value : null;
+        return value && views.has(value.name) && typeof value.path === 'string' && value.path.length <= 500 && typeof value.filter === 'string' && value.filter.length <= 500 && validPosition(value) ? value : null;
     }
     catch {
         return null;
@@ -22,9 +27,7 @@ export function savedBookmarks(root) {
         const values = JSON.parse(localStorage.getItem(key(root) + '.bookmarks') || '[]');
         if (!Array.isArray(values) || values.length > 20)
             return [];
-        return values.filter(v => v && typeof v.title === 'string' && v.title.length <= 100 && views.has(v.name) && typeof v.path === 'string' && v.path.length <= 500 && typeof v.filter === 'string' && v.filter.length <= 500 &&
-            (!v.viewport || ['scale', 'tx', 'ty'].every(k => typeof v.viewport[k] === 'number' && Number.isFinite(v.viewport[k]) && Math.abs(v.viewport[k]) < 10000000)) &&
-            (!v.expanded || Array.isArray(v.expanded) && v.expanded.length <= 1000 && v.expanded.every((s) => typeof s === 'string' && s.length <= 500)));
+        return values.filter(v => v && typeof v.title === 'string' && v.title.length <= 100 && views.has(v.name) && typeof v.path === 'string' && v.path.length <= 500 && typeof v.filter === 'string' && v.filter.length <= 500 && validPosition(v));
     }
     catch {
         return [];

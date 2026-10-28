@@ -30,6 +30,12 @@
     "group": "Workspaces"
   },
   {
+    "slug": "macos",
+    "title": "Onboarder for macOS",
+    "description": "Apple Silicon preview, downloads, project windows, terminals and safe clone storage.",
+    "group": "Workspaces"
+  },
+  {
     "slug": "intelligence",
     "title": "Repository intelligence",
     "description": "Source evidence, semantic references, rules, coverage, verified fixes, teams and automation.",
@@ -62,8 +68,26 @@
   {
     "slug": "review",
     "title": "Review a change",
-    "description": "Compare working, staged, or branch changes and export an actionable report.",
+    "description": "Offline and optional AI review with exact comparisons, evidence and portable exports.",
     "group": "Analysis"
+  },
+  {
+    "slug": "ai-review",
+    "title": "Contextual AI review",
+    "description": "Opt-in cross-file reasoning, bounded context and validated source evidence.",
+    "group": "Analysis"
+  },
+  {
+    "slug": "fixes",
+    "title": "Approve and verify a fix",
+    "description": "Read-only proposals, exact approval, isolated patches, real checks and rollback.",
+    "group": "Analysis"
+  },
+  {
+    "slug": "triage",
+    "title": "GitHub PR triage",
+    "description": "A read-only queue with explainable priority, ownership and exact-head observations.",
+    "group": "Integrations"
   },
   {
     "slug": "analysis",
@@ -128,7 +152,7 @@
   {
     "slug": "security",
     "title": "Supply-chain and security",
-    "description": "Verified downloads, integrity checks, trust boundaries, and a tracked upstream advisory.",
+    "description": "Verified downloads, patched browser libraries, approval boundaries and source privacy.",
     "group": "Operate the tool"
   },
   {
@@ -151,8 +175,8 @@
   },
   {
     "slug": "changelog",
-    "title": "Version 1.0.5",
-    "description": "The current release and the improvements carried forward from 1.0.3.",
+    "title": "Version 1.2.0",
+    "description": "Published capabilities, verified checks, upgrade instructions and known limits.",
     "group": "Project"
   },
   {

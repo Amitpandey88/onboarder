@@ -10,7 +10,7 @@ This public website does not scan your repository. Its example map is illustrati
 | --- | --- |
 | Load or update a Git URL | Git host and your configured Git credentials |
 | Read GitHub metadata or work on issues/PRs | GitHub API; optional `GITHUB_TOKEN` or `GH_TOKEN` |
-| Ask AI, explain findings, sketch diagrams | Supplied task context and requested source/report to your model provider |
+| Ask AI, run contextual review, propose a fix, explain triage, sketch diagrams | Supplied task context and requested source/report to your model provider |
 | Install optional tooling | Official installer or package registry |
 | Run package-based analyzers or registry rules | Package or rules registry; behavior depends on the selected engine |
 | Read this documentation | Website server/CDN receives normal web requests |
@@ -19,13 +19,13 @@ Provider accounts, costs, retention, and data rules belong to the configured ser
 
 ## Credentials
 
-Hermes owns its provider login and stores it in its dedicated profile. API-mode web keys are saved in browser localStorage, not Onboarder's server disk. Environment-provided endpoint keys are not written to the app's config. Remote self-hosted browsers exchange an access key for a signed HttpOnly session cookie.
+Hermes owns its provider login and stores it in its dedicated profile. API-mode web keys stay only in tab memory, clear on reload and are not saved to localStorage or Onboarder's server disk. Legacy saved browser keys are migrated out of localStorage. Environment-provided endpoint keys are not written to the app's config. Remote self-hosted browsers exchange an access key for a signed HttpOnly session cookie.
 
 Known environment credentials are redacted from Onboarder diagnostics and final answers. Unexpected secrets in source or conversation text may still require manual removal.
 
 ## Local records
 
-Conversation summaries, run metadata, operation audits, analyzer snapshots, and exports can remain under the agent home. Persistent clones and implementation workspaces remain so work can resume. Hermes transcripts may contain prompts and source.
+Conversation summaries, run metadata, operation audits, analyzer snapshots, and exports can remain under the agent home. Persistent clones and implementation workspaces remain so work can resume. Hermes transcripts may contain prompts and source. Finding-linked proposal/run/checkpoint artifacts can contain private source and patch text; they are stored with private permissions, not encryption. Provider credentials stay outside them. Approval of a patch does not authorize running tests, publishing or deployment.
 
 Inspect [Configuration](/docs/configuration/) for storage locations before cleanup. An npm uninstall does not imply deletion of these separate records. Keep source changes you need before removing an implementation workspace.
 

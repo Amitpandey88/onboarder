@@ -4,7 +4,7 @@
 onboarder start
 ```
 
-Open http://localhost:4310 and load a repository. The workspace combines the file sidebar, a central canvas or report, and an inspector for selected items. **New repo** switches sources. **Dark** changes the appearance; **Server**, **AI connection**, and **MCP** configure their corresponding features.
+Open http://localhost:4310 and load a repository. The workspace combines the file sidebar, a central canvas or report, and an inspector for selected items. **New project** switches sources. **System** contains AI connection and icon-labeled Light, Dark and System appearance. **MCP** configures integration. The grouped sidebar keeps Explore, Analyze and Changes views reachable without horizontal navigation. **Files** and **Details** collapse or reopen their panels in every view; narrow screens use drawers.
 
 ## Explore without losing your place
 
@@ -28,12 +28,13 @@ Hover or keyboard-focus a node to highlight its connected thread and gently fade
 | Tour | Follow a curated reading path through key modules |
 | Atlas | Browse the generated diagram collection |
 
-## The other workspace tabs
+## Workspace navigation
 
 | Tab | Purpose |
 | --- | --- |
 | Deep Analysis | Run optional engines and filter their normalized findings |
-| Review | Inspect a Git comparison with findings on added lines |
+| Review | Choose offline or AI-assisted review; inspect evidence, propose and approve a patch, then separately authorize verification |
+| Triage | Inspect a read-only GitHub PR queue, priority, ownership and observed checks |
 | Graph | Follow the interactive dependency graph |
 | Heatmap | Compare traffic and coupling between folders |
 | Insights | Read architectural signals and repository findings |
@@ -42,13 +43,15 @@ Hover or keyboard-focus a node to highlight its connected thread and gently fade
 | SBOM | Inspect declared dependencies and licenses |
 | Code | Read source with Monaco and dependency navigation |
 | Docs | Read or generate repository documentation |
-| About | Inspect the repository and application details |
+| About project | Inspect repository statistics, stack, history and scan details at the top of Explore |
 
 ## Search, export, and refresh
 
 Cmd/Ctrl-K opens file, symbol, and source search. [Search syntax](/docs/search/) covers filters and keyboard controls. Use **Copy Mermaid** to reuse diagrams and **Save SVG** where available. AI sketches need a configured connection; static maps work offline.
 
 Rescan after structural edits. A cached dependency map and a branch-range comparison may describe different source states, so estimated change impact needs review.
+
+[Review changes](/docs/review/) · [Generate an approved fix](/docs/fixes/) · [Inspect PR triage](/docs/triage/)
 
 ## Product preview
 
@@ -63,3 +66,7 @@ Open **Intelligence** for source evidence, saved answers, semantic references, b
 ## Lightweight Graph
 
 The Graph tab uses stable placement and bounded rendering. Search covers every scanned file. Shift-click a node to lock its thread; press Escape to unlock. See [Graph](/docs/graph/) for interaction and display limits.
+
+## Project and application information
+
+**About project** is the first Explore item. **About Onboarder** at the bottom opens product information, website, npm and GitHub links. Hover or keyboard-focus compact controls for readable full labels. The [Mac preview](/docs/macos/) shares this interface and adds native project windows and shell/chat terminals; browser interactive terminals remain in the standalone CLI.

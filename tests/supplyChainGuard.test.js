@@ -28,7 +28,7 @@ async function fixture(t) {
   }
   await write('public/vendor/manifest.json', manifest); await write('public/index.html', html);
   for (const file of ['bin/onboarder.js', 'public/app.js', 'server/security/download.js', 'server/reviewEvidence.js', 'server/intelligence/githubReview.js', 'server/reviewAI.js', 'server/reviewContext.js', 'cli/review.js', 'public/js/reviewAI.js', 'server/fixEngine.js', 'server/fixProposal.js', 'server/fixStore.js', 'server/fixSource.js', 'cli/fix.js', 'cli/agent/checks.js', 'cli/agent/workspace.js', 'cli/agent/gitSafety.js', 'shared/review/fixContracts.js', 'public/js/reviewFix.js', 'docs/AI_FIX_VERIFICATION.md', 'server/triage.js', 'server/triageAI.js', 'server/apiTriage.js', 'server/providers/github.js', 'server/providers/contracts.js', 'shared/triage/contracts.js', 'shared/triage/priority.js', 'cli/triage.js', 'public/js/triageView.js', 'docs/PR_TRIAGE.md', 'docs/PHASE4A_VERIFICATION.md', 'docs/SUPPLY_CHAIN_SECURITY.md', 'docs/UNIFIED_REVIEW_FOUNDATION.md', 'docs/CONTEXTUAL_AI_REVIEW.md', 'SECURITY.md']) await write(file, 'fixture');
-  for (const file of ['server/security/deadline.js', 'CHANGELOG.md', 'docs/RELEASE_1.1.0.md', 'docs/MIGRATING_TO_1.1.md', 'integrations/vscode/package.json', 'integrations/vscode/extension.cjs', 'integrations/vscode/README.md', 'scripts/package-editor.mjs']) await write(file, 'fixture');
+  for (const file of ['server/security/deadline.js', 'CHANGELOG.md', 'docs/RELEASE_1.2.0.md', 'docs/RELEASE_1.1.0.md', 'docs/MIGRATING_TO_1.1.md', 'integrations/vscode/package.json', 'integrations/vscode/extension.cjs', 'integrations/vscode/README.md', 'scripts/package-editor.mjs']) await write(file, 'fixture');
   await write('.github/workflows/ci.yml', 'uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262');
   const run = () => spawnSync(process.execPath, ['scripts/check-supply-chain.mjs'], { cwd: root, encoding: 'utf8', timeout: 15_000 });
   return { root, pkg, write, run };
@@ -99,6 +99,19 @@ test('shipped Mermaid contains the reviewed patched KaTeX, without the obsolete 
   assert.ok(!bundle.includes('"0.16.47"'));
   const exceptions = JSON.parse(await fs.readFile(new URL('security/vendor/advisory-exceptions.json', root), 'utf8'));
   assert.ok(!exceptions.some(exception => exception.url.endsWith('GHSA-238p-pmpm-9mq7')));
+});
+
+test('shipped diagram sanitizer is the patched dependency in a reproducible ESM rebuild', async () => {
+  const root = new URL('../', import.meta.url);
+  const manifest = JSON.parse(await fs.readFile(new URL('public/vendor/manifest.json', root), 'utf8'));
+  const component = manifest.components.find(component => component.name === 'mermaid');
+  assert.equal(component.bundledDependencies.dompurify, '3.4.17');
+  assert.equal(component.build.entry, 'security/vendor-build/entry.mjs');
+  const bundle = await fs.readFile(new URL('public/vendor/mermaid.min.js', root), 'utf8');
+  assert.ok(bundle.includes('version="3.4.17"'));
+  assert.ok(!bundle.includes('version="3.4.12"'));
+  const buildLock = JSON.parse(await fs.readFile(new URL(component.build.lock, root), 'utf8'));
+  assert.equal(buildLock.packages['node_modules/dompurify'].version, '3.4.17');
 });
 
 test('release guard rejects modified browser bytes and missing integrity attributes', async t => {

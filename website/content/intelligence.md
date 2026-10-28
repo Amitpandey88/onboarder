@@ -2,7 +2,7 @@
 
 ![Onboarder 1.0.5 intelligence workspace](/assets/web-intelligence-1.0.5-light.jpg)
 
-Install Onboarder 1.0.5, run `onboarder start`, load a repository and open **Intelligence**. Source checkouts need `npm run build` first.
+Install Onboarder 1.1.0, run `onboarder start`, load a repository and open **Intelligence**. Source checkouts need `npm run build` first.
 The landing goal opens exploration, review, investigation or implementation.
 Resume restores the previous view, selected file and filter in this browser.
 Explorer's **Save view** and **Saved views** retain named viewpoints, folder
@@ -30,7 +30,7 @@ onboarder review . --staged --sarif
 ```
 
 The standalone MCP catalog now includes onboarder_intelligence: scan, evidence,
-or exact-revision comparison. Standalone tools total 17; the scoped Hermes
+or exact-revision comparison. Standalone tools total 18; the scoped Hermes
 catalog totals 42 including checkpoint creation and restoration.
 Evidence excerpts require includeSource in standalone MCP. Scoped Hermes calls
 return evidence locations and use the existing bounded source reader for text.
@@ -262,3 +262,8 @@ External-provider behavior must be reported separately: local GitHub fixtures
 do not prove a GitHub App is installed, editor activation fixtures do not prove
 a particular VS Code installation is configured, and controlled AI responses
 do not prove the quality of a live model's answers.
+
+
+## Review-to-fix workflow in 1.1.0
+
+Finding-linked [fix proposals](/docs/fixes/) add exact server-side approval, isolated application and separately authorized checks to the existing harness. This is separate from the legacy free-task implementation flow. [Contextual review](/docs/ai-review/) and [PR triage](/docs/triage/) share this repository context; a remote PR observation alone does not grant local source or implementation permission. Full engineering planning and collaboration remain outside this release.

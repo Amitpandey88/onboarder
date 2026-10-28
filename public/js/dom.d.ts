@@ -188,7 +188,6 @@ export interface AppElements {
     'svgBtn': HTMLButtonElement;
     'testSettings': HTMLButtonElement;
     'testsToggle': HTMLButtonElement;
-    'themeBtn': HTMLButtonElement;
     'toast': HTMLElement;
     'tourCount': HTMLElement;
     'tourExit': HTMLButtonElement;

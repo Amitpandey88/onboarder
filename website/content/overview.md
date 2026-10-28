@@ -31,10 +31,10 @@ This public website hosts documentation and an illustrative example map. To anal
 
 ## Read the map with context
 
-Dependency edges describe resolved static imports. Health scores, potential unused code, change impact, and security patterns are signals to investigate. Dynamic loading and framework conventions can fall outside the map. Tests are not executed by a local change review.
+Dependency edges describe resolved static imports. Health scores, potential unused code, change impact, and security patterns are signals to investigate. Dynamic loading and framework conventions can fall outside the map. A review does not execute tests. The separate [fix verification workflow](/docs/fixes/) can run reviewed checks only after explicit execution permission.
 
 [Understand analysis limits](/docs/analysis/) · [Read the security guide](/docs/security/)
 
 ## Documentation version
 
-These guides describe **Onboarder 1.0.5**, published as `codebase-onboarder` under the MIT license. The full [source repository](https://github.com/Amitpandey88/onboarder) remains the authority for implementation details. The terminal layout preview remains a labeled 1.0.4 controlled sample. The Intelligence and Graph guides cover the new 1.0.5 workspace, bounded rendering and advanced setup.
+These guides describe **Onboarder 1.1.0**, published as `codebase-onboarder` under the MIT license. The full [source repository](https://github.com/Amitpandey88/onboarder) remains the authority for implementation details. The terminal layout preview remains a labeled 1.0.4 controlled sample. Existing web screenshots retain their actual 1.0.5 provenance. Version 1.1.0 adds [contextual AI review](/docs/ai-review/), [approved fixes and verification](/docs/fixes/) and [read-only PR triage](/docs/triage/). The dedicated Change Stack, engineering planner, full team platform and post-merge drafts remain unfinished.

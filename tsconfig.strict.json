@@ -54,6 +54,8 @@
     "src/shared/analyzer/parseCache.ts",
     "src/public/js/textDialog.ts",
     "src/public/js/graphScene.ts",
-    "src/public/js/forceGraph.ts"
+    "src/public/js/forceGraph.ts",
+    "src/public/js/desktopHost.ts",
+    "src/public/js/workspaceShell.ts"
   ]
 }

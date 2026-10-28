@@ -1,3 +1,5 @@
+import { initWorkspaceShell } from '/js/workspaceShell.js';
+import { desktopHost } from '/js/desktopHost.js';
 import { requestText } from './js/textDialog.js';
 import { abortable, throwIfAborted } from '/shared/analyzer/scanControl.js';
 import { eventElement } from '/js/dom.js';
@@ -67,7 +69,7 @@ const dom = {};
     'landing', 'landingError', 'landingStatus', 'cancelScanBtn', 'scanProgress', 'pathForm', 'pathInput', 'gitForm', 'gitInput',
     'pickBtn', 'demoBtn', 'explorer', 'viewTabs', 'repoChip', 'newRepoBtn', 'settingsBtn',
     'treeFilter', 'fileTree', 'crumbs', 'copyMermaidBtn', 'svgBtn', 'fitBtn',
-    'canvas', 'canvasContent', 'canvasEmpty', 'stageFoot', 'themeBtn', 'aiDrawBtn', 'docView', 'aboutView', 'codeView',
+    'canvas', 'canvasContent', 'canvasEmpty', 'stageFoot', 'aiDrawBtn', 'docView', 'aboutView', 'codeView',
     'mmToggleBtn', 'mmCollapseBtn', 'threadControls', 'threadLockBtn', 'threadStatus', 'stageFilters', 'modeSwitch', 'nodeFilter', 'testsToggle', 'depthSelect',
     'tourbar', 'tourTitle', 'tourCount', 'tourPrev', 'tourNext', 'tourExit',
     'drawerScrim', 'settingsDrawer', 'drawerClose', 'setBaseUrl', 'setApiKey', 'setModel',
@@ -88,6 +90,7 @@ let graphHealth = null;
 let heatmapCtl = null;
 let searchCtl = null;
 const state = appState;
+const workspaceShell = initWorkspaceShell(path => { void loadFromServer({ path }, 'Opening project…'); });
 let pendingViewport = null;
 const panzoom = makePanzoom(dom.canvas, dom.canvasContent);
 const connectionFocus = createConnectionFocus({ host: dom.canvasContent, controls: dom.threadControls, lockButton: dom.threadLockBtn, status: dom.threadStatus });
@@ -95,6 +98,7 @@ const mobilePanels = initMobilePanels();
 // ---------------------------------------------------------------- landing --
 let activeScan = null;
 function landingBusy(message) {
+    workspaceShell.busy(message);
     dom.landingError.hidden = true;
     dom.landing.setAttribute('aria-busy', 'true');
     dom.landingStatus.textContent = message;
@@ -107,6 +111,7 @@ function landingBusy(message) {
     dom.scanProgress.removeAttribute('value');
 }
 function landingIdle(error) {
+    workspaceShell.idle();
     dom.landingStatus.hidden = true;
     dom.cancelScanBtn.hidden = true;
     dom.scanProgress.hidden = true;
@@ -127,6 +132,10 @@ function beginScan(message) {
     return controller;
 }
 function updateScanProgress(progress) {
+    if (progress.phase === 'walk')
+        workspaceShell.progress('Finding files…', null, `${progress.found} files found`);
+    if (progress.phase === 'parse' || progress.phase === 'resolve')
+        workspaceShell.progress(progress.phase === 'parse' ? 'Reading your code…' : 'Tracing imports…', progress.total ? Math.round(progress.done / progress.total * 100) : null, `${progress.done} / ${progress.total} files`);
     if (progress.phase === 'walk')
         dom.landingStatus.textContent = `Walking the file tree… ${progress.found} files`;
     if (progress.phase === 'parse' || progress.phase === 'resolve') {
@@ -164,6 +173,10 @@ dom.pathForm.addEventListener('submit', (event) => {
     const path = dom.pathInput.value.trim();
     if (!path)
         return landingIdle('Give me a path first — something like ~/work/that-repo.');
+    if (desktopHost()) {
+        void desktopHost().openProject(path).catch(err => landingIdle(err.message));
+        return;
+    }
     loadFromServer({ path }, 'Walking the file tree…');
 });
 dom.gitForm.addEventListener('submit', (event) => {
@@ -171,9 +184,17 @@ dom.gitForm.addEventListener('submit', (event) => {
     const gitUrl = dom.gitInput.value.trim();
     if (!gitUrl)
         return landingIdle('Paste a git URL first.');
+    if (desktopHost()) {
+        void workspaceShell.clone(gitUrl);
+        return;
+    }
     loadFromServer({ gitUrl }, 'Cloning, then scanning. Big repos take a minute…');
 });
 dom.demoBtn.addEventListener('click', () => {
+    if (desktopHost()) {
+        void desktopHost().openDemo().catch(err => landingIdle(err.message));
+        return;
+    }
     loadFromServer({ demo: true }, 'Reading our own source…');
 });
 dom.pickBtn.addEventListener('click', async () => {
@@ -187,6 +208,9 @@ dom.pickBtn.addEventListener('click', async () => {
     catch {
         return; // the picker was dismissed — no news is good news
     }
+    await openBrowserFolder(handle);
+});
+async function openBrowserFolder(handle) {
     const controller = beginScan('Walking the file tree…');
     try {
         const source = browserFileSource(handle);
@@ -210,7 +234,8 @@ dom.pickBtn.addEventListener('click', async () => {
         if (activeScan === controller)
             activeScan = null;
     }
-});
+}
+document.addEventListener('workspace-browser-folder', ((event) => { void openBrowserFolder(event.detail); }));
 if (!canPickFolder()) {
     dom.pickBtn.disabled = true;
     dom.pickBtn.title = 'Folder picking needs Chrome or Edge.';
@@ -242,6 +267,7 @@ function enterExplorer(payload, opts) {
     // Compute everything first, then flip the UI over — a failure here should
     // land on the landing page with the error visible, not a half-dead explorer.
     landingIdle();
+    workspaceShell.loaded(state.scan.root, state.scan.name, Boolean(state.cloneId) || Boolean(state.browserSource));
     dom.landing.hidden = true;
     dom.explorer.hidden = false;
     dom.viewTabs.hidden = false;
@@ -252,10 +278,14 @@ function enterExplorer(payload, opts) {
         `<span class="repo-name">${escapeHtml(state.scan.name)}</span>` +
             `<span class="repo-sub">${escapeHtml(repoSubLabel())}</span>`;
     dom.repoChip.title = state.scan.root;
+    dom.repoChip.dataset.tooltip = state.scan.name + '\n' + state.scan.root + (desktopHost() ? '\nShow in Finder' : '\nClick to copy path');
     dom.brandNote.textContent = state.scan.stats.filesParsed + ' files · ' + state.scan.stats.edgeCount + ' connections';
     renderSidebar();
     const goal = document.getElementById('repositoryGoal')?.value;
     const saved = goal === 'resume' ? rememberedView(state.scan.root) : null;
+    if (saved?.expanded)
+        state.mm.expanded = new Set(saved.expanded);
+    pendingViewport = saved?.viewport || null;
     if (saved?.filter) {
         state.filters.text = saved.filter;
         dom.nodeFilter.value = saved.filter;
@@ -310,6 +340,11 @@ function buildPatterns(scan, facts, manifest) {
     };
 }
 dom.newRepoBtn.addEventListener('click', () => {
+    if (desktopHost()) {
+        void desktopHost().home();
+        return;
+    }
+    workspaceShell.unloaded();
     fileNavigation.close();
     stopTriage();
     stopAiDraft();
@@ -384,7 +419,7 @@ dom.treeFilter.addEventListener('input', () => {
 // ------------------------------------------------------------------ views --
 dom.viewTabs.addEventListener('click', (event) => {
     const tab = eventElement(event)?.closest('.view-tab');
-    if (!tab)
+    if (!tab?.dataset.view)
         return;
     const view = tab.dataset.view === 'explorer' ? state.lastExplorer || 'map' : tab.dataset.view;
     if (state.view === view)
@@ -896,7 +931,7 @@ function renderCrumbs() {
         }
     }
     else if (state.view === 'about') {
-        parts.push('<span>about</span>');
+        parts.push('<span>About project</span>');
     }
     else if (state.view === 'docs') {
         parts.push('<span>docs</span>');
@@ -1257,7 +1292,7 @@ function syncAIConnection() {
     dom.settingsStatus.textContent = '';
     dom.aiConnectionNote.textContent = hermes
         ? 'Hermes keeps your login on the server. Only the connection choice is saved in this browser. AI features send the displayed repository context to your Hermes provider.'
-        : 'Endpoint preferences are saved in this browser. The API key stays only in this tab’s memory and must be entered again after reload. Requests forward it through your server to the chosen provider.';
+        : desktopHost() ? 'Save the key on this Mac only if you choose Remember. Otherwise it stays in memory. AI requests send task context to your provider.' : 'Endpoint preferences are saved in this browser. The API key stays only in this tab’s memory and must be entered again after reload. Requests forward it through your server to the chosen provider.';
     if (hermes)
         void refreshHermes();
 }
@@ -1267,7 +1302,10 @@ function readAISettings() {
 }
 dom.setConnection.addEventListener('change', syncAIConnection);
 dom.refreshHermes.addEventListener('click', () => { void refreshHermes(); });
-function openSettings() {
+async function openSettings() {
+    const systemDialog = document.getElementById('uiSettingsDialog');
+    if (systemDialog.open)
+        systemDialog.close();
     // Same reason the MCP drawer closes settings: one scrim at a time.
     if (!dom.mcpDrawer.hidden)
         closeMcp();
@@ -1281,12 +1319,31 @@ function openSettings() {
     dom.settingsDrawer.hidden = false;
     dom.drawerScrim.hidden = false;
     syncAIConnection();
+    dom.setConnection.focus();
+    const host = desktopHost();
+    if (host) {
+        document.getElementById('rememberKeyRow').hidden = false;
+        try {
+            const saved = await host.credential('get', s.baseUrl);
+            if (!dom.settingsDrawer.hidden && dom.setBaseUrl.value === s.baseUrl) {
+                document.getElementById('rememberKey').checked = Boolean(saved);
+                if (saved)
+                    dom.setApiKey.value = saved;
+            }
+        }
+        catch (error) {
+            dom.settingsStatus.textContent = error.message;
+        }
+    }
 }
 function closeSettings() {
+    const wasOpen = !dom.settingsDrawer.hidden;
     connectionCheck?.abort();
     connectionTest?.abort();
     dom.settingsDrawer.hidden = true;
     dom.drawerScrim.hidden = true;
+    if (wasOpen)
+        document.getElementById('appearanceHeaderBtn').focus();
 }
 dom.settingsBtn.addEventListener('click', openSettings);
 dom.drawerClose.addEventListener('click', closeSettings);
@@ -1295,6 +1352,8 @@ dom.drawerClose.addEventListener('click', closeSettings);
 // what stays here is the choreography it shares with the other two drawers —
 // one scrim at a time, Escape to dismiss.
 const serverDrawer = createServerDrawer({ toast });
+document.addEventListener('workspace-close-drawers', () => { closeSettings(); if (!dom.mcpDrawer.hidden)
+    closeMcp(); serverDrawer.close(); });
 function openServer() {
     closeSettings();
     if (!dom.mcpDrawer.hidden)
@@ -1537,11 +1596,22 @@ dom.mcpStop.addEventListener('click', () => setMcpState('stop'));
 // already reads "MCP on" for a server that was left running from before.
 scheduleMcpPoll(0);
 dom.drawerScrim.addEventListener('click', closeSettings);
-dom.saveSettings.addEventListener('click', () => {
+dom.saveSettings.addEventListener('click', async () => {
     stopAiDraft();
-    llm.saveSettings(readAISettings());
+    const settings = readAISettings();
+    const host = desktopHost();
+    if (host && settings.connection !== 'hermes') {
+        try {
+            await host.credential(document.getElementById('rememberKey').checked ? 'set' : 'delete', settings.baseUrl, settings.apiKey);
+        }
+        catch (error) {
+            dom.settingsStatus.textContent = error.message;
+            return;
+        }
+    }
+    llm.saveSettings(settings);
     dom.settingsStatus.className = 'drawer-status ok';
-    dom.settingsStatus.textContent = dom.setConnection.value === 'hermes' ? 'Hermes connected. Your AI features now use its configured login.' : 'Saved in this browser.';
+    dom.settingsStatus.textContent = dom.setConnection.value === 'hermes' ? 'Hermes connected. Your AI features now use its configured login.' : host ? 'Connection saved on this Mac.' : 'Saved in this browser.';
     updateAiBtn();
     if (state.scan) {
         syncInspector();
@@ -1621,6 +1691,21 @@ document.addEventListener('keydown', (event) => {
         }
         return;
     }
+    if (!dom.settingsDrawer.hidden) {
+        if (event.key === 'Tab') {
+            const focusable = [...dom.settingsDrawer.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]')].filter(element => element.getClientRects().length > 0);
+            const first = focusable[0], last = focusable.at(-1);
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last?.focus();
+            }
+            if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first?.focus();
+            }
+        }
+        return;
+    }
     if (eventElement(event)?.matches('input, textarea, select'))
         return;
     if (!state.scan)
@@ -1656,15 +1741,50 @@ function applyTheme(theme) {
     document.documentElement.dataset.theme = theme;
     setDiagramTheme(theme);
     setViewerTheme(theme);
-    dom.themeBtn.textContent = theme === 'dark' ? 'Light' : 'Dark';
-    dom.themeBtn.title = theme === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme';
+    const preference = localStorage.getItem(THEME_KEY) || 'system';
+    for (const input of document.querySelectorAll('#themeOptions input'))
+        input.checked = input.value === preference;
+    document.getElementById('themeModeStatus').textContent = preference === 'system' ? 'Follows your device appearance.' : (theme === 'dark' ? 'Dark appearance is selected.' : 'Light appearance is selected.');
 }
-dom.themeBtn.addEventListener('click', () => {
-    const next = getTheme() === 'dark' ? 'light' : 'dark';
-    localStorage.setItem(THEME_KEY, next);
-    applyTheme(next);
+document.getElementById('themeOptions').addEventListener('change', event => {
+    const input = event.target;
+    if (!['light', 'dark', 'system'].includes(input.value))
+        return;
+    if (input.value === 'system')
+        localStorage.removeItem(THEME_KEY);
+    else
+        localStorage.setItem(THEME_KEY, input.value);
+    applyTheme(getTheme());
     if (state.scan && (isExplorerView(state.view) || state.view === 'graph' || state.view === 'heatmap'))
         renderCanvas({ preserveViewport: true });
 });
 applyTheme(getTheme());
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!localStorage.getItem(THEME_KEY)) {
+    applyTheme(getTheme());
+    if (state.scan)
+        renderCanvas({ preserveViewport: true });
+} });
+if (desktopHost()) {
+    const saved = llm.getSettings(false);
+    if (saved.baseUrl && !saved.apiKey)
+        void desktopHost().credential('get', saved.baseUrl).then(key => { if (key) {
+            llm.saveSettings({ ...saved, apiKey: key });
+            updateAiBtn();
+        } }).catch(() => { });
+}
+function persistWorkspaceView() {
+    if (!state.scan)
+        return;
+    rememberView(state.scan.root, { name: state.view, path: state.code.path || state.selected || '', filter: state.filters.text,
+        viewport: isExplorerView(state.view) ? panzoom.snapshot() : undefined, expanded: [...state.mm.expanded].slice(0, 1000) });
+}
+let persistWorkspaceTimer = null;
+for (const kind of ['pointerup', 'wheel', 'keyup'])
+    dom.canvas.addEventListener(kind, () => { clearTimeout(persistWorkspaceTimer); persistWorkspaceTimer = setTimeout(persistWorkspaceView, 180); }, { passive: true });
+window.addEventListener('pagehide', persistWorkspaceView);
+window.addEventListener('blur', persistWorkspaceView);
+for (const surface of document.querySelectorAll('[data-boot]'))
+    surface.inert = false;
+document.getElementById('bootStatus').hidden = true;
+document.body.dataset.ready = 'true';
 //# sourceMappingURL=app.js.map

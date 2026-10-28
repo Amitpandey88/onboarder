@@ -1,4 +1,4 @@
-- Works 100% offline out-of-the-box.
+- Core analysis and offline review work without an AI provider.
 - In **AI connection**, choose **Hermes · use my configured login** to reuse the Onboarder CLI's Hermes provider and model. No API key is needed in the browser. The drawer shows the current model/provider; use **Test connection**, then **Save**. Install Hermes on the computer running the server and run `onboarder agent model` to sign in or change models, then refresh the configuration in the drawer.
 - Connect any OpenAI-compatible LLM endpoint (OpenAI, Azure OpenAI, Groq, OpenRouter, Ollama, LM Studio) to generate streaming explanations and repository documentation.
 - Hermes powers questions, explanations, diagrams, documentation, analysis summaries and review briefs using their supplied repository context. Web explanations have no machine tools. Each request starts a fresh conversation, with a two-minute runtime budget and at most two concurrent requests; closing or cancelling an answer stops its Hermes process. Runtime startup can add a few seconds to the first response.
@@ -28,3 +28,8 @@ Do not paste real credentials into docs examples, chat questions, repository fil
 ## Offline explorer questions
 
 `ask <question>` in the offline explorer uses a compatible endpoint only when requested. It sends the question and a limited scan summary. The process environment holds its API key; it is not written into Onboarder's config.
+
+
+## Review, fixes and triage in 1.1.0
+
+[Contextual review](/docs/ai-review/) sends selected bounded source only after explicit opt-in. [Fix proposals](/docs/fixes/) reuse that connection but never apply themselves. [Triage explanations](/docs/triage/) send bounded observations and never change deterministic priority. Each workflow reports unavailable, failed, partial or stale requests; no model response counts as an executed check.

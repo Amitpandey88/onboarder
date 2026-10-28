@@ -4,7 +4,11 @@
 onboarder [chat|tui] [folder|GitHub URL]
 onboarder explore [folder|Git URL]
 onboarder report [folder|Git URL] [--json]
-onboarder review [folder] [--staged] [--base ref --head ref] [--json]
+onboarder review [folder] [--staged] [--base ref --head ref] [--ai] [--json|--sarif]
+onboarder fix <propose|show|apply|verify|status|accept|rollback|reject> [folder]
+onboarder triage <list|inspect> [folder|owner/repository]
+onboarder intelligence <scan|ask|impact|rules|semantic-setup> [folder]
+onboarder mcp [serve|config|check]
 onboarder agent <workflow|setup|model|doctor|runs|show|source>
 onboarder setup
 onboarder start [background|startup install|startup remove|startup status]
@@ -33,6 +37,8 @@ onboarder doctor
 | `--max-files`, `--max-file-size`, `--read-concurrency` | Validated limits for report and explore |
 | `--profile`, `--fail-on`, `--staged`, `--base`, `--head` | Review comparison and severity controls |
 
+See [contextual AI review](/docs/ai-review/), [approved fixes](/docs/fixes/) and [PR triage](/docs/triage/) for permissions, exact digest approval and machine-readable examples. `--ai` is explicit; requesting a patch preview never applies it.
+
 ## Chat shortcuts
 
 | Shortcut | Action |
@@ -51,7 +57,7 @@ onboarder doctor
 
 ## Slash commands
 
-The following list is generated from the **1.0.5 command registry**, grouped by task. Angle brackets indicate a required value; square brackets indicate an optional value. The installed `/help <command>` gives local usage.
+The following list is generated from the **1.2.0 command registry**, grouped by task. Angle brackets indicate a required value; square brackets indicate an optional value. The installed `/help <command>` gives local usage.
 
 {{commands}}
 

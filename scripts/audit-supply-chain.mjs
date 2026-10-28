@@ -11,7 +11,7 @@ const exceptions = JSON.parse(await readFile(path.join(root, 'security/vendor/ad
 let blocked = false;
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'onboarder-audit-'));
 try {
-  for (const [label, prefix] of [['Development dependencies', root], ['Vendored browser dependencies', path.join(root, 'security/vendor')]]) {
+  for (const [label, prefix] of [['Development dependencies', root], ['Vendored browser dependencies', path.join(root, 'security/vendor')], ['Diagram build dependencies', path.join(root, 'security/vendor-build')]]) {
     const result = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['audit', '--json', '--ignore-scripts', '--registry=https://registry.npmjs.org/', '--prefix', prefix], { cwd: root, env: isolatedEnvironment(process.env, [], temporary), encoding: 'utf8', timeout: 60_000, maxBuffer: 16 * 1024 * 1024, shell: process.platform === 'win32' });
     if (result.error || ![0, 1].includes(result.status)) throw new Error('npm audit failed: ' + (result.error?.message || result.stderr));
     const lock = JSON.parse(await readFile(path.join(prefix, 'package-lock.json'), 'utf8'));

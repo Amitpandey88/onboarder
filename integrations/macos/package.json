@@ -1,0 +1,109 @@
+{
+  "name": "onboarder-macos",
+  "productName": "Onboarder",
+  "version": "0.1.6",
+  "private": true,
+  "type": "module",
+  "main": "src/main.mjs",
+  "description": "Onboarder local code intelligence for macOS",
+  "author": "Amit Pandey",
+  "license": "MIT",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "stage": "node scripts/stage.mjs",
+    "start": "node scripts/launch.mjs",
+    "test": "npm run typecheck && node --test spec/*.spec.mjs",
+    "package:arm64": "node scripts/package.mjs arm64",
+    "package:x64": "node scripts/package.mjs x64",
+    "package:release": "node scripts/package.mjs --release",
+    "test:backend": "node scripts/backend-smoke.mjs",
+    "test:app": "node scripts/smoke.mjs",
+    "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@electron/fuses": "2.0.0",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "electron": "45.0.0",
+    "electron-builder": "26.18.1",
+    "esbuild": "0.28.2",
+    "node-pty": "1.1.0",
+    "playwright": "1.64.1"
+  },
+  "build": {
+    "appId": "io.github.amitpandey88.onboarder",
+    "productName": "Onboarder",
+    "directories": {
+      "output": "dist/packages/0.1.6"
+    },
+    "files": [
+      "src/main.mjs",
+      "src/preload.cjs",
+      "src/policy.mjs",
+      "src/store.mjs",
+      "src/backendClient.mjs",
+      "package.json",
+      "!node_modules/**",
+      "src/appearance.mjs",
+      "src/clones.mjs"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/stage",
+        "to": "workspace"
+      }
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "afterPack": "scripts/fuses.cjs",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "minimumSystemVersion": "14.0",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.plist",
+      "entitlementsInherit": "build/entitlements.plist",
+      "binaries": [
+        "Contents/Resources/workspace/node/bin/node",
+        "Contents/Resources/workspace/backend/node_modules/node-pty/build/Release/spawn-helper",
+        "Contents/Resources/workspace/backend/node_modules/node-pty/build/Release/pty.node"
+      ],
+      "extendInfo": {
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Project folder",
+            "CFBundleTypeRole": "Viewer",
+            "LSItemContentTypes": [
+              "public.folder"
+            ],
+            "LSHandlerRank": "Alternate"
+          }
+        ]
+      }
+    },
+    "dmg": {
+      "title": "Onboarder",
+      "window": {
+        "width": 540,
+        "height": 360
+      },
+      "contents": [
+        {
+          "x": 150,
+          "y": 160
+        },
+        {
+          "x": 390,
+          "y": 160,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "artifactName": "Onboarder-${version}-${arch}.${ext}"
+  }
+}

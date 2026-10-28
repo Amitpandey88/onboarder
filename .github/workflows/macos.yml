@@ -1,0 +1,61 @@
+name: macOS desktop preview
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'public/**', 'integrations/macos/**', 'package*.json', '.github/workflows/macos.yml']
+  pull_request:
+    paths: ['src/**', 'public/**', 'integrations/macos/**', 'package*.json', '.github/workflows/macos.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            appdir: mac-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.20.0'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            integrations/macos/package-lock.json
+      - name: Build and check shared source
+        run: npm ci --ignore-scripts && npm run check
+      - name: Install desktop tools without install hooks
+        working-directory: integrations/macos
+        run: npm ci --ignore-scripts && npm run setup && npm audit
+      - name: Package development app
+        working-directory: integrations/macos
+        run: npm run package:${{ matrix.arch }}
+      - name: Verify native backend and packaged app
+        working-directory: integrations/macos
+        run: |
+          npm test
+          node scripts/backend-smoke.mjs
+          node scripts/ui-smoke.mjs
+          node scripts/controls-smoke.mjs
+          node scripts/smoke.mjs "$PWD/dist/packages/0.1.6/${{ matrix.appdir }}/Onboarder.app/Contents/MacOS/Onboarder"
+          node scripts/ui-smoke.mjs "$PWD/dist/packages/0.1.6/${{ matrix.appdir }}/Onboarder.app/Contents/MacOS/Onboarder"
+          node scripts/controls-smoke.mjs "$PWD/dist/packages/0.1.6/${{ matrix.appdir }}/Onboarder.app/Contents/MacOS/Onboarder"
+          node scripts/verify-packaged.mjs --arm64
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: onboarder-macos-${{ matrix.arch }}-preview
+          path: |
+            integrations/macos/dist/packages/0.1.6/*DEVELOPMENT*.dmg
+            integrations/macos/dist/packages/0.1.6/*DEVELOPMENT*.zip
+            integrations/macos/dist/packages/0.1.6/SHA256SUMS
+            integrations/macos/dist/packages/0.1.6/BUILD-STATUS.json
+            integrations/macos/dist/qa/

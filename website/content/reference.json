@@ -1,5 +1,5 @@
 {
-  "version": "1.0.5",
+  "version": "1.2.0",
   "commands": [
     {
       "name": "help",
@@ -423,6 +423,65 @@
     }
   ],
   "mcp": [
+    {
+      "name": "onboarder_triage",
+      "title": "Triage",
+      "description": "Read-only GitHub PR queue or exact-head inspection for this repository’s GitHub origin. Reuses CLI/web review, priority and evidence. No AI calls, tests, fetches, assignments or GitHub writes. Metadata-only priorities are provisional; missing checks stay unknown. Source patches require explicit includeSource.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Absolute path to the repository on this machine (for example /Users/you/code/my-app). The path returned by onboarder_scan is the one to reuse. Omit it to use the last repository scanned."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "list",
+              "inspect"
+            ]
+          },
+          "number": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed",
+              "all"
+            ]
+          },
+          "includeSource": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
     {
       "name": "onboarder_intelligence",
       "title": "Intelligence",
@@ -1029,6 +1088,10 @@
     }
   ],
   "routes": [
+    {
+      "method": "POST",
+      "path": "/api/triage"
+    },
     {
       "method": "POST",
       "path": "/api/intelligence/fix"

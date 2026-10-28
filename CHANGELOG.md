@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.0 — 2026-10-28
+
+- Refreshed shared web workspace with grouped navigation, resizable panels,
+  responsive drawers, project home and readable hover/focus labels.
+- System settings combine AI connection and icon-labeled Light/Dark/System
+  appearance. Project details and application About are separate.
+- Solid rounded controls replace Liquid Glass; fixed Files/Details across every
+  view and reduced repeated layout/preference work.
+- Isolated Apple Silicon macOS development preview 0.1.6: bundled Node/npm,
+  per-project windows and private backends, native dialogs and exports, shell
+  and chat terminals, safe clone storage/progress and optional Keychain storage.
+- Reproducible Mermaid bundle with DOMPurify 3.4.17 and KaTeX 0.18.11, pinned
+  build graph, licenses and integrity checks. Zero core runtime dependencies.
+
+The Mac app is a separate ad-hoc-signed, unnotarized preview for macOS 14+;
+Intel distribution and signed production downloads are not included. Existing
+Hermes, conversations, analysis history and terminal workflows are retained.
+See [release notes](docs/RELEASE_1.2.0.md).
+
 ## 1.1.0 — 2026-10-22
 
 ### Added

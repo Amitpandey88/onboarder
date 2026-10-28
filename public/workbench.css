@@ -36,8 +36,7 @@
 .load-card-note { color: var(--ink-2); font-size: 14px; line-height: 1.6; min-height: 45px; }
 .landing-capabilities { display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 25px 0; color: var(--ink-2); font-size: 12px; }
 .landing-alt { margin: 24px 0; }
-.review-workspace { grid-template-columns: minmax(0,1fr); }
-.review-workspace > .sidebar, .review-workspace > .inspector, .review-workspace .stage-head, .review-workspace .stage-foot { display: none !important; }
+.review-workspace .stage-head, .review-workspace .stage-foot { display: none !important; }
 .review-workspace .stage { min-width: 0; }
 #reviewView { background: var(--paper); }
 .review-shell { max-width: 1400px; padding: 34px 40px 56px; margin: 0 auto; }

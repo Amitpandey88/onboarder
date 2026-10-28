@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "reviewed": "2026-10-22",
+  "reviewed": "2026-10-27",
   "components": [
     {
       "name": "mermaid",
@@ -9,7 +9,17 @@
       "integrity": "sha512-w7nr/SFrLO7BaVTs3dQTvYSV6nYSBj0Yy9DjBhsIJtAcHqRzXSq4Pg32ujHZ/AdWsAMNEvvhbm5dt9E2tOiHzw==",
       "license": "MIT",
       "bundledDependencies": {
-        "katex": "0.18.11"
+        "katex": "0.18.11",
+        "dompurify": "3.4.17"
+      },
+      "assetVersion": "12.2.0-onboarder.1",
+      "distribution": "Reproducible Onboarder bundle of the official Mermaid ESM distribution",
+      "build": {
+        "entry": "security/vendor-build/entry.mjs",
+        "lock": "security/vendor-build/package-lock.json",
+        "lockSha256": "30f735e1bfe7069439e0763b2cb107193f426c3fa4d7cba2b9d98be9f6856f9a",
+        "esbuild": "0.28.2",
+        "command": "npm ci --ignore-scripts && npm run build"
       }
     },
     {
@@ -28,7 +38,7 @@
   ],
   "files": {
     "MERMAID-LICENSE.txt": "ec9fb67dcb25eccc416ed56e1aab819222c805a2a4bfe4cb19e7556bf2ffde80",
-    "mermaid.min.js": "a8a6a6f805b074a8261a2825c86f99c8054acb3b35f50bb7e24a4f9f2c3c3b9f",
+    "mermaid.min.js": "489be1cdc8063f37466110b2834865755b6b29f9153794b2a1e926bf1497c771",
     "monaco/LICENSE.txt": "33e4ff1a06ef62ba21788ea162564ee8165269a24a9ce6ef301837447eab0ac6",
     "monaco/vs/base/browser/ui/codicons/codicon/codicon.ttf": "0f1d5219934e96e83b8db162d60b4d8c09b5de1e7d38031cbafe4a3c0f2889c9",
     "monaco/vs/base/worker/workerMain.js": "dbe4aa4f2874f5768e8d98e94281667c0bc493e02dd9760adca930699ff3279b",
@@ -124,6 +134,7 @@
     "monaco/vs/language/typescript/tsMode.js": "fb2707ee84013e2be4c58f5654e3d623ccf73cfc33dbcdd0bf82a780945cfcf1",
     "monaco/vs/language/typescript/tsWorker.js": "ffdf8b0d4d41c145afae6919beba110336860759dce0bdadc2a145c06a1a48ed",
     "monaco/vs/loader.js": "28f3584fd04b182dfce15a9a1ce35b25bea22b31464aee500372bed18b7fee1a",
-    "monaco/worker-boot.js": "799d830957d04bbcee6fe66a45eb7a54fc806a103aa9309d3943ced8fe118b20"
+    "monaco/worker-boot.js": "799d830957d04bbcee6fe66a45eb7a54fc806a103aa9309d3943ced8fe118b20",
+    "MERMAID-THIRD-PARTY-LICENSES.txt": "3b8419e463cec4ef485c94558b82703b7a9e2418ff3e9e452712f67cc34156b9"
   }
 }

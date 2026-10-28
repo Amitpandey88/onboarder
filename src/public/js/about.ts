@@ -37,6 +37,7 @@ export function renderAbout() {
 
   host.innerHTML = `
     <div class="doc-page">
+      <p class="workbench-eyebrow">ABOUT THIS PROJECT</p>
       <h1 class="doc-title">${escapeHtml(scan.name)}</h1>
       <p class="doc-sub">${escapeHtml(scan.tempId ? scan.tempId + ' — a temp clone' : scan.root)}</p>
       <p class="doc-sub">${escapeHtml(sourceLine)}</p>
