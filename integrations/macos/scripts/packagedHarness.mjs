@@ -18,7 +18,16 @@ export async function launchPackaged(executablePath, args, env) {
     const until = Date.now() + 60000;
     while (Date.now() < until) {
       if (child.exitCode !== null || child.signalCode !== null) throw new Error('The packaged application exited before opening.');
-      try { const response = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(500) }); if (response.ok) { browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`); break; } } catch {}
+      try {
+        const response = await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(500) });
+        const targets = response.ok ? await response.json() : [];
+        // Electron exposes its browser debugging socket before a repository's
+        // persistent session has a page target. Attaching in that interval can
+        // leave Playwright with an empty context even after the page is running.
+        if (targets.some(target => target.type === 'page' && target.url.startsWith('onboarder://workspace/'))) {
+          browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`); break;
+        }
+      } catch {}
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     if (!browser) throw new Error('The packaged app did not open its test debugging port.');
