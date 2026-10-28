@@ -1,3 +1,4 @@
+import { testShell } from './testShell.mjs';
 import { _electron as electron } from 'playwright';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -10,7 +11,7 @@ const fixture = await fs.mkdtemp(path.join(os.tmpdir(), 'onboarder-controls-'));
 const repository = path.join(fixture, 'repository with spaces'); await fs.mkdir(repository);
 await fs.writeFile(path.join(repository, 'app.js'), 'export const ready = true;\n');
 const executablePath = process.argv[2] || path.join(root, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron');
-const env = { ...process.env, ONBOARDER_DESKTOP_TEST_HOME: path.join(fixture, 'profile'), ONBOARDER_AGENT_HOME: path.join(fixture, 'agent'), ONBOARDER_INTELLIGENCE_HOME: path.join(fixture, 'intelligence') };
+const env = { ...process.env, SHELL: await testShell(fixture), ONBOARDER_DESKTOP_TEST_HOME: path.join(fixture, 'profile'), ONBOARDER_AGENT_HOME: path.join(fixture, 'agent'), ONBOARDER_INTELLIGENCE_HOME: path.join(fixture, 'intelligence') };
 const app = process.argv[2] ? await launchPackaged(executablePath, ['--project=' + repository], env) : await electron.launch({ executablePath, args: [root, '--project=' + repository], env });
 const report = { views: [], drawers: [], errors: [] };
 try {

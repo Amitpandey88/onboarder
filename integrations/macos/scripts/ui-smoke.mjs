@@ -1,3 +1,4 @@
+import { testShell } from './testShell.mjs';
 import { checkAboutPages } from './check-about-ui.mjs';
 import { checkSystemSettings } from './check-system-ui.mjs';
 import { _electron as electron } from 'playwright';
@@ -24,7 +25,7 @@ const server = http.createServer(async (req, res) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const url = `http://127.0.0.1:${server.address().port}/repo.git`;
 const executablePath = process.argv[2] || path.join(root, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron');
-const env = { ...process.env, ONBOARDER_DESKTOP_TEST_HOME: path.join(fixture, 'profile'), ONBOARDER_AGENT_HOME: path.join(fixture, 'agent'), ONBOARDER_INTELLIGENCE_HOME: path.join(fixture, 'intelligence') };
+const env = { ...process.env, SHELL: await testShell(fixture), ONBOARDER_DESKTOP_TEST_HOME: path.join(fixture, 'profile'), ONBOARDER_AGENT_HOME: path.join(fixture, 'agent'), ONBOARDER_INTELLIGENCE_HOME: path.join(fixture, 'intelligence') };
 const args = process.argv[2] ? ['--project=' + source] : [root, '--project=' + source];
 const app = process.argv[2] ? await launchPackaged(executablePath, args, env) : await electron.launch({ executablePath, args, env });
 const report = { pageErrors: [] };

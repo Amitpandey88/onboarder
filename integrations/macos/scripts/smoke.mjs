@@ -1,3 +1,4 @@
+import { testShell } from './testShell.mjs';
 import { _electron as electron } from 'playwright';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
@@ -11,7 +12,7 @@ const fixture = path.join(sandbox, 'project ü with spaces'); const other = path
 for (const directory of [fixture, other]) { await fs.mkdir(directory); await fs.writeFile(path.join(directory, 'package.json'), '{"name":"fixture","type":"module"}'); await fs.writeFile(path.join(directory, 'app.js'), 'export function greet(name) { return `Hello ${name}`; }\n'); await fs.writeFile(path.join(directory, 'README.md'), '# Fixture repository\n'); run('git', ['init', '-q', directory]); }
 const executablePath = process.argv[2] || path.join(root, 'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron');
 const args = process.argv[2] ? ['--project=' + fixture] : [root, '--project=' + fixture];
-const env = { ...process.env, PATH: '/usr/bin:/bin:/usr/sbin:/sbin', ONBOARDER_DESKTOP_TEST_HOME: path.join(sandbox, 'appdata'), ONBOARDER_AGENT_HOME: path.join(sandbox, 'agent'), ONBOARDER_INTELLIGENCE_HOME: path.join(sandbox, 'intelligence') };
+const env = { ...process.env, SHELL: await testShell(sandbox), PATH: '/usr/bin:/bin:/usr/sbin:/sbin', ONBOARDER_DESKTOP_TEST_HOME: path.join(sandbox, 'appdata'), ONBOARDER_AGENT_HOME: path.join(sandbox, 'agent'), ONBOARDER_INTELLIGENCE_HOME: path.join(sandbox, 'intelligence') };
 const app = process.argv[2] ? await launchPackaged(executablePath, args, env) : await electron.launch({ executablePath, args, timeout: 60000, env });
 const errors = []; const report = {};
 if (app.packaged) { const info = JSON.parse(await fs.readFile(path.resolve(path.dirname(executablePath), '../Resources/workspace/build-info.json'), 'utf8')); report.arch = info.arch; report.execution = info.arch === process.arch ? 'native host' : 'Rosetta on Apple Silicon'; }

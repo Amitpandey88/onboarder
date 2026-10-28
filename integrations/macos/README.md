@@ -132,3 +132,9 @@ preview on port 4329 and checks desktop/mobile navigation, themes and overflow.
 
 Source of truth: core TypeScript under `src/`; the desktop runtime in this
 directory; generated browser/server output rebuilt through the core build.
+
+Smoke tests use a fixture-owned interactive Bash launcher with user startup
+profiles disabled. This prevents the CI host's nvm/asdf setup from substituting a
+global Node while verifying the bundled runtime. Production still uses the user's
+chosen shell and its normal profiles. The backend check verifies both the actual
+resolved Node path and its version.

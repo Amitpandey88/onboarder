@@ -1,3 +1,4 @@
+import { testShell } from './testShell.mjs';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -12,7 +13,7 @@ run('git', ['init', '-q', repository]); run('git', ['add', '.'], { cwd: reposito
 const gitServer = http.createServer(async (req, res) => { const target = path.resolve(repository, '.git', '.' + new URL(req.url, 'http://localhost').pathname); if (!target.startsWith(path.join(repository, '.git') + path.sep)) { res.writeHead(403); res.end(); return; } try { const data = await fs.readFile(target); res.writeHead(200, { 'content-type': 'application/octet-stream' }); res.end(data); } catch { res.writeHead(404); res.end(); } });
 await new Promise(resolve => gitServer.listen(0, '127.0.0.1', resolve));
 const resources = process.argv[2] || path.join(root, 'dist/stage');
-const env = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', PATH: path.join(resources, 'node/bin') + ':/usr/bin:/bin', ONBOARDER_AGENT_HOME: path.join(temporary, 'agent'), ONBOARDER_INTELLIGENCE_HOME: path.join(temporary, 'intelligence') };
+const env = { ...process.env, SHELL: await testShell(temporary), GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', PATH: path.join(resources, 'node/bin') + ':/usr/bin:/bin', ONBOARDER_AGENT_HOME: path.join(temporary, 'agent'), ONBOARDER_INTELLIGENCE_HOME: path.join(temporary, 'intelligence') };
 let output = '';
 const first = new BackendClient(resources, repository, env, event => { if (event.type === 'terminal-data') output += event.data; });
 const second = new BackendClient(resources, repository, env, () => {});
@@ -28,8 +29,8 @@ try {
   const shell = await first.request('terminal', { action: 'create', input: { kind: 'shell', cols: 100, rows: 24 } });
   await first.request('terminal', { action: 'resize', input: { id: shell.id, cols: 100, rows: 24 } });
   await assert.rejects(second.request('terminal', { action: 'write', input: { id: shell.id, data: 'echo WRONG\r' } }), /ended/);
-  await first.request('terminal', { action: 'write', input: { id: shell.id, data: "printf 'SIDECAR_OK\\n'; node --version\r" } });
-  await waitFor(() => output.includes('SIDECAR_OK') && output.includes('v24.20.0'));
+  await first.request('terminal', { action: 'write', input: { id: shell.id, data: "printf 'SIDECAR_OK\\n'; command -v node; node --version\r" } });
+  await waitFor(() => output.includes('SIDECAR_OK') && output.includes(path.join(resources, 'node/bin/node')) && output.includes('v24.20.0'));
   const destination = path.join(temporary, 'persistent clone');
   await first.request('clone', { url: `http://127.0.0.1:${gitServer.address().port}`, destination });
   assert.equal(await fs.readFile(path.join(destination, 'app.js'), 'utf8'), 'export const answer = 42;\n');
