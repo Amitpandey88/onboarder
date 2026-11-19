@@ -68,7 +68,8 @@ test('argument-array subprocess preserves arbitrary text and split Unicode, with
 });
 test('subprocess cleanup removes descendants even when the parent exits first', { skip: process.platform === 'win32' }, async () => {
   let pid;
-  const code = `const {spawn}=require('node:child_process'); const child=spawn(process.execPath,['-e','process.on("SIGTERM",()=>{}); setInterval(()=>{},100);'],{stdio:'ignore'}); setTimeout(()=>{console.log(child.pid); process.exit(0);},50);`;
+  // Avoid console.log(number): node:test can add ANSI inspection colors.
+  const code = `const {spawn}=require('node:child_process'); const child=spawn(process.execPath,['-e','process.on("SIGTERM",()=>{}); setInterval(()=>{},100);'],{stdio:'ignore'}); setTimeout(()=>{process.stdout.write(String(child.pid) + '\\n'); process.exit(0);},50);`;
   await runProcess(process.execPath, ['-e', code], { onLine: line => { pid = Number(line); } });
   assert.ok(pid > 0);
   // Reaping may take a brief scheduler tick on POSIX.
