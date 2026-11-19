@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { runProcess, redact, terminalText } from '../cli/agent/process.js';
 import { readAgentFile, writeAgentFile, deleteAgentFile, FILE_LIMIT, safeRelative } from '../cli/agent/files.js';
 import { GithubClient, positiveId, repositoryFromRemote, githubToken } from '../cli/agent/github.js';
@@ -68,7 +69,8 @@ test('argument-array subprocess preserves arbitrary text and split Unicode, with
 });
 test('subprocess cleanup removes descendants even when the parent exits first', { skip: process.platform === 'win32' }, async () => {
   let pid;
-  const code = `const {spawn}=require('node:child_process'); const child=spawn(process.execPath,['-e','process.on("SIGTERM",()=>{}); setInterval(()=>{},100);'],{stdio:'ignore'}); setTimeout(()=>{console.log(child.pid); process.exit(0);},50);`;
+  // Avoid console.log(number): node:test can add ANSI inspection colors.
+  const code = `const {spawn}=require('node:child_process'); const child=spawn(process.execPath,['-e','process.on("SIGTERM",()=>{}); setInterval(()=>{},100);'],{stdio:'ignore'}); setTimeout(()=>{process.stdout.write(String(child.pid) + '\\n'); process.exit(0);},50);`;
   await runProcess(process.execPath, ['-e', code], { onLine: line => { pid = Number(line); } });
   assert.ok(pid > 0);
   // Reaping may take a brief scheduler tick on POSIX.
@@ -252,9 +254,9 @@ test('agent dry-run has no profile, run, worktree or model side effects', async 
   assert.equal((await git(['worktree', 'list', '--porcelain'])).stdout.match(/^worktree /gm).length, 1);
 });
 test('CLI exposes agent help and parses a scoped PR plan without executing a model', async t => {
-  const { root, home, env } = await fixture(t), entry = new URL('../bin/onboarder.js', import.meta.url);
-  const help = await runProcess(process.execPath, [entry.pathname, 'agent', '--help'], { env }); assert.equal(help.code, 0); assert.match(help.stdout, /Hermes/); assert.match(help.stdout, /allow-github-writes/);
-  const output = await runProcess(process.execPath, [entry.pathname, 'agent', 'pr', root, '--task', 'Fix the bug', '--base', 'main', '--allow-checks', '--dry-run', '--json'], { env: { ...env, ONBOARDER_AGENT_HOME: home } });
+  const { root, home, env } = await fixture(t), entry = fileURLToPath(new URL('../bin/onboarder.js', import.meta.url));
+  const help = await runProcess(process.execPath, [entry, 'agent', '--help'], { env }); assert.equal(help.code, 0); assert.match(help.stdout, /Hermes/); assert.match(help.stdout, /allow-github-writes/);
+  const output = await runProcess(process.execPath, [entry, 'agent', 'pr', root, '--task', 'Fix the bug', '--base', 'main', '--allow-checks', '--dry-run', '--json'], { env: { ...env, ONBOARDER_AGENT_HOME: home } });
   assert.equal(output.code, 0, output.stderr); const plan = JSON.parse(output.stdout); assert.equal(plan.baseBranch, 'main'); assert.equal(plan.permissions.github, false); assert.equal(plan.permissions.checks, true);
 });
 test('implementation runs in a worktree, preserves dirty source, and saves structured results', async t => {

@@ -39,6 +39,7 @@
     "start": "node server/index.js",
     "mcp": "node server/mcp/standalone.js",
     "test": "npm run build && node --test",
+    "test:platform": "node --test tests/agent.test.js tests/pathUtil.test.js",
     "benchmark:review": "npm run build && node scripts/benchmark-review.mjs",
     "prepublishOnly": "npm run check",
     "prestart": "node bin/build-if-source.js",
