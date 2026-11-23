@@ -59,6 +59,7 @@ import { createServerDrawer } from '/js/serverSettings.js';
 import { renderDiffView, stopDiff } from '/js/diffView.js';
 import { renderReviewView, stopReview } from '/js/reviewView.js';
 import { renderTriage, stopTriage } from '/js/triageView.js';
+import { renderChangeStack, stopChangeStack } from '/js/changeStackView.js';
 import { renderWorkflows } from '/js/workflowsView.js';
 import { renderSbom } from '/js/sbomView.js';
 import { initMobilePanels } from '/js/mobilePanels.js';
@@ -77,7 +78,7 @@ const dom = {};
     'setConnection', 'apiConnection', 'hermesConnection', 'hermesConnectionStatus', 'hermesModel', 'hermesProvider', 'refreshHermes', 'aiConnectionNote',
     'graphView', 'graphCanvas', 'graphControls', 'graphReset', 'graphZoomIn', 'graphZoomOut', 'graphFit', 'graphSearchInput', 'graphSummary', 'graphTooltip',
     'heatmapView', 'heatmapCanvas', 'heatmapTooltip', 'blameGutter', 'codeTabContainer',
-    'insightsView', 'diffView', 'reviewView', 'triageView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView',
+    'insightsView', 'diffView', 'reviewView', 'triageView', 'changeStackView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView',
     'mcpBtn', 'mcpBtnLabel', 'mcpDot', 'mcpDrawer', 'mcpScrim', 'mcpClose', 'mcpPanelDot', 'mcpPanelState',
     'mcpStart', 'mcpStop', 'mcpStatus', 'mcpConfig', 'mcpCommandInput', 'mcpCopy', 'mcpTabJson', 'mcpTabToml',
     'mcpConfigBlock', 'mcpToolsHint', 'serverBtn',
@@ -347,6 +348,7 @@ dom.newRepoBtn.addEventListener('click', () => {
     workspaceShell.unloaded();
     fileNavigation.close();
     stopTriage();
+    stopChangeStack();
     stopAiDraft();
     stopReview();
     stopIntelligence();
@@ -453,13 +455,15 @@ function setView(view) {
     fileNavigation.close();
     if (view !== 'triage')
         stopTriage();
+    if (view !== 'change-stack')
+        stopChangeStack();
     if (view !== 'review')
         stopReview();
     if (view !== 'intelligence')
         stopIntelligence();
     if (view !== 'diff')
         stopDiff();
-    dom.explorer.classList.toggle('review-workspace', view === 'review' || view === 'intelligence' || view === 'triage');
+    dom.explorer.classList.toggle('review-workspace', view === 'review' || view === 'intelligence' || view === 'triage' || view === 'change-stack');
     state.view = view;
     rememberView(state.scan.root, { name: view, path: state.code.path || state.selected || '', filter: state.filters.text });
     if (isExplorerView(view))
@@ -493,7 +497,38 @@ window.addEventListener('triage-review', ((event) => {
     state.review.base = event.detail.report.base;
     state.review.head = event.detail.report.head;
     state.review.error = '';
+    state.review.origin = null;
     setView('review');
+}));
+window.addEventListener('change-stack-review', ((event) => {
+    const result = event.detail?.result;
+    if (!state.scan || !result?.review || result.review.evidence?.source !== 'git-diff')
+        return;
+    state.changeStack.result = result;
+    state.changeStack.base = result.base;
+    state.changeStack.head = result.head;
+    state.changeStack.running = false;
+    state.review.report = result.review;
+    state.review.mode = 'range';
+    state.review.base = result.base;
+    state.review.head = result.head;
+    state.review.error = '';
+    state.review.origin = 'change-stack';
+    setView('review');
+}));
+window.addEventListener('change-stack-return', () => { if (state.scan)
+    setView('change-stack'); });
+window.addEventListener('triage-change-stack', ((event) => {
+    const { base, head } = event.detail || {};
+    if (!state.scan || typeof base !== 'string' || typeof head !== 'string')
+        return;
+    state.changeStack.base = base;
+    state.changeStack.head = head;
+    state.changeStack.result = null;
+    state.changeStack.error = '';
+    state.changeStack.autoRun = true;
+    state.changeStack.origin = 'triage';
+    setView('change-stack');
 }));
 window.addEventListener('triage-return', () => { if (state.scan)
     setView('triage'); });
@@ -605,11 +640,12 @@ async function renderCanvas({ preserveViewport = false } = {}) {
     const isDiff = state.view === 'diff';
     const isReview = state.view === 'review';
     const isTriage = state.view === 'triage';
+    const isChangeStack = state.view === 'change-stack';
     const isWorkflows = state.view === 'workflows';
     const isSbom = state.view === 'sbom';
     const isIntelligence = state.view === 'intelligence';
     const isAnalysis = state.view === 'analysis';
-    const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isReview || isTriage || isWorkflows || isSbom || isAnalysis || isIntelligence;
+    const isPage = isDocs || isAbout || isCode || isGraph || isHeatmap || isInsights || isDiff || isReview || isTriage || isChangeStack || isWorkflows || isSbom || isAnalysis || isIntelligence;
     forceGraphCtl?.setActive(isGraph && !searchCtl?.isShowing());
     const isAtlasList = state.view === 'atlas' && !state.atlasOpen;
     const focusSubject = state.view === 'files' ? state.detail ? 'file:' + state.detail : 'folder:' + state.folder
@@ -635,6 +671,7 @@ async function renderCanvas({ preserveViewport = false } = {}) {
     if (dom.reviewView)
         dom.reviewView.hidden = !isReview;
     dom.triageView.hidden = !isTriage;
+    dom.changeStackView.hidden = !isChangeStack;
     if (dom.workflowsView)
         dom.workflowsView.hidden = !isWorkflows;
     if (dom.sbomView)
@@ -666,6 +703,8 @@ async function renderCanvas({ preserveViewport = false } = {}) {
             renderReviewView(dom.reviewView, state);
         else if (isTriage)
             renderTriage(dom.triageView, state);
+        else if (isChangeStack)
+            renderChangeStack(dom.changeStackView, state);
         else if (isWorkflows)
             renderWorkflows(dom.workflowsView, state);
         else if (isSbom)

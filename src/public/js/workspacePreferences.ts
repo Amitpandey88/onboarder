@@ -1,7 +1,7 @@
 const hashString = (value: string) => { let result = 2166136261; for (const char of value) result = Math.imul(result ^ char.charCodeAt(0), 16777619); return (result >>> 0).toString(16); };
 
 export interface Viewpoint { name: string; path: string; filter: string; viewport?: { scale: number; tx: number; ty: number }; expanded?: string[] }
-const views = new Set(['map', 'files', 'patterns', 'health', 'security', 'history', 'services', 'tour', 'atlas', 'analysis', 'review', 'graph', 'heatmap', 'insights', 'diff', 'workflows', 'sbom', 'code', 'docs', 'about', 'intelligence', 'triage']);
+const views = new Set(['map', 'files', 'patterns', 'health', 'security', 'history', 'services', 'tour', 'atlas', 'analysis', 'review', 'graph', 'heatmap', 'insights', 'diff', 'workflows', 'sbom', 'code', 'docs', 'about', 'intelligence', 'triage', 'change-stack']);
 const key = (root: string) => 'onboarder.view.v1.' + hashString(root);
 function validPosition(value: Viewpoint) {
   const viewport = value.viewport;

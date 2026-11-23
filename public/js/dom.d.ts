@@ -6,6 +6,7 @@ export interface AppElements {
     intelligenceView: HTMLElement;
     reviewView: HTMLElement;
     triageView: HTMLElement;
+    changeStackView: HTMLElement;
     cancelScanBtn: HTMLButtonElement;
     scanProgress: HTMLProgressElement;
     inspTitle: HTMLElement;

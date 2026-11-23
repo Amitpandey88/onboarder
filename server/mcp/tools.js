@@ -21,6 +21,7 @@ import { runExternalAnalysis, toolsStatus } from '../tools/scan.js';
 import { TOOL_DEFS } from '../tools/registry.js';
 import { validateArguments } from './protocol.js';
 import { workspaceFor, compareRevisions } from '../intelligence/workspace.js';
+import { changeStack } from '../changeStack.js';
 import { GithubClient } from '../../cli/agent/github.js';
 import { GithubProvider, safeProviderError } from '../providers/github.js';
 import { listTriage, inspectTriage, localGithubRepository } from '../triage.js';
@@ -326,10 +327,10 @@ export const TOOLS = [
     },
     {
         name: 'onboarder_intelligence',
-        description: 'Refresh repository intelligence: architecture boundaries, measured coverage, packages, routes, journeys, knowledge freshness and optional semantic symbols. Retrieve revision-pinned evidence or compare exact Git revisions. Source excerpts require includeSource; otherwise read cited files with onboarder_read_file.',
+        description: 'Refresh repository intelligence: architecture boundaries, measured coverage, packages, routes, journeys, knowledge freshness and optional semantic symbols. Retrieve revision-pinned evidence, compare exact Git revisions, or build an ordered Change Stack with before/after overlays. Change Stack captured patches and source excerpts require includeSource; bounded MCP projections disclose their limits.',
         inputSchema: {
             type: 'object',
-            properties: { path: PATH_PROPERTY, action: { type: 'string', enum: ['scan', 'evidence', 'compare'] },
+            properties: { path: PATH_PROPERTY, action: { type: 'string', enum: ['scan', 'evidence', 'compare', 'change-stack'] },
                 question: { type: 'string', maxLength: 4000 }, base: { type: 'string', maxLength: 200 }, head: { type: 'string', maxLength: 200 },
                 semantic: { type: 'boolean' }, includeSource: { type: 'boolean' } },
             required: [],
@@ -340,6 +341,47 @@ export const TOOLS = [
                 if (typeof args.base !== 'string' || typeof args.head !== 'string')
                     throw new ToolError('Supply base and head references.');
                 return compareRevisions(a.root, args.base, args.head);
+            }
+            if (args.action === 'change-stack') {
+                if (typeof args.base !== 'string' || typeof args.head !== 'string')
+                    throw new ToolError('Supply base and head references.');
+                const result = await changeStack(a.root, { base: args.base, head: args.head, semantic: args.semantic === true, signal: AbortSignal.timeout(120000) });
+                const files = result.files.slice(0, 200), fileIds = new Set(files.map(file => file.id));
+                const findings = result.review.findings.slice(0, 200).map(finding => {
+                    if (args.includeSource)
+                        return finding;
+                    const { excerpt: _excerpt, relatedEvidence, ...metadata } = finding;
+                    return { ...metadata, ...(relatedEvidence ? { relatedEvidence: relatedEvidence.map(({ text: _text, ...citation }) => citation) } : {}) };
+                });
+                const review = {
+                    ...result.review,
+                    files: result.review.files.slice(0, 200).map(file => args.includeSource ? file : { ...file, instructions: [] }),
+                    findings,
+                    checks: result.review.checks.slice(0, 100),
+                    ...(args.includeSource && result.review.comparison ? { comparison: { ...result.review.comparison, files: result.review.comparison.files.slice(0, 100) } } : {}),
+                };
+                if (!args.includeSource)
+                    delete review.comparison;
+                const payload = {
+                    ...result, files,
+                    groups: result.groups.map(group => ({ ...group, fileIds: group.fileIds.filter(id => fileIds.has(id)) })).filter(group => group.fileIds.length),
+                    architecture: {
+                        ...result.architecture,
+                        addedConnections: result.architecture.addedConnections.slice(0, 500), removedConnections: result.architecture.removedConnections.slice(0, 500),
+                        introducedCycles: result.architecture.introducedCycles.slice(0, 100), addedFiles: result.architecture.addedFiles.slice(0, 500), removedFiles: result.architecture.removedFiles.slice(0, 500),
+                        changedFiles: result.architecture.changedFiles.slice(0, 500), removedExports: result.architecture.removedExports.slice(0, 500), newViolations: result.architecture.newViolations.slice(0, 300),
+                    },
+                    review,
+                    mcp: {
+                        sourceIncluded: args.includeSource === true,
+                        limits: { files: 200, findings: 200, checks: 100, comparisonFiles: args.includeSource ? 100 : 0, architectureConnections: 500, outputBytes: 512 * 1024 },
+                        totals: { files: result.files.length, findings: result.review.findings.length, checks: result.review.checks.length, comparisonFiles: result.review.comparison?.files.length || 0, addedConnections: result.architecture.addedConnections.length, removedConnections: result.architecture.removedConnections.length },
+                        note: args.includeSource ? 'Captured source patches are explicitly included and bounded. Use CLI/web export for the complete comparison.' : 'Captured patches, finding excerpts, related source text and file guidelines are omitted. Set includeSource to include bounded captured patches.',
+                    },
+                };
+                if (Buffer.byteLength(JSON.stringify(payload)) > 512 * 1024)
+                    throw new ToolError('Change Stack MCP output exceeds 512 KB. Narrow the range, omit includeSource, or use CLI/web export for the complete report.');
+                return payload;
             }
             const workspace = await workspaceFor(a.root);
             const report = await workspace.refresh({ semantic: args.semantic === true });

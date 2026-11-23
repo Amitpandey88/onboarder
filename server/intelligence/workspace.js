@@ -368,8 +368,8 @@ export async function revisionFileSource(root, ref, signal) {
     return { source, texts, revision };
 }
 /** Read immutable Git objects without checkout, hooks, or repository scripts. */
-export async function revisionSnapshot(root, ref, config = emptyIntelligenceConfig(), options = {}) {
-    const { source, texts, revision } = await revisionFileSource(root, ref, options.signal);
+async function snapshotFromCapture(capture, config, options) {
+    const { source, texts, revision } = capture;
     const scan = await scanRepo(source, options);
     const facts = computeFacts(scan, await detectManifest(source));
     return { schemaVersion: 1, id: randomUUID(), createdAt: new Date().toISOString(), revision, analyzerVersion: ANALYZER_VERSION,
@@ -378,17 +378,30 @@ export async function revisionSnapshot(root, ref, config = emptyIntelligenceConf
         edges: scan.edges, cycles: facts.cycles, violations: architectureViolations(scan.edges, config),
         metrics: { files: scan.files.length, connections: scan.edges.length, unresolved: scan.stats.imports.unresolved, security: scan.files.reduce((n, f) => n + (f.findings?.length || 0), 0), reused: 0 } };
 }
-export async function compareRevisions(root, base, head) {
+export async function revisionSnapshot(root, ref, config = emptyIntelligenceConfig(), options = {}) {
+    return snapshotFromCapture(await revisionFileSource(root, ref, options.signal), config, options);
+}
+/** Snapshots and captured texts for both immutable revisions, using the head's architecture policy. */
+export async function revisionPair(root, base, head, options = {}) {
+    options.signal?.throwIfAborted();
+    const [baseCapture, headCapture] = await Promise.all([revisionFileSource(root, base, options.signal), revisionFileSource(root, head, options.signal)]);
     let config = emptyIntelligenceConfig();
     try {
-        config = parseIntelligenceConfig(JSON.parse(await boundedSource(root, '.onboarder.json', 65536)));
+        const text = await headCapture.source.read('.onboarder.json');
+        config = parseIntelligenceConfig(JSON.parse(text));
+        // Configuration participates in rule evaluation, not source identity.
+        headCapture.texts.delete('.onboarder.json');
     }
     catch (error) {
-        if (error.code !== 'ENOENT')
+        if (error.code !== 'ENOENT' && error.message !== 'File unavailable at this revision.')
             throw error;
     }
-    const before = await revisionSnapshot(root, base, config);
-    const after = await revisionSnapshot(root, head, config);
+    const before = await snapshotFromCapture(baseCapture, config, options);
+    const after = await snapshotFromCapture(headCapture, config, options);
+    return { before, after, beforeTexts: baseCapture.texts, afterTexts: headCapture.texts };
+}
+export async function compareRevisions(root, base, head, options = {}) {
+    const { before, after } = await revisionPair(root, base, head, options);
     return { ...compareSnapshots(before, after), before, after };
 }
 export async function portfolioFor(roots) {

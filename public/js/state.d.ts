@@ -1,4 +1,5 @@
 import type { ReviewReport } from '../../shared/review/contracts.js';
+import type { ChangeStackResult } from '../../shared/changeStack/contracts.js';
 export declare const EXPLORER_VIEWS: string[];
 export declare const state: {
     scan: any;
@@ -98,6 +99,18 @@ export declare const state: {
         aiMode: boolean;
         source: string;
         category: string;
+        origin: 'change-stack' | null;
+    };
+    changeStack: {
+        result: ChangeStackResult | null;
+        base: string;
+        head: string;
+        semantic: boolean;
+        error: string;
+        running: boolean;
+        autoRun: boolean;
+        overlay: 'changes' | 'context';
+        origin: 'triage' | null;
     };
 };
 export declare function loadRepo({ scan, facts, manifest, history, scanId, cloneId }: {
@@ -205,6 +218,18 @@ export declare function loadRepo({ scan, facts, manifest, history, scanId, clone
         aiMode: boolean;
         source: string;
         category: string;
+        origin: 'change-stack' | null;
+    };
+    changeStack: {
+        result: ChangeStackResult | null;
+        base: string;
+        head: string;
+        semantic: boolean;
+        error: string;
+        running: boolean;
+        autoRun: boolean;
+        overlay: 'changes' | 'context';
+        origin: 'triage' | null;
     };
 };
 export declare function unloadRepo(): void;
@@ -309,6 +334,18 @@ export declare function inspectorSubject(s?: {
         aiMode: boolean;
         source: string;
         category: string;
+        origin: 'change-stack' | null;
+    };
+    changeStack: {
+        result: ChangeStackResult | null;
+        base: string;
+        head: string;
+        semantic: boolean;
+        error: string;
+        running: boolean;
+        autoRun: boolean;
+        overlay: 'changes' | 'context';
+        origin: 'triage' | null;
     };
 }): {
     kind: string;
@@ -417,6 +454,18 @@ export declare function inspectorBackLabel(s?: {
         aiMode: boolean;
         source: string;
         category: string;
+        origin: 'change-stack' | null;
+    };
+    changeStack: {
+        result: ChangeStackResult | null;
+        base: string;
+        head: string;
+        semantic: boolean;
+        error: string;
+        running: boolean;
+        autoRun: boolean;
+        overlay: 'changes' | 'context';
+        origin: 'triage' | null;
     };
 }): any;
 export declare function isExplorerView(view: any): boolean;
@@ -518,6 +567,18 @@ export declare function aiViewKey(s?: {
         aiMode: boolean;
         source: string;
         category: string;
+        origin: 'change-stack' | null;
+    };
+    changeStack: {
+        result: ChangeStackResult | null;
+        base: string;
+        head: string;
+        semantic: boolean;
+        error: string;
+        running: boolean;
+        autoRun: boolean;
+        overlay: 'changes' | 'context';
+        origin: 'triage' | null;
     };
 }): string;
 export declare function defaultCodePath(s?: {
@@ -618,6 +679,18 @@ export declare function defaultCodePath(s?: {
         aiMode: boolean;
         source: string;
         category: string;
+        origin: 'change-stack' | null;
+    };
+    changeStack: {
+        result: ChangeStackResult | null;
+        base: string;
+        head: string;
+        semantic: boolean;
+        error: string;
+        running: boolean;
+        autoRun: boolean;
+        overlay: 'changes' | 'context';
+        origin: 'triage' | null;
     };
 }): any;
 export declare function pushCodeHistory(path: any, s?: {
@@ -718,6 +791,18 @@ export declare function pushCodeHistory(path: any, s?: {
         aiMode: boolean;
         source: string;
         category: string;
+        origin: 'change-stack' | null;
+    };
+    changeStack: {
+        result: ChangeStackResult | null;
+        base: string;
+        head: string;
+        semantic: boolean;
+        error: string;
+        running: boolean;
+        autoRun: boolean;
+        overlay: 'changes' | 'context';
+        origin: 'triage' | null;
     };
 }): void;
 export declare function codeHistoryTarget(delta: any, s?: {
@@ -818,5 +903,17 @@ export declare function codeHistoryTarget(delta: any, s?: {
         aiMode: boolean;
         source: string;
         category: string;
+        origin: 'change-stack' | null;
+    };
+    changeStack: {
+        result: ChangeStackResult | null;
+        base: string;
+        head: string;
+        semantic: boolean;
+        error: string;
+        running: boolean;
+        autoRun: boolean;
+        overlay: 'changes' | 'context';
+        origin: 'triage' | null;
     };
 }): any;

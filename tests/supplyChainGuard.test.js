@@ -27,8 +27,8 @@ async function fixture(t) {
     html += `<script src="/vendor/${name}?v=${name.startsWith('monaco/') ? '0.52.2' : '11.17.2'}" integrity="sha384-${createHash('sha384').update(content).digest('base64')}"></script>`;
   }
   await write('public/vendor/manifest.json', manifest); await write('public/index.html', html);
-  for (const file of ['bin/onboarder.js', 'public/app.js', 'server/security/download.js', 'server/reviewEvidence.js', 'server/intelligence/githubReview.js', 'server/reviewAI.js', 'server/reviewContext.js', 'cli/review.js', 'public/js/reviewAI.js', 'server/fixEngine.js', 'server/fixProposal.js', 'server/fixStore.js', 'server/fixSource.js', 'cli/fix.js', 'cli/agent/checks.js', 'cli/agent/workspace.js', 'cli/agent/gitSafety.js', 'shared/review/fixContracts.js', 'public/js/reviewFix.js', 'docs/AI_FIX_VERIFICATION.md', 'server/triage.js', 'server/triageAI.js', 'server/apiTriage.js', 'server/providers/github.js', 'server/providers/contracts.js', 'shared/triage/contracts.js', 'shared/triage/priority.js', 'cli/triage.js', 'public/js/triageView.js', 'docs/PR_TRIAGE.md', 'docs/PHASE4A_VERIFICATION.md', 'docs/SUPPLY_CHAIN_SECURITY.md', 'docs/UNIFIED_REVIEW_FOUNDATION.md', 'docs/CONTEXTUAL_AI_REVIEW.md', 'SECURITY.md']) await write(file, 'fixture');
-  for (const file of ['server/security/deadline.js', 'CHANGELOG.md', 'docs/RELEASE_1.2.0.md', 'docs/RELEASE_1.1.0.md', 'docs/MIGRATING_TO_1.1.md', 'integrations/vscode/package.json', 'integrations/vscode/extension.cjs', 'integrations/vscode/README.md', 'scripts/package-editor.mjs']) await write(file, 'fixture');
+  for (const file of ['bin/onboarder.js', 'public/app.js', 'server/security/download.js', 'server/reviewEvidence.js', 'server/intelligence/githubReview.js', 'server/reviewAI.js', 'server/reviewContext.js', 'cli/review.js', 'public/js/reviewAI.js', 'server/fixEngine.js', 'server/fixProposal.js', 'server/fixStore.js', 'server/fixSource.js', 'cli/fix.js', 'cli/agent/checks.js', 'cli/agent/workspace.js', 'cli/agent/gitSafety.js', 'shared/review/fixContracts.js', 'public/js/reviewFix.js', 'docs/AI_FIX_VERIFICATION.md', 'server/changeStack.js', 'shared/changeStack/contracts.js', 'shared/changeStack/analysis.js', 'public/js/changeStackView.js', 'public/change-stack.css', 'server/triage.js', 'server/triageAI.js', 'server/apiTriage.js', 'server/providers/github.js', 'server/providers/contracts.js', 'shared/triage/contracts.js', 'shared/triage/priority.js', 'cli/triage.js', 'public/js/triageView.js', 'docs/PR_TRIAGE.md', 'docs/PHASE4A_VERIFICATION.md', 'docs/CHANGE_STACK.md', 'docs/PHASE4B_VERIFICATION.md', 'docs/SUPPLY_CHAIN_SECURITY.md', 'docs/UNIFIED_REVIEW_FOUNDATION.md', 'docs/CONTEXTUAL_AI_REVIEW.md', 'SECURITY.md']) await write(file, 'fixture');
+  for (const file of ['server/security/deadline.js', 'CHANGELOG.md', 'docs/RELEASE_1.3.0.md', 'docs/RELEASE_1.2.0.md', 'docs/RELEASE_1.1.0.md', 'docs/MIGRATING_TO_1.1.md', 'integrations/vscode/package.json', 'integrations/vscode/extension.cjs', 'integrations/vscode/README.md', 'scripts/package-editor.mjs']) await write(file, 'fixture');
   await write('.github/workflows/ci.yml', 'uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262');
   const run = () => spawnSync(process.execPath, ['scripts/check-supply-chain.mjs'], { cwd: root, encoding: 'utf8', timeout: 15_000 });
   return { root, pkg, write, run };
@@ -44,6 +44,15 @@ test('release guard accepts a complete package and rejects a newly shipped crede
 test('release guard rejects a package missing unified review modules or its guide', async t => {
   const { root, run, write } = await fixture(t);
   for (const file of ['server/reviewEvidence.js', 'server/intelligence/githubReview.js', 'docs/UNIFIED_REVIEW_FOUNDATION.md', 'server/reviewAI.js', 'server/reviewContext.js', 'public/js/reviewAI.js', 'docs/CONTEXTUAL_AI_REVIEW.md', 'server/security/deadline.js', 'integrations/vscode/extension.cjs', 'scripts/package-editor.mjs', 'docs/MIGRATING_TO_1.1.md']) {
+    await fs.unlink(path.join(root, file));
+    const result = run(); assert.notEqual(result.status, 0); assert.ok(result.stderr.includes('Missing packaged file: ' + file));
+    await write(file, 'fixture');
+  }
+});
+
+test('release guard rejects a package missing Change Stack modules or its guide', async t => {
+  const { root, run, write } = await fixture(t);
+  for (const file of ['server/changeStack.js', 'shared/changeStack/contracts.js', 'shared/changeStack/analysis.js', 'public/js/changeStackView.js', 'public/change-stack.css', 'docs/CHANGE_STACK.md', 'docs/PHASE4B_VERIFICATION.md']) {
     await fs.unlink(path.join(root, file));
     const result = run(); assert.notEqual(result.status, 0); assert.ok(result.stderr.includes('Missing packaged file: ' + file));
     await write(file, 'fixture');

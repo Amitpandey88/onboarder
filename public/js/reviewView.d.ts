@@ -13,6 +13,7 @@ interface ReviewState {
     aiMode?: boolean;
     source?: string;
     category?: string;
+    origin?: 'change-stack' | null;
 }
 interface ReviewContext {
     scanId: string | null;

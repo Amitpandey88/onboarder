@@ -97,6 +97,18 @@ export declare function renderDeepAnalysis(container: any, appState?: {
         aiMode: boolean;
         source: string;
         category: string;
+        origin: 'change-stack' | null;
+    };
+    changeStack: {
+        result: import("../../shared/changeStack/contracts.js").ChangeStackResult | null;
+        base: string;
+        head: string;
+        semantic: boolean;
+        error: string;
+        running: boolean;
+        autoRun: boolean;
+        overlay: 'changes' | 'context';
+        origin: 'triage' | null;
     };
 }): void;
 export declare function renderAINote(ai: any): string;

@@ -29,6 +29,7 @@ Graphic lines outside the UI are editorial illustrations of connections.
 ## Files
 
 - `onboarder-showcase.mp4`: finished video.
+- `onboarder-showcase.gif`: 12-second animated preview for GitHub and npm README rendering.
 - `poster.jpg`: cover frame.
 - `storyboard.jpg`: six-scene contact sheet.
 - `preview-01.jpg` through `preview-06.jpg`: full-size scene frames.
@@ -52,4 +53,6 @@ python render.py --render
 ```
 
 The video and its editable assets are published in this GitHub repository.
-The product release remains version 1.0.2.
+The film preserves the 1.0.2 interface captures. The animated preview is a silent,
+12-second overview derived from the same film; the full MP4 retains its soundtrack.
+Current release notes live in GitHub Releases and the root changelog.

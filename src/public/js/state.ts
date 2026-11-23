@@ -1,4 +1,5 @@
 import type { ReviewReport } from '../../shared/review/contracts.js';
+import type { ChangeStackResult } from '../../shared/changeStack/contracts.js';
 // The application's state, in one place.
 //
 // This is a plain mutable object, not a reactive store, and that is deliberate.
@@ -71,7 +72,11 @@ function perRepo() {
       severity: 'all', tool: 'all', q: '',
       ai: { text: '', error: '', running: false, question: '' },
     },
-    review: { report: null as ReviewReport | null, mode: 'working', base: 'HEAD', head: 'HEAD', profile: '', severity: 'all', query: '', showAcknowledged: false, aiText: '', error: '', aiMode: false, source: 'all', category: 'all' },
+    review: { report: null as ReviewReport | null, mode: 'working', base: 'HEAD', head: 'HEAD', profile: '', severity: 'all', query: '', showAcknowledged: false, aiText: '', error: '', aiMode: false, source: 'all', category: 'all', origin: null as 'change-stack' | null },
+    changeStack: {
+      result: null as ChangeStackResult | null, base: 'HEAD~1', head: 'HEAD', semantic: false,
+      error: '', running: false, autoRun: false, overlay: 'changes' as 'changes' | 'context', origin: null as 'triage' | null,
+    },
   };
 }
 

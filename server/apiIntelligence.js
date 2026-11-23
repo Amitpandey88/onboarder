@@ -1,6 +1,7 @@
 import { getSession } from './sessions.js';
 import { sendError, sendJSON } from './http.js';
 import { workspaceFor, compareRevisions, portfolioFor } from './intelligence/workspace.js';
+import { changeStack } from './changeStack.js';
 import { IntelligenceStore } from './intelligence/store.js';
 import { compareSnapshots, relativePath, impactReport } from '../shared/intelligence/analysis.js';
 export async function handleIntelligence(res, body, store = new IntelligenceStore()) {
@@ -41,7 +42,14 @@ export async function handleIntelligence(res, body, store = new IntelligenceStor
         else if (action === 'compare') {
             if (typeof b.base !== 'string' || typeof b.head !== 'string')
                 throw new Error('Choose two Git references.');
-            result = await compareRevisions(session.root, b.base, b.head);
+            result = await compareRevisions(session.root, b.base, b.head, { signal: abort.signal });
+        }
+        else if (action === 'change-stack') {
+            if (typeof b.base !== 'string' || typeof b.head !== 'string')
+                throw new Error('Choose a base and head Git reference.');
+            if (b.semantic !== undefined && typeof b.semantic !== 'boolean')
+                throw new Error('Semantic analysis is on or off.');
+            result = await changeStack(session.root, { base: b.base, head: b.head, semantic: b.semantic === true, signal: abort.signal });
         }
         else if (action === 'compare-snapshots') {
             if (typeof b.before !== 'string' || typeof b.after !== 'string')

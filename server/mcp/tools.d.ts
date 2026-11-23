@@ -129,6 +129,142 @@ export declare const TOOLS: ({
         before: import("../../shared/intelligence/contracts.js").Snapshot;
         after: import("../../shared/intelligence/contracts.js").Snapshot;
     } | {
+        schemaVersion: 1;
+        generatedAt: string;
+        base: string;
+        head: string;
+        summary: {
+            files: number;
+            additions: number;
+            deletions: number;
+            fileMoves: number;
+            symbolChanges: number;
+            affectedCallers: number;
+            relatedTests: number;
+        };
+        symbolChanges: import("../../shared/changeStack/contracts.js").ChangeStackSymbolChange[];
+        overlay: import("../../shared/changeStack/contracts.js").ChangeStackOverlay;
+        impact: {
+            affectedCallers: string[];
+            relatedTests: string[];
+        };
+        semantic: {
+            requested: boolean;
+            status: 'not-requested' | 'available' | 'partial' | 'unavailable';
+            engine?: string;
+            reasons: string[];
+        };
+        coverage: {
+            status: 'complete' | 'partial';
+            limitations: string[];
+        };
+        limitations: string[];
+        files: import("../../shared/changeStack/contracts.js").ChangeStackFile[];
+        groups: {
+            id: import("../../shared/changeStack/contracts.js").ChangeGroupId;
+            title: string;
+            explanation: string;
+            reviewFocus: string;
+            fileIds: string[];
+        }[];
+        architecture: {
+            base: string;
+            head: string;
+            securityDelta: number;
+            addedConnections: string[];
+            removedConnections: string[];
+            introducedCycles: string[][];
+            addedFiles: string[];
+            removedFiles: string[];
+            changedFiles: string[];
+            removedExports: {
+                path: string;
+                name: string;
+            }[];
+            newViolations: {
+                id: string;
+                rule: string;
+                from: string;
+                to: string;
+                message: string;
+                baseline: boolean;
+            }[];
+        };
+        review: {
+            schemaVersion?: 2;
+            ai?: import("../../shared/review/aiContracts.js").AIReview;
+            comparison?: import("../../shared/review/contracts.js").ReviewComparison;
+            evidence?: import("../../shared/review/contracts.js").ReviewEvidence;
+            configuration?: import("../../shared/review/contracts.js").ReviewConfiguration;
+            fingerprint: string;
+            generatedAt: string;
+            mode: import("../../shared/review/contracts.js").ReviewMode;
+            base: string;
+            head: string;
+            profile: import("../../shared/review/contracts.js").ReviewProfile;
+            summary: string;
+            stats: import("../../shared/review/contracts.js").GitDiff['stats'];
+            coverage: {
+                reviewed: number;
+                skipped: number;
+                untracked: number;
+                limitations: string[];
+                status?: 'complete' | 'partial';
+                expectedFiles?: number;
+            };
+            files: import("../../shared/review/contracts.js").ReviewFile[];
+            findings: (import("../../shared/review/contracts.js").ReviewFinding | {
+                id: string;
+                path: string;
+                line: number;
+                rule: string;
+                severity: import("../../shared/review/contracts.js").Severity;
+                category: string;
+                message: string;
+                suggestion: string;
+                evidence?: import("../../shared/review/contracts.js").ReviewEvidence;
+                source?: 'static' | 'ai';
+                title?: string;
+                impact?: string;
+                confidence?: 'high' | 'medium' | 'low';
+                confidenceReason?: string;
+                engine?: string;
+                revision?: string;
+                sourceFingerprint?: string;
+                verification?: 'static-pattern' | 'evidence-validated';
+                relatedEvidence?: {
+                    id: string;
+                    path: string;
+                    startLine: number;
+                    endLine: number;
+                    revision: string;
+                    sourceHash: string;
+                    reason: string;
+                }[];
+            })[];
+            checks: import("../../shared/review/contracts.js").ReviewCheck[];
+        };
+        mcp: {
+            sourceIncluded: boolean;
+            limits: {
+                files: number;
+                findings: number;
+                checks: number;
+                comparisonFiles: number;
+                architectureConnections: number;
+                outputBytes: number;
+            };
+            totals: {
+                files: number;
+                findings: number;
+                checks: number;
+                comparisonFiles: number;
+                addedConnections: number;
+                removedConnections: number;
+            };
+            note: string;
+        };
+    } | {
         fingerprint: string;
         revision: string;
         relatedTests: string[];
@@ -1977,6 +2113,142 @@ export declare function findTool(name: any): {
         securityDelta: number;
         before: import("../../shared/intelligence/contracts.js").Snapshot;
         after: import("../../shared/intelligence/contracts.js").Snapshot;
+    } | {
+        schemaVersion: 1;
+        generatedAt: string;
+        base: string;
+        head: string;
+        summary: {
+            files: number;
+            additions: number;
+            deletions: number;
+            fileMoves: number;
+            symbolChanges: number;
+            affectedCallers: number;
+            relatedTests: number;
+        };
+        symbolChanges: import("../../shared/changeStack/contracts.js").ChangeStackSymbolChange[];
+        overlay: import("../../shared/changeStack/contracts.js").ChangeStackOverlay;
+        impact: {
+            affectedCallers: string[];
+            relatedTests: string[];
+        };
+        semantic: {
+            requested: boolean;
+            status: 'not-requested' | 'available' | 'partial' | 'unavailable';
+            engine?: string;
+            reasons: string[];
+        };
+        coverage: {
+            status: 'complete' | 'partial';
+            limitations: string[];
+        };
+        limitations: string[];
+        files: import("../../shared/changeStack/contracts.js").ChangeStackFile[];
+        groups: {
+            id: import("../../shared/changeStack/contracts.js").ChangeGroupId;
+            title: string;
+            explanation: string;
+            reviewFocus: string;
+            fileIds: string[];
+        }[];
+        architecture: {
+            base: string;
+            head: string;
+            securityDelta: number;
+            addedConnections: string[];
+            removedConnections: string[];
+            introducedCycles: string[][];
+            addedFiles: string[];
+            removedFiles: string[];
+            changedFiles: string[];
+            removedExports: {
+                path: string;
+                name: string;
+            }[];
+            newViolations: {
+                id: string;
+                rule: string;
+                from: string;
+                to: string;
+                message: string;
+                baseline: boolean;
+            }[];
+        };
+        review: {
+            schemaVersion?: 2;
+            ai?: import("../../shared/review/aiContracts.js").AIReview;
+            comparison?: import("../../shared/review/contracts.js").ReviewComparison;
+            evidence?: import("../../shared/review/contracts.js").ReviewEvidence;
+            configuration?: import("../../shared/review/contracts.js").ReviewConfiguration;
+            fingerprint: string;
+            generatedAt: string;
+            mode: import("../../shared/review/contracts.js").ReviewMode;
+            base: string;
+            head: string;
+            profile: import("../../shared/review/contracts.js").ReviewProfile;
+            summary: string;
+            stats: import("../../shared/review/contracts.js").GitDiff['stats'];
+            coverage: {
+                reviewed: number;
+                skipped: number;
+                untracked: number;
+                limitations: string[];
+                status?: 'complete' | 'partial';
+                expectedFiles?: number;
+            };
+            files: import("../../shared/review/contracts.js").ReviewFile[];
+            findings: (import("../../shared/review/contracts.js").ReviewFinding | {
+                id: string;
+                path: string;
+                line: number;
+                rule: string;
+                severity: import("../../shared/review/contracts.js").Severity;
+                category: string;
+                message: string;
+                suggestion: string;
+                evidence?: import("../../shared/review/contracts.js").ReviewEvidence;
+                source?: 'static' | 'ai';
+                title?: string;
+                impact?: string;
+                confidence?: 'high' | 'medium' | 'low';
+                confidenceReason?: string;
+                engine?: string;
+                revision?: string;
+                sourceFingerprint?: string;
+                verification?: 'static-pattern' | 'evidence-validated';
+                relatedEvidence?: {
+                    id: string;
+                    path: string;
+                    startLine: number;
+                    endLine: number;
+                    revision: string;
+                    sourceHash: string;
+                    reason: string;
+                }[];
+            })[];
+            checks: import("../../shared/review/contracts.js").ReviewCheck[];
+        };
+        mcp: {
+            sourceIncluded: boolean;
+            limits: {
+                files: number;
+                findings: number;
+                checks: number;
+                comparisonFiles: number;
+                architectureConnections: number;
+                outputBytes: number;
+            };
+            totals: {
+                files: number;
+                findings: number;
+                checks: number;
+                comparisonFiles: number;
+                addedConnections: number;
+                removedConnections: number;
+            };
+            note: string;
+        };
     } | {
         fingerprint: string;
         revision: string;
