@@ -16,6 +16,9 @@ plan.md
 # playwright-cli browser session artifacts
 .playwright-cli/
 
+# The amit.codes portfolio is deployed separately and is not published here.
+/portfolio-site/
+
 # TypeScript build products; src/ is the application source of truth.
 # Existing tracked outputs stay checked in so Node 20 and npm installs can run them.
 /cli/

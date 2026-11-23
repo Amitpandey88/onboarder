@@ -5,9 +5,10 @@
 - Moved the project home to [amit.codes](https://amit.codes/) and the product to
   [onboarder.amit.codes](https://onboarder.amit.codes/), including canonical
   links, sitemap, install examples, npm homepage and GitHub repository metadata.
-- Added the dependency-free portfolio source in `portfolio-site/`; the Onboarder
-  site now promotes the portfolio and no longer promotes Q3. The separate Q3
-  service is unchanged.
+- Launched the separate dependency-free portfolio at amit.codes; its source is
+  maintained outside this repository and is not included in the npm package. The
+  Onboarder site now promotes the portfolio and no longer promotes Q3. The separate
+  Q3 service is unchanged.
 - Added one shared TLS certificate for the new apex, `www` and Onboarder hostnames
   and permanent redirects from the legacy `intellimatrix.in` hostnames.
 - This is a metadata and documentation release. CLI, server API and MCP behavior

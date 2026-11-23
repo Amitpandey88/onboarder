@@ -6,8 +6,9 @@ Released 2026-11-23.
 
 - The project home is now [amit.codes](https://amit.codes/), with the product at
   [onboarder.amit.codes](https://onboarder.amit.codes/).
-- The dependency-free portfolio source lives in `portfolio-site/`. It presents
-  Onboarder as the current project; Q3 is not promoted there.
+- The separate dependency-free portfolio is deployed to amit.codes. Its source is
+  maintained outside this repository and is not included in the npm package. It
+  presents Onboarder as the current project; Q3 is not promoted there.
 - Canonical links, sitemap entries, install examples, website metadata, the npm
   homepage and the GitHub repository homepage use the new domains.
 - One TLS certificate covers `amit.codes`, `www.amit.codes` and
