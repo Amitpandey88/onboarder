@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 — 2026-11-23
 
 - Added the Phase 4B **Change Stack** workspace, API action, MCP projection and
   `onboarder intelligence changes` CLI command. It presents ordered review groups
@@ -9,6 +9,9 @@
   compiler-backed symbol moves with explicitly labelled rename candidates.
 - PR Triage can open its exact local PR range in Change Stack when architecture
   evidence is available; Review can return to the captured stack.
+- Removed accumulated release-history sections from the README and added an
+  animated showcase preview that renders on both GitHub and npm. Full release notes
+  now live in GitHub Releases and [the 1.3.0 guide](docs/RELEASE_1.3.0.md).
 
 ## 1.2.0 — 2026-10-28
 

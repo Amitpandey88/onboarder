@@ -17,129 +17,15 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 
 ---
 
-## What's new in 1.2.0
-
-A shared workspace for the browser and the new Apple Silicon macOS development
-preview: grouped navigation, resizable Files and Details panels, a practical
-project home, and System settings for appearance and AI connection. About project
-and About Onboarder now have separate places. Controls use solid rounded hover
-states; Liquid Glass has been removed.
-
-The Mac preview adds repository windows, persistent or temporary clones with
-progress, bundled Node/npm, shell and Onboarder Chat terminals, native exports
-and optional Keychain-backed provider storage. It requires macOS 14+ on Apple
-Silicon. **Development preview: ad-hoc signed, not notarized; Gatekeeper may
-block it.** Intel downloads are not provided.
-
-[1.2.0 release notes](docs/RELEASE_1.2.0.md) ·
-[Mac preview downloads](https://github.com/Amitpandey88/onboarder/releases/tag/macos-v0.1.6) ·
-[Website](https://onboarder.intellimatrix.in/)
-
-## Change Stack — Phase 4B (unreleased)
-
-The dedicated **Change Stack** workspace is implemented in the web UI, API, CLI and MCP.
-It reuses exact Git snapshots and the captured exact-range Review report to present
-ordered contract, dependency, implementation, test, documentation and configuration
-groups. It includes before/after dependency overlays, unique Git/exact-content file
-move alignment, affected caller and test estimates, and optional compiler-backed
-symbol moves with caller references. Rename candidates are labelled and limited.
-Open **Change Stack**, or run `onboarder intelligence changes . --base HEAD~1 --head HEAD`.
-See [Change Stack](docs/CHANGE_STACK.md) and the
-[Phase 4B verification record](docs/PHASE4B_VERIFICATION.md) for evidence and limits. The planner,
-collaboration and post-merge milestones remain unfinished.
-
-## What's new in 1.1.0
-
-Version 1.1.0 adds contextual code review, human-approved fixes and GitHub PR
-triage while preserving the offline explorer, intelligence workspace, terminal
-chat, Hermes workflows and zero runtime dependencies.
-
-- **Consistent review evidence:** working, staged and exact-revision comparisons
-  share configuration, captured patches, source fingerprints and JSON/Markdown/SARIF.
-- **Optional contextual AI review:** `onboarder review . --ai` retrieves bounded,
-  redacted callers, dependencies and tests through your configured provider or
-  Hermes profile. Findings require validated source references; model reasoning
-  remains an inference rather than proven execution behavior.
-- **Human-approved fixes:** generate a read-only patch, approve its exact digest,
-  apply it in an isolated Git worktree, then separately authorize real checks.
-  Checkpoints, conflicting-edit protection, rollback and fresh review comparisons
-  preserve the source checkout. A worktree does not sandbox code execution.
-- **Read-only PR triage:** web, CLI, MCP and VS Code share a GitHub queue,
-  explainable priorities, CODEOWNERS suggestions and exact-head CI observations.
-  Missing signals stay unknown; publication remains separately opt-in.
-- **Production-readiness hardening:** safer provider diagnostics and redirects,
-  bounded/cancellable streaming, raw check-definition approval hashes, reduced
-  GitHub App permissions and reliable Node 20 AI deadlines.
-
-This release includes Phase 4A triage. The dedicated Change Stack, engineering
-planner, full team collaboration platform and post-merge drafts remain incomplete.
-AI quality has been tested with controlled model responses; live provider/Hermes
-and GitHub App/private-account verification remain limited. Static review is
-heuristic and can miss bugs or produce false positives. An empty review does not
-establish that a change is safe.
-
-Install with `npm install -g codebase-onboarder@1.2.0`. See the
-[release notes](docs/RELEASE_1.1.0.md), [changelog](CHANGELOG.md), and
-[upgrade and migration guide](docs/MIGRATING_TO_1.1.md).
-
-## Included from 1.0.5
-
-Version 1.0.5 adds an **Intelligence** workspace with source evidence
-and saved conversations, optional TypeScript semantic references, live refresh,
-architecture rules, measured coverage imports, exact revision comparisons,
-onboarding journeys, package/route/model discovery, maintainer notes, private
-history, portfolio analysis, and OTLP trace import. Explorer has saved viewpoints;
-Review retains the exact compared patch and exports SARIF. Provider keys stay in
-tab memory.
-
-The existing implementation harness now creates file checkpoints and check
-receipts. Optional team roles/comments, signed GitHub webhook checks, and a local
-VS Code extension are implemented with explicit setup. GitHub publication defaults
-off. These integrations require explicit configuration; installing the package
-does not provision external accounts or deploy production collectors.
-
-The **Graph** now uses a stable layout with no continuous simulation or canvas
-blur. Rendering and canvas memory are bounded, redraws are coalesced, and search
-still finds every scanned file. Dragging preserves the view; Shift-click locks
-its thread and Escape unlocks it. Dark diagrams, dropdown spacing, readable zoom,
-and saved views are consistent across the workspace.
-
-Read [advanced features, setup, scope and verification](docs/ADVANCED_FEATURES.md).
-Try the installed CLI, or build from source:
-
-    node bin/onboarder.js intelligence scan . --json
-    node bin/onboarder.js intelligence ask . "How does authentication work?"
-    node bin/onboarder.js intelligence semantic-setup
-    node bin/onboarder.js intelligence scan . --semantic
-    npm run architecture:check
-    npm run editor:package
-
-
-## Included from 1.0.4
-
-- **Find commands quickly.** Ctrl-P opens a searchable command palette. Choose a command, add any arguments, then run it. Your unfinished question and cursor position are kept.
-- **Explore files from chat.** Ctrl-O or `/open [query]` finds indexed code files and offers source, inspection, connections, graph, change-impact, and local-explanation actions. Browsing works offline and follows the active workspace.
-- **Resume without copying IDs.** Ctrl-R or `/resume` searches conversations saved for the current repository and keeps your current permissions.
-- **Clearer terminal conversations.** Separate You, Onboarder, and Result blocks have borders that resize with the terminal. A shaded model/status bar, labeled input, grouped help, and clear completion labels make the chat easier to follow. History stays in place while new output arrives; Ctrl-End returns to the latest output.
-
-### Included from 1.0.3
-
-- **Easier tree navigation.** Click a folder to expand or collapse it. Open all folders or collapse them from the toolbar; expansion keeps your zoom and position so large maps stay readable. **Fit** remains available when you want to see the whole map.
-- **Choose where a canvas file opens.** Pick **Deep Dive**, **Code**, or **Docs** after clicking a file on the map. The sidebar file list opens files directly.
-- **Trace and lock connections.** Hover or focus a node to highlight its connections and gently fade and blur the surrounding map. Use **Lock thread**, the Tree pin, or Shift-click to keep the highlight while panning and zooming. Escape unlocks it. Connection tracing works across all nine Explore views and the Graph tab.
-- **Stronger supply-chain checks.** npm installation runs no install hooks. Optional analyzer packages use exact versions; Hermes bootstrap scripts and Gitleaks downloads are checked against pinned hashes before execution. Browser assets have an integrity inventory, and CI audits both development tools and vendored libraries.
-
-Version 1.1.0 upgrades the official Mermaid bundle to 12.2.0, including patched KaTeX 0.18.11. The previous KaTeX advisory exception is removed; see the [security guide](docs/SUPPLY_CHAIN_SECURITY.md#resolved-katex-advisory).
+[Current release: **1.3.0**](https://github.com/Amitpandey88/onboarder/releases/tag/v1.3.0) · [Changelog](CHANGELOG.md) · [Change Stack guide](docs/CHANGE_STACK.md)
 
 ---
 
 ## Showcase film
 
-[![Watch the Onboarder showcase](https://raw.githubusercontent.com/Amitpandey88/onboarder/main/showcase/poster.jpg)](https://github.com/Amitpandey88/onboarder/blob/main/showcase/onboarder-showcase.mp4)
+[![Animated Onboarder showcase preview](https://raw.githubusercontent.com/Amitpandey88/onboarder/main/showcase/onboarder-showcase.gif)](https://github.com/Amitpandey88/onboarder/blob/main/showcase/onboarder-showcase.mp4)
 
-[Watch or download the video](https://github.com/Amitpandey88/onboarder/blob/main/showcase/onboarder-showcase.mp4) — 40 seconds, 1080p, with slow camera moves, animated connections, web and terminal scenes, and original ambient music.
-
-[Storyboard and editable assets](https://github.com/Amitpandey88/onboarder/tree/main/showcase).
+The 12-second animated preview plays directly on GitHub and npm. [Watch the full 40-second video with sound](https://github.com/Amitpandey88/onboarder/blob/main/showcase/onboarder-showcase.mp4), or open the [storyboard and editable assets](https://github.com/Amitpandey88/onboarder/tree/main/showcase).
 
 ---
 
@@ -171,7 +57,7 @@ is optional for repository browsing.
 npm install -g codebase-onboarder
 
 # Update an existing installation to this release
-npm install -g codebase-onboarder@1.2.0
+npm install -g codebase-onboarder@1.3.0
 
 # Open the repository chat harness in your terminal
 onboarder
