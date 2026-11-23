@@ -34,6 +34,7 @@ Hover or keyboard-focus a node to highlight its connected thread and gently fade
 | --- | --- |
 | Deep Analysis | Run optional engines and filter their normalized findings |
 | Review | Choose offline or AI-assisted review; inspect evidence, propose and approve a patch, then separately authorize verification |
+| Change Stack | Read ordered contract, dependency and implementation groups with before/after overlays and captured patches |
 | Triage | Inspect a read-only GitHub PR queue, priority, ownership and observed checks |
 | Graph | Follow the interactive dependency graph |
 | Heatmap | Compare traffic and coupling between folders |
@@ -51,7 +52,7 @@ Cmd/Ctrl-K opens file, symbol, and source search. [Search syntax](/docs/search/)
 
 Rescan after structural edits. A cached dependency map and a branch-range comparison may describe different source states, so estimated change impact needs review.
 
-[Review changes](/docs/review/) · [Generate an approved fix](/docs/fixes/) · [Inspect PR triage](/docs/triage/)
+[Review changes](/docs/review/) · [Build a Change Stack](/docs/change-stack/) · [Generate an approved fix](/docs/fixes/) · [Inspect PR triage](/docs/triage/)
 
 ## Product preview
 

@@ -1,23 +1,40 @@
-Onboarder **1.2.0** refreshes the browser workspace and introduces the separate **0.1.6 Apple Silicon Mac development preview**. The npm package retains Node.js 20+ support and zero runtime dependencies.
+Onboarder **1.3.0** delivers Phase 4B **Change Stack**: an ordered, exact-revision way to review contracts, dependencies, implementation and tests. The npm package retains Node.js 20+ support and zero core runtime dependencies.
 
-## New in 1.2.0
+## New in 1.3.0
 
-- Grouped Explore, Analyze and Changes navigation; resizable Files and Details panels in every view, with drawers on narrow screens.
-- System settings for AI connection and icon-labeled Light/Dark/System appearance. About project and About Onboarder have separate places.
-- Solid rounded controls, readable hover/focus labels, loading states and reduced repeated layout work. Liquid Glass is removed.
-- Mac project windows, native folder selection, exports, recent projects and folder drop; bundled Node/npm and repository-bound shell/chat terminals.
-- Persistent or application-owned temporary clones with real Git progress, cancellation and ownership-checked cleanup; optional Keychain-backed credentials.
-- Reproducible Mermaid bundle with DOMPurify 3.4.17 and KaTeX 0.18.11, reviewed licenses and asset integrity.
+- Ordered contract, dependency/boundary, implementation, test, documentation and configuration groups built from immutable Git snapshots.
+- Before/after dependency overlays with canonical renamed-file identities and direct context.
+- Git and unique exact-content file-move alignment, affected caller and related-test estimates.
+- Optional TypeScript semantic symbol moves and explicitly labelled rename candidates with caller evidence.
+- Captured Review patches shared with the web workspace, API, CLI and bounded source-gated MCP projection.
+- Triage → Change Stack → Review navigation that preserves the exact comparison.
+- Simpler README release presentation and a 12-second animated showcase preview for GitHub and npm.
 
 ```sh
-npm install -g codebase-onboarder@1.2.0
+npm install -g codebase-onboarder@1.3.0
 onboarder --version
-onboarder start
+onboarder intelligence changes . --base HEAD~1 --head HEAD
 ```
 
-[Core 1.2.0 release](https://github.com/Amitpandey88/onboarder/releases/tag/v1.2.0) · [npm 1.2.0](https://www.npmjs.com/package/codebase-onboarder/v/1.2.0) · [Mac guide and downloads](/docs/macos/)
+[Change Stack guide](/docs/change-stack/) · [GitHub 1.3.0 release](https://github.com/Amitpandey88/onboarder/releases/tag/v1.3.0) · [npm 1.3.0](https://www.npmjs.com/package/codebase-onboarder/v/1.3.0)
 
-The Mac preview requires macOS 14+ on Apple Silicon. It is ad-hoc signed and not notarized; Gatekeeper may block it. Intel downloads are not included. The app is distributed separately from npm. See the release verification record for dated checks and their limits. Existing Hermes, history and offline workflows are retained. Unfinished planner, full team and post-merge features remain excluded.
+## Verification and limits
+
+- 1,055 tests passed, 1 skipped and 0 failed on the implementation branch.
+- Build-integrity, supply-chain and architecture checks passed. Browser smoke covered stack construction, both overlays, captured Review and return navigation.
+- Real TypeScript 5.9.3 verification found a compiler-supported symbol move with one retargeted caller reference.
+- Node 20/22/24, Windows/macOS smoke tests and Socket checks passed on GitHub.
+- The desktop CI job still ends on six moderate Electron builder minimatch advisories in its pre-existing `npm audit` step. Its tests, build, security and architecture checks pass first.
+
+Change Stack does not execute source or tests. Static dependency/caller estimates and optional compiler results can be partial. Phase 4C–4F planning, collaboration and post-merge work remain unfinished.
+
+## Previous release: 1.2.0
+
+Onboarder **1.2.0** refreshed the shared browser workspace and introduced the separate **0.1.6 Apple Silicon Mac development preview**, with grouped navigation, resizable panels, System appearance settings, native project windows and bundled Node/npm.
+
+[Core 1.2.0 release](https://github.com/Amitpandey88/onboarder/releases/tag/v1.2.0) · [Mac guide and downloads](/docs/macos/)
+
+The Mac preview requires macOS 14+ on Apple Silicon. It is ad-hoc signed and not notarized; Gatekeeper may block it. Intel downloads are not included. Existing Hermes, history and offline workflows are retained.
 
 ## Previous release: 1.1.0
 
@@ -56,7 +73,7 @@ Existing commands, configuration and offline features are retained. Regenerate o
 
 ## Known limits
 
-Full Phase 4 is not complete: dedicated Change Stack, engineering planner, full team collaboration and post-merge drafts are unfinished. Live model/Hermes quality, private GitHub App accounts, actual VS Code GUI and Safari execution remain unverified. Static analysis can miss defects or report false positives. Worktrees are not OS sandboxes and passing checks do not prove complete correctness.
+Phase 4C–4F planning, full team collaboration and post-merge drafts remain unfinished. Change Stack is now delivered in 1.3.0. Live model/Hermes quality, private GitHub App accounts, actual VS Code GUI and Safari execution remain unverified. Static analysis can miss defects or report false positives. Worktrees are not OS sandboxes and passing checks do not prove complete correctness.
 
 ## Release links
 

@@ -22,7 +22,7 @@ Choose working-tree changes by default, staged changes with `--staged`, or a bra
 ## Example CI step
 
 ```sh
-npm install -g codebase-onboarder@1.2.0 --ignore-scripts
+npm install -g codebase-onboarder@1.3.0 --ignore-scripts
 onboarder review . --base main --head HEAD --fail-on high --json > onboarder-review.json
 ```
 

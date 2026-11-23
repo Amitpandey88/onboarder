@@ -58,7 +58,7 @@ Terminal entry points:
     onboarder review . --staged --sarif
 
 The standalone MCP catalog now includes onboarder_intelligence: scan, evidence,
-exact-revision comparison and the bounded Change Stack projection. Standalone tools total 17; the scoped Hermes
+exact-revision comparison and the bounded Change Stack projection. Standalone tools total 18; the scoped Hermes
 catalog totals 42 including checkpoint creation and restoration.
 Evidence excerpts require includeSource in standalone MCP. Scoped Hermes calls
 return evidence locations and use the existing bounded source reader for text.

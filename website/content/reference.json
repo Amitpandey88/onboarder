@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "commands": [
     {
       "name": "help",
@@ -485,7 +485,7 @@
     {
       "name": "onboarder_intelligence",
       "title": "Intelligence",
-      "description": "Refresh repository intelligence: architecture boundaries, measured coverage, packages, routes, journeys, knowledge freshness and optional semantic symbols. Retrieve revision-pinned evidence or compare exact Git revisions. Source excerpts require includeSource; otherwise read cited files with onboarder_read_file.",
+      "description": "Refresh repository intelligence: architecture boundaries, measured coverage, packages, routes, journeys, knowledge freshness and optional semantic symbols. Retrieve revision-pinned evidence, compare exact Git revisions, or build an ordered Change Stack with before/after overlays. Change Stack captured patches and source excerpts require includeSource; bounded MCP projections disclose their limits.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -500,7 +500,8 @@
             "enum": [
               "scan",
               "evidence",
-              "compare"
+              "compare",
+              "change-stack"
             ]
           },
           "question": {

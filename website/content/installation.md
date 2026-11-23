@@ -11,7 +11,7 @@ The diagram browser asset requires ES2024 support (Safari 17.4+). The CLI and se
 ## Install from npm
 
 ```sh
-npm install -g codebase-onboarder@1.2.0
+npm install -g codebase-onboarder@1.3.0
 onboarder --version
 onboarder --help
 ```
@@ -21,11 +21,11 @@ Both `onboarder` and `codebase-onboarder` invoke the same CLI. The distribution 
 ## Update an existing installation
 
 ```sh
-npm install -g codebase-onboarder@1.2.0 --prefer-online
+npm install -g codebase-onboarder@1.3.0 --prefer-online
 onboarder --version
 ```
 
-Confirm `1.2.0` before troubleshooting a feature introduced in that release. A newly published version can briefly be unavailable while npm processes it; do not replace it with an unrelated package.
+Confirm `1.3.0` before troubleshooting a feature introduced in that release. A newly published version can briefly be unavailable while npm processes it; do not replace it with an unrelated package.
 
 ## Build from source
 

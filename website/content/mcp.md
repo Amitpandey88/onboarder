@@ -102,6 +102,6 @@ and a locked connection thread. Tree root labels retain contrasting colors.
 
 ## Intelligence evidence
 
-`onboarder_intelligence` supports repository scans, bounded evidence retrieval and exact-revision comparison. Source excerpts require `includeSource` in the standalone tool. The separately scoped agent integration has 42 tools and uses its own bounded reader.
+`onboarder_intelligence` supports repository scans, bounded evidence retrieval, exact-revision comparison and the bounded Change Stack projection. Source excerpts require `includeSource` in the standalone tool. Change Stack captured patches and finding excerpts also require explicit `includeSource`; returned and total counts are disclosed. The separately scoped agent integration has 42 tools and uses its own bounded reader.
 
 [All 18 tools and input schemas](/docs/mcp-reference/).
