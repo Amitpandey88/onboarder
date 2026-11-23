@@ -169,8 +169,9 @@ action until a real Developer ID-signed and notarized replacement is available.
 ## 1.4.0 release — 23 November 2026
 
 Build revision `20261123-v140`. The canonical sites are now
-`https://amit.codes/` and `https://onboarder.amit.codes/`. The portfolio source
-moved into `portfolio-site/`, and the Onboarder site no longer promotes Q3.
+`https://amit.codes/` and `https://onboarder.amit.codes/`. The separate
+portfolio source is maintained outside this repository and is not included in
+the npm package. The Onboarder site no longer promotes Q3.
 
 The release changes domain metadata, canonical links, install examples, the
 portfolio and public documentation. It does not change CLI, API or MCP behavior.

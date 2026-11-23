@@ -2,7 +2,7 @@ Onboarder **1.4.0** moves the project home to [amit.codes](https://amit.codes/) 
 
 ## New in 1.4.0
 
-- A new portfolio at [amit.codes](https://amit.codes/), built from the new `portfolio-site/` source in this repository.
+- A new portfolio at [amit.codes](https://amit.codes/), deployed separately. Its source is maintained outside this repository and is not included in the npm package.
 - Onboarder now lives at [onboarder.amit.codes](https://onboarder.amit.codes/), with canonical metadata, sitemap and install links updated.
 - The Onboarder site no longer promotes Q3. Q3 remains a separate service and is outside this release.
 - One shared TLS certificate covers `amit.codes`, `www.amit.codes` and `onboarder.amit.codes`.
