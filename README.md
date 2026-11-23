@@ -17,7 +17,7 @@ Onboarder reads a software repository the way a senior engineer would: starting 
 
 ---
 
-[Current release: **1.3.0**](https://github.com/Amitpandey88/onboarder/releases/tag/v1.3.0) · [Changelog](CHANGELOG.md) · [Change Stack guide](docs/CHANGE_STACK.md)
+[Current release: **1.4.0**](https://github.com/Amitpandey88/onboarder/releases/tag/v1.4.0) · [Changelog](CHANGELOG.md) · [Change Stack guide](docs/CHANGE_STACK.md)
 
 ---
 
@@ -57,7 +57,7 @@ is optional for repository browsing.
 npm install -g codebase-onboarder
 
 # Update an existing installation to this release
-npm install -g codebase-onboarder@1.3.0
+npm install -g codebase-onboarder@1.4.0
 
 # Open the repository chat harness in your terminal
 onboarder

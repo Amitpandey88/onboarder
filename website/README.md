@@ -1,7 +1,7 @@
 # Onboarder public website and documentation
 
-Static source for https://onboarder.intellimatrix.in/ and `/docs/`, describing
-Onboarder **1.3.0**. The website is separate from the repository-scanning web app.
+Static source for https://onboarder.amit.codes/ and `/docs/`, describing
+Onboarder **1.4.0**. The website is separate from the repository-scanning web app.
 It has no runtime package dependencies or application server.
 
 - `site/`: homepage, support/legal pages, shared theme, scripts, and local assets.
@@ -53,7 +53,7 @@ release. The metadata extraction does not call tools or read user configuration.
 - Code blocks copy their exact text, with selection fallback when clipboard
   permission is unavailable.
 - The existing `im-theme` preference is preserved across the product and
-  Intellimatrix domains. `/cookies/` resets it.
+  amit.codes domains. `/cookies/` resets it.
 - Fonts, screenshots, the brand mark, and showcase film are hosted locally.
 - Web screenshots retain their real 1.0.5 provenance in both themes. The terminal
   screenshot is a labeled 1.0.4 controlled example, not a live AI quality claim.
@@ -165,6 +165,16 @@ versioned npm command directly beneath it has a keyboard-accessible Copy button,
 nearby status feedback and manual-copy fallback. The existing installation tabs
 keep their copy behavior. Current signing status remains visible beside the Mac
 action until a real Developer ID-signed and notarized replacement is available.
+
+## 1.4.0 release — 23 November 2026
+
+Build revision `20261123-v140`. The canonical sites are now
+`https://amit.codes/` and `https://onboarder.amit.codes/`. The portfolio source
+moved into `portfolio-site/`, and the Onboarder site no longer promotes Q3.
+
+The release changes domain metadata, canonical links, install examples, the
+portfolio and public documentation. It does not change CLI, API or MCP behavior.
+Legacy `intellimatrix.in` hostnames redirect to the new domains.
 
 ## 1.3.0 release — 23 November 2026
 

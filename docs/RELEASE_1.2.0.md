@@ -36,7 +36,7 @@ if your device policy requires one. No automatic updater is installed.
 
 [Mac preview downloads and checksums](https://github.com/Amitpandey88/onboarder/releases/tag/macos-v0.1.6)
 · [Mac source and build guide](../integrations/macos/README.md)
-· [Website guide](https://onboarder.intellimatrix.in/docs/macos/)
+· [Website guide](https://onboarder.amit.codes/docs/macos/)
 
 ## Dependencies and compatibility
 

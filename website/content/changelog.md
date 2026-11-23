@@ -1,6 +1,34 @@
+Onboarder **1.4.0** moves the project home to [amit.codes](https://amit.codes/) and the product to [onboarder.amit.codes](https://onboarder.amit.codes/). The portfolio, GitHub links, npm homepage, install examples and public documentation now use the new domains.
+
+## New in 1.4.0
+
+- A new portfolio at [amit.codes](https://amit.codes/), built from the new `portfolio-site/` source in this repository.
+- Onboarder now lives at [onboarder.amit.codes](https://onboarder.amit.codes/), with canonical metadata, sitemap and install links updated.
+- The Onboarder site no longer promotes Q3. Q3 remains a separate service and is outside this release.
+- One shared TLS certificate covers `amit.codes`, `www.amit.codes` and `onboarder.amit.codes`.
+- Legacy `intellimatrix.in`, `www.intellimatrix.in` and `onboarder.intellimatrix.in` URLs redirect to their new equivalents.
+- No CLI, server API or MCP protocol behavior changed in this minor release.
+
+```sh
+npm install -g codebase-onboarder@1.4.0
+onboarder --version
+```
+
+[Portfolio](https://amit.codes/) · [GitHub 1.4.0 release](https://github.com/Amitpandey88/onboarder/releases/tag/v1.4.0) · [npm 1.4.0](https://www.npmjs.com/package/codebase-onboarder/v/1.4.0)
+
+## Verification
+
+- 1,055 tests passed, 1 skipped and 0 failed. Build integrity covered 482 generated files; supply-chain checks covered 858 package files; the architecture check returned no high-severity findings.
+- Browser smoke covered both sites at 1440px and 390px widths with no horizontal overflow, broken images, page errors or console errors.
+- Both domains serve the new release over HTTPS with the shared certificate.
+- Legacy hostnames redirect permanently, and real missing paths stay 404.
+- npm and GitHub metadata point to the new canonical domains.
+
+## Previous release: 1.3.0
+
 Onboarder **1.3.0** delivers Phase 4B **Change Stack**: an ordered, exact-revision way to review contracts, dependencies, implementation and tests. The npm package retains Node.js 20+ support and zero core runtime dependencies.
 
-## New in 1.3.0
+### What changed in 1.3.0
 
 - Ordered contract, dependency/boundary, implementation, test, documentation and configuration groups built from immutable Git snapshots.
 - Before/after dependency overlays with canonical renamed-file identities and direct context.
@@ -18,7 +46,7 @@ onboarder intelligence changes . --base HEAD~1 --head HEAD
 
 [Change Stack guide](/docs/change-stack/) · [GitHub 1.3.0 release](https://github.com/Amitpandey88/onboarder/releases/tag/v1.3.0) · [npm 1.3.0](https://www.npmjs.com/package/codebase-onboarder/v/1.3.0)
 
-## Verification and limits
+### Verification and limits
 
 - 1,055 tests passed, 1 skipped and 0 failed on the implementation branch.
 - Build-integrity, supply-chain and architecture checks passed. Browser smoke covered stack construction, both overlays, captured Review and return navigation.
@@ -104,7 +132,7 @@ onboarder --version
 onboarder intelligence scan . --json
 ```
 
-Documentation: https://onboarder.intellimatrix.in/docs/
+Documentation: https://onboarder.amit.codes/docs/
 Advanced setup and limits: https://github.com/Amitpandey88/onboarder/blob/main/docs/ADVANCED_FEATURES.md
 
 ## Previous release: 1.0.4

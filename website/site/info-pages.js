@@ -9,7 +9,7 @@ document.querySelector('#reset-theme')?.addEventListener('click',()=>{
     localStorage.removeItem('im-theme');
     const cookie='im-theme=; Path=/; Max-Age=0; SameSite=Lax'+(location.protocol==='https:'?'; Secure':'');
     document.cookie=cookie;
-    if(location.hostname==='intellimatrix.in'||location.hostname.endsWith('.intellimatrix.in'))document.cookie=cookie+'; Domain=intellimatrix.in';
+    if(location.hostname==='amit.codes'||location.hostname.endsWith('.amit.codes'))document.cookie=cookie+'; Domain=amit.codes';
     cleared=!document.cookie.split('; ').some(v=>v.startsWith('im-theme='))&&!localStorage.getItem('im-theme');
   }catch{cleared=false;}
   document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
