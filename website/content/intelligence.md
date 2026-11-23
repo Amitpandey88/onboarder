@@ -2,7 +2,7 @@
 
 ![Onboarder 1.0.5 intelligence workspace](/assets/web-intelligence-1.0.5-light.jpg)
 
-Install Onboarder 1.1.0, run `onboarder start`, load a repository and open **Intelligence**. Source checkouts need `npm run build` first.
+Install Onboarder 1.3.0, run `onboarder start`, load a repository and open **Intelligence**. Source checkouts need `npm run build` first.
 The landing goal opens exploration, review, investigation or implementation.
 Resume restores the previous view, selected file and filter in this browser.
 Explorer's **Save view** and **Saved views** retain named viewpoints, folder
@@ -15,6 +15,7 @@ onboarder intelligence scan . --json
 onboarder intelligence ask . "How does authentication work?"
 onboarder intelligence impact . src/server/router.ts
 onboarder intelligence compare . --base HEAD~1 --head HEAD
+onboarder intelligence changes . --base HEAD~1 --head HEAD --semantic
 onboarder intelligence rules . --fail-on high --json
 onboarder intelligence coverage .
 onboarder intelligence packages .
@@ -30,7 +31,7 @@ onboarder review . --staged --sarif
 ```
 
 The standalone MCP catalog now includes onboarder_intelligence: scan, evidence,
-or exact-revision comparison. Standalone tools total 18; the scoped Hermes
+exact-revision comparison and the bounded Change Stack projection. Standalone tools total 18; the scoped Hermes
 catalog totals 42 including checkpoint creation and restoration.
 Evidence excerpts require includeSource in standalone MCP. Scoped Hermes calls
 return evidence locations and use the existing bounded source reader for text.
@@ -44,7 +45,7 @@ Large MCP projections disclose their result limits and total counts.
 | Semantic code intelligence | Real optional TypeScript Compiler API worker: declarations, references and cross-file calls | TypeScript/JavaScript only; captured source and root declarative resolution settings, without executing source or reading external libraries/plugins. Dynamic behavior and external dependency types can remain unresolved. |
 | Refresh | Shared unchanged-file parse reuse across browser, CLI and MCP scans; one-scan read sharing for scanner/search; optional live refresh every ten seconds and terminal watch every three seconds | Files are still checked and graph relationships recomputed. Browser-picked folders use explicit refresh/offline workflows. |
 | Exact review | Retained redacted comparison hunks with both line columns, rename/deletion context and actual merge-base SHA | Working/staged evidence belongs to the captured report; code navigation outside the retained patch reads current files. |
-| Change intelligence | Exact Git-object scans, new/removed connections, cycles, removed exports and new boundary violations | Public export changes are structural signals, not complete semantic API compatibility proofs. |
+| Change intelligence | Exact Git-object scans, new/removed connections, cycles, removed exports and new boundary violations; Change Stack orders exact reviews and overlays before/after dependencies | Public export changes are structural signals, not complete semantic API compatibility proofs. Symbol renames are candidates unless compiler references support the move. |
 | Coverage and test planning | LCOV and Cobertura imports with revision/source freshness, measured lines/branches, dependency-based test recommendations | Coverage is never inferred from changed test files. Reports with no matching execution provenance remain unknown or stale. |
 | Architecture | Declarative forbidden dependency edges, baselines, evidence and CI exit status | Rules enforce path relationships. Natural-language guidelines are not executable rules. |
 | Verified fixes | Browser implementation flow using the existing isolated Hermes harness, fresh-hash edits, automatic file checkpoints, selected checks and durable check receipts | Requires a configured Hermes profile. New worktrees begin at committed HEAD. Checks default off; GitHub writes are disabled in this browser flow. |
@@ -266,4 +267,4 @@ do not prove the quality of a live model's answers.
 
 ## Review-to-fix workflow in 1.1.0
 
-Finding-linked [fix proposals](/docs/fixes/) add exact server-side approval, isolated application and separately authorized checks to the existing harness. This is separate from the legacy free-task implementation flow. [Contextual review](/docs/ai-review/) and [PR triage](/docs/triage/) share this repository context; a remote PR observation alone does not grant local source or implementation permission. Full engineering planning and collaboration remain outside this release.
+Finding-linked [fix proposals](/docs/fixes/) add exact server-side approval, isolated application and separately authorized checks to the existing harness. This is separate from the legacy free-task implementation flow. [Contextual review](/docs/ai-review/), [PR triage](/docs/triage/) and [Change Stack](/docs/change-stack/) share this repository context; a remote PR observation alone does not grant local source or implementation permission. Full engineering planning and collaboration remain outside this release.

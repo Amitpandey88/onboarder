@@ -34,7 +34,7 @@ onboarder triage inspect . --pr PR_NUMBER --ai --json
 
 The model receives bounded redacted observations, explains them without tools and does not change priority. Reasoning is inference. Failures and stale revisions remain visible; no automatic retries or background polling occur.
 
-**Open findings in Review** opens captured evidence and exports; **Return to PR triage** preserves selection. Remote observations do not authorize a fix: [fix proposals](/docs/fixes/) still need matching local source and exact approval.
+**Open findings in Review** opens captured evidence and exports; **Return to PR triage** preserves selection. **Open Change Stack** builds the same exact local range with ordered groups and before/after overlays when architecture evidence is available. Remote observations do not authorize a fix: [fix proposals](/docs/fixes/) still need matching local source and exact approval.
 
 ## Access and integrations
 
@@ -44,4 +44,4 @@ Web triage is owner-only; team viewers/reviewers cannot use the owner's GitHub c
 
 The standalone MCP tool is `onboarder_triage`. VS Code 0.2.0 provides **Triage Pull Requests** through the local CLI. See [MCP schemas](/docs/mcp-reference/) and the [editor guide](/docs/editor/). GitHub is the only implemented provider.
 
-This is Phase 4A. Dedicated Change Stack, editable engineering planner, full team collaboration and post-merge drafts are not delivered in 1.1.0. See [release scope](/docs/changelog/).
+This is Phase 4A. Onboarder 1.3.0 delivers Phase 4B [Change Stack](/docs/change-stack/). The editable engineering planner, full team collaboration and post-merge drafts remain unfinished. See [release scope](/docs/changelog/).

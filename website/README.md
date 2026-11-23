@@ -1,11 +1,11 @@
 # Onboarder public website and documentation
 
 Static source for https://onboarder.intellimatrix.in/ and `/docs/`, describing
-Onboarder **1.2.0**. The website is separate from the repository-scanning web app.
+Onboarder **1.3.0**. The website is separate from the repository-scanning web app.
 It has no runtime package dependencies or application server.
 
 - `site/`: homepage, support/legal pages, shared theme, scripts, and local assets.
-- `content/*.md`: 33 documentation guides.
+- `content/*.md`: 34 documentation guides.
 - `content/pages.json`: titles, descriptions, groups, and reading order.
 - `content/reference.json`: versioned commands, standalone MCP schemas, languages,
   and HTTP routes extracted from the tool. No credentials or private state.
@@ -165,3 +165,15 @@ versioned npm command directly beneath it has a keyboard-accessible Copy button,
 nearby status feedback and manual-copy fallback. The existing installation tabs
 keep their copy behavior. Current signing status remains visible beside the Mac
 action until a real Developer ID-signed and notarized replacement is available.
+
+## 1.3.0 release — 23 November 2026
+
+Build revision `20261123-v130`. Preserves the established homepage and docs-reader
+design, adds the Phase 4B Change Stack guide and homepage section, and updates
+installation commands, runtime command/MCP metadata and current docs labels to
+1.3.0. The 0.1.6 Mac preview remains a separate historical download containing
+core 1.2.0; its signing and platform requirements are unchanged.
+
+The public website remains static and does not expose a repository scanner. Deploy
+only the validated `dist/` tree as a new immutable release, preserve the previous
+release for rollback, and leave Nginx, TLS and neighboring applications unchanged.

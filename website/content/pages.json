@@ -72,6 +72,12 @@
     "group": "Analysis"
   },
   {
+    "slug": "change-stack",
+    "title": "Change Stack",
+    "description": "Ordered exact-revision review groups, before/after overlays, semantic moves and captured evidence.",
+    "group": "Analysis"
+  },
+  {
     "slug": "ai-review",
     "title": "Contextual AI review",
     "description": "Opt-in cross-file reasoning, bounded context and validated source evidence.",
@@ -175,7 +181,7 @@
   },
   {
     "slug": "changelog",
-    "title": "Version 1.2.0",
+    "title": "Version 1.3.0",
     "description": "Published capabilities, verified checks, upgrade instructions and known limits.",
     "group": "Project"
   },

@@ -35,6 +35,10 @@ AI explanations and analyzer operations can stream events. Closing or cancelling
 For stable automated repository summaries use [one-shot JSON reports](/docs/reports/). For agent integration use the structured [MCP tools](/docs/mcp-reference/). Inspect the source handlers before building a client for payloads not documented here.
 
 
+## Change Stack
+
+`POST /api/intelligence` accepts `action: "change-stack"`, a server-issued `scanId`, `base`, `head` and optional boolean `semantic`. It returns ordered file groups, before/after overlays, impact estimates and the same captured Review report used by Review. Exact Git failures remain errors; no working-tree comparison is substituted. See [Change Stack](/docs/change-stack/) for CLI, MCP and semantic options.
+
 ## Review and fix authorization
 
 Contextual review is explicitly requested through the review endpoint. Finding-linked proposal/apply/check/re-review actions extend `/api/intelligence/fix`; source/session/path-bound approval is enforced server-side. `POST /api/triage` provides owner-only list, inspect and optional explanation. These operations retain Host/Origin/session rules and never accept a browser-supplied arbitrary filesystem root. Inspect the version-pinned source contracts before building a client; review or patch approval alone does not grant command execution.
