@@ -1,6 +1,6 @@
 const hashString = (value) => { let result = 2166136261; for (const char of value)
     result = Math.imul(result ^ char.charCodeAt(0), 16777619); return (result >>> 0).toString(16); };
-const views = new Set(['map', 'files', 'patterns', 'health', 'security', 'history', 'services', 'tour', 'atlas', 'analysis', 'review', 'graph', 'heatmap', 'insights', 'diff', 'workflows', 'sbom', 'code', 'docs', 'about', 'intelligence', 'triage']);
+const views = new Set(['map', 'files', 'patterns', 'health', 'security', 'history', 'services', 'tour', 'atlas', 'analysis', 'review', 'graph', 'heatmap', 'insights', 'diff', 'workflows', 'sbom', 'code', 'docs', 'about', 'intelligence', 'triage', 'change-stack']);
 const key = (root) => 'onboarder.view.v1.' + hashString(root);
 function validPosition(value) {
     const viewport = value.viewport;

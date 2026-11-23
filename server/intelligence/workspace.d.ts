@@ -45,12 +45,23 @@ export declare function revisionFileSource(root: string, ref: string, signal?: A
     texts: Map<string, string>;
     revision: string;
 }>;
-/** Read immutable Git objects without checkout, hooks, or repository scripts. */
 export declare function revisionSnapshot(root: string, ref: string, config?: IntelligenceConfig, options?: {
     signal?: AbortSignal;
     maxFiles?: number;
 }): Promise<Snapshot>;
-export declare function compareRevisions(root: string, base: string, head: string): Promise<{
+/** Snapshots and captured texts for both immutable revisions, using the head's architecture policy. */
+export declare function revisionPair(root: string, base: string, head: string, options?: {
+    signal?: AbortSignal;
+    maxFiles?: number;
+}): Promise<{
+    before: Snapshot;
+    after: Snapshot;
+    beforeTexts: Map<string, string>;
+    afterTexts: Map<string, string>;
+}>;
+export declare function compareRevisions(root: string, base: string, head: string, options?: {
+    signal?: AbortSignal;
+}): Promise<{
     base: string;
     head: string;
     addedConnections: string[];

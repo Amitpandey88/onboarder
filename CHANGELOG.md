@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Added the Phase 4B **Change Stack** workspace, API action, MCP projection and
+  `onboarder intelligence changes` CLI command. It presents ordered review groups
+  from exact-revision Git snapshots, captured Review patch evidence, before/after
+  dependency overlays, unique file-move alignment, caller/test impact and optional
+  compiler-backed symbol moves with explicitly labelled rename candidates.
+- PR Triage can open its exact local PR range in Change Stack when architecture
+  evidence is available; Review can return to the captured stack.
+
 ## 1.2.0 — 2026-10-28
 
 - Refreshed shared web workspace with grouped navigation, resizable panels,

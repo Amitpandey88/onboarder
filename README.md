@@ -35,6 +35,19 @@ block it.** Intel downloads are not provided.
 [Mac preview downloads](https://github.com/Amitpandey88/onboarder/releases/tag/macos-v0.1.6) ·
 [Website](https://onboarder.intellimatrix.in/)
 
+## Change Stack — Phase 4B (unreleased)
+
+The dedicated **Change Stack** workspace is implemented in the web UI, API, CLI and MCP.
+It reuses exact Git snapshots and the captured exact-range Review report to present
+ordered contract, dependency, implementation, test, documentation and configuration
+groups. It includes before/after dependency overlays, unique Git/exact-content file
+move alignment, affected caller and test estimates, and optional compiler-backed
+symbol moves with caller references. Rename candidates are labelled and limited.
+Open **Change Stack**, or run `onboarder intelligence changes . --base HEAD~1 --head HEAD`.
+See [Change Stack](docs/CHANGE_STACK.md) and the
+[Phase 4B verification record](docs/PHASE4B_VERIFICATION.md) for evidence and limits. The planner,
+collaboration and post-merge milestones remain unfinished.
+
 ## What's new in 1.1.0
 
 Version 1.1.0 adds contextual code review, human-approved fixes and GitHub PR
@@ -511,8 +524,9 @@ recovery, supported checks and current limits.
 Version 1.1.0 adds a read-only **Triage** workspace, `onboarder triage list|inspect`,
 explainable P0–P3 priorities, target-revision CODEOWNERS suggestions and optional
 bounded model explanations. CLI, MCP and VS Code reuse the same evidence contracts.
-Missing CI and branch-policy signals remain unknown. This delivers Milestone 4A;
-full Change Stack, planner, collaboration and post-merge modules remain unfinished.
+Missing CI and branch-policy signals remain unknown. That release delivered
+Milestone 4A; the Change Stack above now delivers 4B. The planner, collaboration
+and post-merge modules remain unfinished.
 See [PR triage](docs/PR_TRIAGE.md) for setup, commands and limits.
 
 `--fail-on` exits with status 1 for findings at or above the selected severity.

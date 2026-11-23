@@ -5,6 +5,7 @@ import { performance } from 'node:perf_hooks';
 import { setTimeout as delay } from 'node:timers/promises';
 import { workspaceFor, IntelligenceWorkspace, compareRevisions, portfolioFor } from '../server/intelligence/workspace.js';
 import { IntelligenceStore } from '../server/intelligence/store.js';
+import { changeStack } from '../server/changeStack.js';
 import { expandHome } from '../server/paths.js';
 export const INTELLIGENCE_HELP = [
     'Onboarder intelligence',
@@ -12,6 +13,7 @@ export const INTELLIGENCE_HELP = [
     '  impact <folder> <file>             Trace dependents, semantic references and relevant tests',
     '  ask [folder] <question>             Retrieve cited source evidence and related tests offline',
     '  compare [folder] --base ref --head ref  Compare exact committed architecture',
+    '  changes [folder] --base ref --head ref --semantic  Build the ordered Change Stack with Review evidence',
     '  snapshot [folder]                  Save a private source-free snapshot',
     '  history [folder]                   List saved snapshots',
     '  rules [folder]                     Print boundary violations; --fail-on high exits 1 for new violations',
@@ -28,7 +30,7 @@ export async function intelligenceCommand(sub, rest, flags) {
         console.log(INTELLIGENCE_HELP);
         return 0;
     }
-    const commands = ['scan', 'ask', 'compare', 'snapshot', 'history', 'rules', 'coverage', 'packages', 'routes', 'journeys', 'watch', 'benchmark', 'doctor', 'portfolio', 'semantic-setup', 'impact'];
+    const commands = ['scan', 'ask', 'compare', 'changes', 'snapshot', 'history', 'rules', 'coverage', 'packages', 'routes', 'journeys', 'watch', 'benchmark', 'doctor', 'portfolio', 'semantic-setup', 'impact'];
     const command = sub && commands.includes(sub) ? sub : 'scan';
     const args = sub && !commands.includes(sub) ? [sub, ...rest] : rest;
     if (command === 'semantic-setup') {
@@ -44,6 +46,10 @@ export async function intelligenceCommand(sub, rest, flags) {
     }
     if (command === 'compare') {
         print(await compareRevisions(root, flags.base || 'HEAD~1', flags.head || 'HEAD'));
+        return 0;
+    }
+    if (command === 'changes') {
+        print(await changeStack(root, { base: flags.base || 'HEAD~1', head: flags.head || 'HEAD', semantic: flags.semantic === true }));
         return 0;
     }
     if (command === 'history') {

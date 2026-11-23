@@ -45,6 +45,7 @@ export function renderReviewView(container, context) {
     const esc = escapeHtml;
     container.innerHTML = `<div class="review-shell">
     ${s.report?.evidence?.source === 'github-pr-patch' ? '<p class="review-comparison-note">Captured GitHub PR review. Patch links use exact captured evidence. Running again reviews the local checkout. Fix application requires a matching local source revision.</p><button class="btn" data-return-triage>Return to PR triage</button>' : ''}
+    ${s.origin === 'change-stack' ? '<div class="review-comparison-note" data-stack-origin><p>Opened from Change Stack. This is the same captured exact-range review. Running again reviews the local checkout from the chosen references.</p><button class="btn" type="button" data-return-stack>Return to Change Stack</button></div>' : ''}
     <header class="review-heading"><div><div class="workbench-eyebrow"><span class="review-dot"></span> CHANGE REVIEW</div><h1>Review with context.</h1><p>Catch risky patterns. Understand the impact. Keep your next change moving.</p></div><span class="review-local-badge">Local pattern review · read only</span></header>
     <form class="review-controls" aria-label="Review settings">
       <label>Review engine<select name="engine"><option value="static">Static · offline</option><option value="ai">AI-assisted · selected source</option></select></label>
@@ -61,6 +62,7 @@ export function renderReviewView(container, context) {
   </div>`;
     const form = container.querySelector('form');
     container.querySelector('[data-return-triage]')?.addEventListener('click', () => window.dispatchEvent(new CustomEvent('triage-return')));
+    container.querySelector('[data-return-stack]')?.addEventListener('click', () => window.dispatchEvent(new CustomEvent('change-stack-return')));
     const engine = form.elements.namedItem('engine');
     const contextBytes = container.querySelector('[name="contextBytes"]');
     const outputTokens = container.querySelector('[name="outputTokens"]');
@@ -78,7 +80,7 @@ export function renderReviewView(container, context) {
     mode.value = s.mode;
     profile.value = s.profile;
     engine.value = s.aiMode ? 'ai' : 'static';
-    const syncEngine = () => { s.aiMode = engine.value === 'ai'; container.querySelector('.review-local-badge').textContent = s.aiMode ? 'AI-assisted · source opt-in' : s.report?.evidence?.source === 'github-pr-patch' ? 'Captured GitHub pattern review' : 'Local pattern review · read only'; };
+    const syncEngine = () => { s.aiMode = engine.value === 'ai'; container.querySelector('.review-local-badge').textContent = s.aiMode ? 'AI-assisted · source opt-in' : s.origin === 'change-stack' ? 'Captured exact-range review' : s.report?.evidence?.source === 'github-pr-patch' ? 'Captured GitHub pattern review' : 'Local pattern review · read only'; };
     engine.onchange = syncEngine;
     syncEngine();
     function syncHead() { const range = mode.value === 'range'; container.querySelector('[data-head-label]').hidden = !range; head.required = range; }
@@ -161,7 +163,8 @@ export function renderReviewView(container, context) {
         aiController?.abort();
         const controller = new AbortController();
         active = controller;
-        Object.assign(s, { mode: mode.value, base: base.value.trim(), head: head.value.trim(), profile: profile.value, aiMode: engine.value === 'ai', error: '', aiText: '', report: null });
+        Object.assign(s, { mode: mode.value, base: base.value.trim(), head: head.value.trim(), profile: profile.value, aiMode: engine.value === 'ai', error: '', aiText: '', report: null, origin: null });
+        container.querySelector('[data-stack-origin]')?.remove();
         draw();
         showError('');
         feedback.textContent = 'Reading the comparison and checking added lines…';

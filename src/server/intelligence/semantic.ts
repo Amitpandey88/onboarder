@@ -31,6 +31,8 @@ export async function semanticAnalysis(_root: string, texts: Map<string, string>
     let worker: Worker;
     try { worker = new Worker(new URL('./semanticWorker.js', import.meta.url), {
       workerData: { engine, texts: [...texts] },
+      // A file-backed worker cannot inherit a parent's eval-only module type flag.
+      execArgv: process.execArgv.filter(argument => !argument.startsWith('--input-type')),
       resourceLimits: { maxOldGenerationSizeMb: 384 },
     }); } catch { resolve(unavailable('Optional compiler worker could not start.')); return; }
     activeWorkers++;

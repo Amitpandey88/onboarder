@@ -1,6 +1,6 @@
-# Repository intelligence — Onboarder 1.1.0
+# Repository intelligence
 
-Version 1.1.0 includes these capabilities in the CLI and web workspace. Optional
+Onboarder includes these capabilities in the CLI and web workspace. Optional
 compiler, AI, editor, team and GitHub integrations require the setup below.
 
 ## Start
@@ -23,9 +23,13 @@ Passing checks cover only the selected checks, and worktrees are not OS sandboxe
 Phase 4A adds **Triage**: a real GitHub PR queue, deterministic factor
 priorities, filters, target-revision ownership suggestions, optional model explanations
 and navigation to captured Review findings. CLI, MCP and the existing VS Code
-extension share this service. Only Milestone 4A is delivered; other Phase 4
-milestones remain unfinished. See [PR triage](PR_TRIAGE.md) and the
-[verification record](PHASE4A_VERIFICATION.md).
+extension share this service. Phase 4B adds the dedicated **Change Stack** in the
+web workspace, API, CLI and MCP: ordered review groups, captured Review evidence,
+before/after dependency overlays and optional symbol moves. Milestones 4C–4F
+remain unfinished. See [PR triage](PR_TRIAGE.md),
+[Change Stack](CHANGE_STACK.md),
+[4A verification](PHASE4A_VERIFICATION.md) and
+[4B verification](PHASE4B_VERIFICATION.md).
 
 Run npm run build, start the server, load a repository and open **Intelligence**.
 The landing goal opens exploration, review, investigation or implementation.
@@ -39,6 +43,7 @@ Terminal entry points:
     onboarder intelligence ask . "How does authentication work?"
     onboarder intelligence impact . src/server/router.ts
     onboarder intelligence compare . --base HEAD~1 --head HEAD
+    onboarder intelligence changes . --base HEAD~1 --head HEAD --semantic
     onboarder intelligence rules . --fail-on high --json
     onboarder intelligence coverage .
     onboarder intelligence packages .
@@ -53,7 +58,7 @@ Terminal entry points:
     onboarder review . --staged --sarif
 
 The standalone MCP catalog now includes onboarder_intelligence: scan, evidence,
-or exact-revision comparison. Standalone tools total 17; the scoped Hermes
+exact-revision comparison and the bounded Change Stack projection. Standalone tools total 17; the scoped Hermes
 catalog totals 42 including checkpoint creation and restoration.
 Evidence excerpts require includeSource in standalone MCP. Scoped Hermes calls
 return evidence locations and use the existing bounded source reader for text.
@@ -67,7 +72,7 @@ Large MCP projections disclose their result limits and total counts.
 | Semantic code intelligence | Real optional TypeScript Compiler API worker: declarations, references and cross-file calls | TypeScript/JavaScript only; captured source and root declarative resolution settings, without executing source or reading external libraries/plugins. Dynamic behavior and external dependency types can remain unresolved. |
 | Refresh | Shared unchanged-file parse reuse across browser, CLI and MCP scans; one-scan read sharing for scanner/search; optional live refresh every ten seconds and terminal watch every three seconds | Files are still checked and graph relationships recomputed. Browser-picked folders use explicit refresh/offline workflows. |
 | Exact review | Retained redacted comparison hunks with both line columns, rename/deletion context and actual merge-base SHA | Working/staged evidence belongs to the captured report; code navigation outside the retained patch reads current files. |
-| Change intelligence | Exact Git-object scans, new/removed connections, cycles, removed exports and new boundary violations | Public export changes are structural signals, not complete semantic API compatibility proofs. |
+| Change intelligence | Exact Git-object scans, new/removed connections, cycles, removed exports and new boundary violations; Change Stack orders captured reviews and overlays before/after dependencies | Public export changes are structural signals, not complete semantic API compatibility proofs. Symbol renames are candidates unless the optional compiler confirms reference retargeting. |
 | Coverage and test planning | LCOV and Cobertura imports with revision/source freshness, measured lines/branches, dependency-based test recommendations | Coverage is never inferred from changed test files. Reports with no matching execution provenance remain unknown or stale. |
 | Architecture | Declarative forbidden dependency edges, baselines, evidence and CI exit status | Rules enforce path relationships. Natural-language guidelines are not executable rules. |
 | Verified fixes | Browser implementation flow using the existing isolated Hermes harness, fresh-hash edits, automatic file checkpoints, selected checks and durable check receipts | Requires a configured Hermes profile. New worktrees begin at committed HEAD. Checks default off; GitHub writes are disabled in this browser flow. |

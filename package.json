@@ -25,6 +25,8 @@
     "docs/AI_FIX_VERIFICATION.md",
     "docs/PR_TRIAGE.md",
     "docs/PHASE4A_VERIFICATION.md",
+    "docs/CHANGE_STACK.md",
+    "docs/PHASE4B_VERIFICATION.md",
     "docs/RELEASE_1.1.0.md",
     "docs/MIGRATING_TO_1.1.md",
     "integrations/vscode/package.json",

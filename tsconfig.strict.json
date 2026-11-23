@@ -45,6 +45,7 @@
     "src/server/security/environment.ts",
     "src/cli/chat/runtime.ts",
     "src/shared/intelligence/**/*.ts",
+    "src/shared/changeStack/**/*.ts",
     "src/public/js/workspacePreferences.ts",
     "src/public/js/reviewPatch.ts",
     "src/server/intelligence/semantic.ts",

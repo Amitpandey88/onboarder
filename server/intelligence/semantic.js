@@ -39,6 +39,8 @@ export async function semanticAnalysis(_root, texts, signal) {
         try {
             worker = new Worker(new URL('./semanticWorker.js', import.meta.url), {
                 workerData: { engine, texts: [...texts] },
+                // A file-backed worker cannot inherit a parent's eval-only module type flag.
+                execArgv: process.execArgv.filter(argument => !argument.startsWith('--input-type')),
                 resourceLimits: { maxOldGenerationSizeMb: 384 },
             });
         }

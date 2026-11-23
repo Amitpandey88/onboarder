@@ -1,7 +1,8 @@
 # PR triage — Phase 4A
 
 Included in **Onboarder 1.1.0**.
-Milestone 4A is implemented. Phase 4B–4F are unfinished; this guide does not
+Milestone 4A is implemented. Milestone 4B is implemented in the dedicated
+[Change Stack](CHANGE_STACK.md); Phase 4C–4F are unfinished. This guide does not
 claim the complete Phase 4 developer platform. The review and fix foundations
 from Phases 1–3 are included in the same release.
 
@@ -249,14 +250,15 @@ verification in this run uses the available Node 24 runtime.
 | Milestone | Status |
 | --- | --- |
 | 4A — queue, explainable priorities, filtering, ownership, optional explanation | Implemented |
-| 4B — complete Change Stack and semantic overlays | Not implemented in this milestone |
+| 4B — complete Change Stack and semantic overlays | Implemented in the [Change Stack guide](CHANGE_STACK.md) |
 | 4C — editable grounded engineering planner and approved handoff | Not implemented |
 | 4D — full editor/agent integrations | Partial reuse: triage CLI/MCP/VS Code; full milestone unfinished |
 | 4E — shared review decisions, learnings, analytics and extended roles | Not implemented; existing team boundaries preserved |
 | 4F — post-merge drafts, durable automation controls, full workspace polish | Not implemented; Triage ↔ Review navigation delivered |
 
-Next implement 4B against the existing revision/semantic graph, then 4C's editable,
-revision-bound plan lifecycle. Keep approval and execution separate. Extend team
+Next implement 4C against the existing revision/semantic graph and delivered
+Change Stack: the editable, revision-bound plan lifecycle. Keep approval and
+execution separate. Extend team
 triage only with explicit credential delegation and repository grants, establish
 required branch/ruleset readiness, add immutable scoped caching, and test live App,
 private-repository and optional model connections before claiming those live
