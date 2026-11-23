@@ -12,7 +12,7 @@ export async function checkAboutPages(page) {
   await page.locator('#aboutOnboarderBtn').click(); await page.locator('#aboutOnboarderDialog[open]').waitFor();
   assert.equal(await page.locator('#aboutOnboarderTitle').textContent(), 'Onboarder');
   const links = await page.locator('#aboutOnboarderDialog .app-about-links a').evaluateAll(nodes => nodes.map(el => ({ href: el.href, target: el.target, rel: el.rel })));
-  assert.deepEqual(links.map(link => link.href), ['https://onboarder.intellimatrix.in/', 'https://www.npmjs.com/package/codebase-onboarder', 'https://github.com/Amitpandey88/onboarder']);
+  assert.deepEqual(links.map(link => link.href), ['https://onboarder.amit.codes/', 'https://www.npmjs.com/package/codebase-onboarder', 'https://github.com/Amitpandey88/onboarder']);
   assert.ok(links.every(link => link.target === '_blank' && link.rel.includes('noopener')));
   assert.equal(await page.locator('#aboutOnboarderDialog code').textContent(), 'npm install -g codebase-onboarder');
   await page.locator('#aboutOnboarderClose').click();

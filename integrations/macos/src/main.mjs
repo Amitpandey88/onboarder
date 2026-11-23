@@ -231,7 +231,7 @@ temporaryProjects = new TemporaryProjects(path.join(app.getPath('userData'), 'te
 await temporaryProjects.sweep();
 nativeTheme.on('updated', () => { void refreshAppearance(); });
 systemPreferences.subscribeWorkspaceNotification('NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification', () => { void refreshAppearance(); });
-app.setAboutPanelOptions({ applicationName: 'Onboarder', applicationVersion: app.getVersion(), version: 'Desktop preview · core 1.2.0', copyright: 'MIT licensed · Amit Pandey', website: 'https://onboarder.intellimatrix.in/' });
+app.setAboutPanelOptions({ applicationName: 'Onboarder', applicationVersion: app.getVersion(), version: 'Desktop preview · core 1.2.0', copyright: 'MIT licensed · Amit Pandey', website: 'https://onboarder.amit.codes/' });
 updateMenu();
 const requestedRoot = process.argv.find(arg => arg.startsWith('--project='))?.slice(10);
 if (pendingOpen.length) for (const selected of pendingOpen.splice(0)) await createWindow(selected).catch(showError);

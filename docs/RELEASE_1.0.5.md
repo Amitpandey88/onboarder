@@ -19,5 +19,5 @@ onboarder --version
 onboarder intelligence scan . --json
 ```
 
-Documentation: https://onboarder.intellimatrix.in/docs/
+Documentation: https://onboarder.amit.codes/docs/
 Advanced setup and limits: https://github.com/Amitpandey88/onboarder/blob/main/docs/ADVANCED_FEATURES.md
