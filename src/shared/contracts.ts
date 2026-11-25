@@ -118,6 +118,7 @@ export interface Settings {
   https: boolean;
   accessKey: string;
   autoOpen: boolean;
+  updateCheck: boolean;
   account: AccountSettings;
   tunnel: { cloudflare: boolean; tailscale: boolean };
 }
@@ -131,6 +132,7 @@ export interface SettingsInput {
   https?: unknown;
   accessKey?: unknown;
   autoOpen?: unknown;
+  updateCheck?: unknown;
   account?: Partial<Record<keyof AccountSettings, unknown>>;
   tunnel?: { cloudflare?: unknown; tailscale?: unknown };
 }

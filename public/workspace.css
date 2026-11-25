@@ -118,7 +118,7 @@ body[data-desktop="true"] #serverNav { display: none; }
 .stage-actions { flex-wrap: wrap; }
 .stage-head { flex-wrap: wrap; }
 .mode-switch { flex-wrap: wrap; }
-@media (max-width: 460px) { .brand-mark { font-size: 18px; } }
+@media (max-width: 460px) { .brand-mark { font-size: 18px; } .topbar-right .update-trigger { padding-inline: 6px; } }
 
 /* Clear controls, readable names and a home that feels like part of the app. */
 .nav-toggle { width: 36px; height: 36px; display: grid; place-items: center; padding: 7px; flex: none; }

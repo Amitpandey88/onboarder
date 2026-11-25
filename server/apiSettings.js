@@ -73,7 +73,7 @@ export async function handleUpdateSettings(res, body, config) {
     }
     // Only known keys may be patched — a typo like "ports" must be a loud 400,
     // not a silently ignored write that the UI then claims it saved.
-    const allowed = new Set(['mode', 'host', 'port', 'domain', 'https', 'autoOpen', 'account', 'tunnel']);
+    const allowed = new Set(['mode', 'host', 'port', 'domain', 'https', 'autoOpen', 'updateCheck', 'account', 'tunnel']);
     const unknown = Object.keys(body).filter((k) => k !== 'accessKey' && !allowed.has(k));
     if (unknown.length) {
         return sendError(res, 400, `Unknown setting${unknown.length === 1 ? '' : 's'}: ${unknown.join(', ')}.`);

@@ -290,6 +290,15 @@ export class ChatController {
                 this.say(await this.utility(name));
                 return;
             }
+            if (name === 'update') {
+                if (args.length > 1 || (args[0] && !['check', 'install'].includes(args[0]))) {
+                    throw new Error('Usage: /update [check|install]');
+                }
+                if (!this.ports.update)
+                    throw new Error('Run `onboarder update` in your terminal to check or install updates.');
+                this.say(await this.ports.update(args, this.abort.signal));
+                return;
+            }
             if ((name === 'deep' || name === 'engines') && this.ports.analysis) {
                 const result = await this.ports.analysis(name, args, this.workspace, this.abort.signal, this.settings.checks);
                 this.abort.signal.throwIfAborted();

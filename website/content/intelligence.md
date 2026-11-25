@@ -2,7 +2,7 @@
 
 ![Onboarder 1.0.5 intelligence workspace](/assets/web-intelligence-1.0.5-light.jpg)
 
-Install Onboarder 1.4.0, run `onboarder start`, load a repository and open **Intelligence**. Source checkouts need `npm run build` first.
+Install Onboarder 1.5.0, run `onboarder start`, load a repository and open **Intelligence**. Source checkouts need `npm run build` first.
 The landing goal opens exploration, review, investigation or implementation.
 Resume restores the previous view, selected file and filter in this browser.
 Explorer's **Save view** and **Saved views** retain named viewpoints, folder

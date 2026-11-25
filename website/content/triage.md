@@ -44,4 +44,4 @@ Web triage is owner-only; team viewers/reviewers cannot use the owner's GitHub c
 
 The standalone MCP tool is `onboarder_triage`. VS Code 0.2.0 provides **Triage Pull Requests** through the local CLI. See [MCP schemas](/docs/mcp-reference/) and the [editor guide](/docs/editor/). GitHub is the only implemented provider.
 
-This is Phase 4A. Onboarder 1.3.0 delivered Phase 4B [Change Stack](/docs/change-stack/), available in 1.4.0. The editable engineering planner, full team collaboration and post-merge drafts remain unfinished. See [release scope](/docs/changelog/).
+This is Phase 4A. Onboarder 1.3.0 delivered Phase 4B [Change Stack](/docs/change-stack/), available in 1.5.0. The editable engineering planner, full team collaboration and post-merge drafts remain unfinished. See [release scope](/docs/changelog/).

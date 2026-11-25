@@ -6,13 +6,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { resolveAppearance, appearancePatch } from './appearance.mjs';
 import { TemporaryProjects } from './clones.mjs';
-import { APP_ORIGIN, trustedSender, text, externalURL, assetPath, terminalInput, projectPath } from './policy.mjs';
+import { APP_ORIGIN, trustedSender, text, externalURL, assetPath, terminalInput, projectPath, updateInput } from './policy.mjs';
 import { DesktopStore } from './store.mjs';
 import { BackendClient } from './backendClient.mjs';
+import { DesktopUpdater, GITHUB_RELEASES_PAGE } from './updater.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const resources = app.isPackaged ? path.join(process.resourcesPath, 'workspace') : path.resolve(here, '../dist/stage');
-const windows = new Map(), pendingOpen = []; let store, temporaryProjects, quitting = false, quitPending = false;
+const windows = new Map(), pendingOpen = []; let store, temporaryProjects, updater, latestUpdateStatus = null, relaunchOnQuit = false, quitting = false, quitPending = false;
 if (process.env.ONBOARDER_DESKTOP_TEST_HOME) app.setPath('userData', path.resolve(process.env.ONBOARDER_DESKTOP_TEST_HOME));
 protocol.registerSchemesAsPrivileged([{ scheme: 'onboarder', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true, codeCache: true } }]);
 const hasInstanceLock = app.requestSingleInstanceLock();
@@ -26,6 +27,7 @@ function environment() {
   return env;
 }
 const send = (record, event) => { if (!record.window.isDestroyed()) record.window.webContents.send('desktop:event', event); };
+const broadcast = event => { for (const record of windows.values()) send(record, event); };
 async function backend(record) {
   if (record.backend?.port) return record.backend;
   if (record.starting) return record.starting;
@@ -127,6 +129,22 @@ register('clear-recents', async () => { await store.clearRecents(); app.clearRec
 register('reveal', async record => { if (record.root) shell.showItemInFolder(record.root); });
 register('credential', (_record, action, endpoint, secret) => store.credential(action, endpoint, secret));
 register('terminal', async (record, action, input) => { terminalInput(action, input); const service = await backend(record); const result = await service.request('terminal', { action, input }); if (action === 'create') record.terminals.add(result.id); if (action === 'close') record.terminals.delete(input.id); return result; });
+register('update', async (_record, actionName, input) => {
+  if (!updater) throw new Error('The updater is still initializing.');
+  const validated = updateInput(actionName, input);
+  if (actionName === 'status') return updater.getStatus();
+  if (actionName === 'check') return updater.checkForUpdates({ force: validated.force !== false });
+  if (actionName === 'install') return updater.installUpdate({ mode: validated.mode || 'auto' });
+  if (actionName === 'restart') { updater.restartApp(); return updater.getStatus(); }
+  if (actionName === 'dismiss') return updater.dismissVersion(validated.version);
+  if (actionName === 'set-auto-check') return updater.setAutoCheck(validated.autoCheck);
+  if (actionName === 'open-release') {
+    const status = await updater.getStatus();
+    await shell.openExternal(externalURL(status.releaseUrl || GITHUB_RELEASES_PAGE));
+    return status;
+  }
+  throw new Error('Unknown update action.');
+});
 register('clone', async (record, url, options = {}) => {
   text(url);
   if (record.cloneOperation) throw new Error('A clone is already running in this window.');
@@ -188,6 +206,37 @@ async function disposeRecord(record) {
 
 function focused() { return windows.get(BrowserWindow.getFocusedWindow()?.webContents.id) || windows.values().next().value; }
 function action(name) { const record = focused(); if (record) send(record, { type: 'menu', action: name }); }
+async function triggerMenuUpdateCheck() {
+  if (!updater) return;
+  const record = focused();
+  if (record) {
+    record.window.show(); record.window.focus();
+    send(record, { type: 'menu', action: 'check-updates' });
+    return;
+  }
+  const status = await updater.checkForUpdates({ force: true });
+  if (status.updateReadyToRestart) {
+    const { response } = await dialog.showMessageBox({ type: 'info', message: `Onboarder v${status.pendingVersion} is ready`, detail: 'Restart Onboarder to finish installing the update.', buttons: ['Restart Onboarder', 'Later'], defaultId: 0, cancelId: 1 });
+    if (response === 0) updater.restartApp();
+    return;
+  }
+  if (status.updateAvailable && status.latestVersion) {
+    const actionLabel = status.canAutoUpdate ? 'Download & Update' : (status.canDownloadInstaller ? 'Download .dmg' : 'View Release');
+    const { response } = await dialog.showMessageBox({ type: 'info', message: `Onboarder v${status.latestVersion} is available`, detail: `You are running v${status.currentVersion}.${status.installReason ? '\n\n' + status.installReason : ''}`, buttons: [actionLabel, 'View Release', 'Cancel'], defaultId: 0, cancelId: 2 });
+    if (response === 0) {
+      if (status.canAutoUpdate || status.canDownloadInstaller) {
+        const next = await updater.installUpdate({ mode: status.canAutoUpdate ? 'auto' : 'dmg' });
+        if (next.updateReadyToRestart) {
+          const r = await dialog.showMessageBox({ type: 'info', message: `Onboarder v${next.pendingVersion} installed`, detail: 'Restart Onboarder to finish applying the update.', buttons: ['Restart Now', 'Later'], defaultId: 0, cancelId: 1 });
+          if (r.response === 0) updater.restartApp();
+        } else if (next.error) { showError(new Error(next.error)); }
+      } else { await shell.openExternal(externalURL(status.releaseUrl || GITHUB_RELEASES_PAGE)); }
+    } else if (response === 1) { await shell.openExternal(externalURL(status.releaseUrl || GITHUB_RELEASES_PAGE)); }
+    return;
+  }
+  if (status.error) { showError(new Error(status.error)); return; }
+  await dialog.showMessageBox({ type: 'info', message: `Onboarder v${status.currentVersion} is up to date`, detail: 'No newer Onboarder for macOS releases were found.', buttons: ['OK'] });
+}
 async function reloadWorkspace() {
   const record = focused(); if (!record) return;
   if (record.backend?.active || record.terminals.size) {
@@ -197,12 +246,17 @@ async function reloadWorkspace() {
   record.backend?.stop(); record.backend = null; record.terminals.clear(); record.window.webContents.reload();
 }
 function updateMenu() {
+  const appUpdateItem = latestUpdateStatus?.updateReadyToRestart
+    ? { label: `Restart to Update (v${latestUpdateStatus.pendingVersion})…`, click: () => { if (updater) updater.restartApp(); } }
+    : latestUpdateStatus?.updateAvailable && latestUpdateStatus.latestVersion
+      ? { label: `Update Available (v${latestUpdateStatus.latestVersion})…`, click: () => { void triggerMenuUpdateCheck().catch(showError); } }
+      : { label: 'Check for Updates…', click: () => { void triggerMenuUpdateCheck().catch(showError); } };
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { label: 'Onboarder', submenu: [{ label: 'About Onboarder', click: () => action('about-onboarder') }, { label: 'System…', accelerator: 'Cmd+,', click: () => action('settings') }, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
+    { label: 'Onboarder', submenu: [{ label: 'About Onboarder', click: () => action('about-onboarder') }, appUpdateItem, { type: 'separator' }, { label: 'System…', accelerator: 'Cmd+,', click: () => action('settings') }, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
     { label: 'File', submenu: [{ label: 'Open Project…', accelerator: 'Cmd+O', click: () => chooseProject(focused()).catch(showError) }, { label: 'Project Home', accelerator: 'Cmd+Shift+N', click: () => createWindow().catch(showError) }, { role: 'recentDocuments', submenu: [{ role: 'clearRecentDocuments' }] }, { label: 'Reveal Project in Finder', click: () => { const r = focused(); if (r?.root) shell.showItemInFolder(r.root); } }, { type: 'separator' }, { role: 'close' }] },
     { role: 'editMenu' },
     { label: 'View', submenu: [{ label: 'Search', accelerator: 'Cmd+K', click: () => action('search') }, { label: 'Toggle Terminal', accelerator: 'Ctrl+`', click: () => action('terminal') }, { type: 'separator' }, { id: 'reload-workspace', label: 'Reload Workspace', accelerator: 'Cmd+R', click: () => reloadWorkspace().catch(showError) }, { role: 'togglefullscreen' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, ...(!app.isPackaged ? [{ role: 'toggleDevTools' }] : [])] },
-    { role: 'windowMenu' }, { role: 'help', submenu: [{ label: 'Check for Updates…', click: () => shell.openExternal('https://github.com/Amitpandey88/onboarder/releases') }, { label: 'Documentation', click: () => shell.openExternal('https://github.com/Amitpandey88/onboarder#readme') }] },
+    { role: 'windowMenu' }, { role: 'help', submenu: [{ label: 'Check for Updates…', click: () => { void triggerMenuUpdateCheck().catch(showError); } }, { label: 'Releases on GitHub', click: () => shell.openExternal(GITHUB_RELEASES_PAGE) }, { label: 'Documentation', click: () => shell.openExternal('https://github.com/Amitpandey88/onboarder#readme') }] },
   ]));
 }
 function showError(error) { dialog.showErrorBox('Onboarder', error.message || 'The project could not be opened.'); }
@@ -217,23 +271,52 @@ app.on('before-quit', event => {
     const active = [...windows.values()].some(record => record.backend?.active || record.cloneOperation || record.pendingTemps.size || record.terminals.size || record.temporaryRoot);
     if (active) {
       const { response } = await dialog.showMessageBox({ type: 'question', message: 'Quit Onboarder?', detail: 'All terminals and operations will stop. Temporary checkouts and their local changes will be removed.', buttons: ['Keep working', 'Quit'], cancelId: 0, defaultId: 0 });
-      if (response !== 1) { quitPending = false; return; }
+      if (response !== 1) { quitPending = false; relaunchOnQuit = false; return; }
     }
     for (const record of windows.values()) record.allowClose = true;
-    await Promise.all([...windows.values()].map(disposeRecord)); quitting = true; app.quit();
-  })().catch(error => { quitPending = false; showError(error); });
+    await Promise.all([...windows.values()].map(disposeRecord)); if (relaunchOnQuit) { relaunchOnQuit = false; app.relaunch(); } quitting = true; app.quit();
+  })().catch(error => { quitPending = false; relaunchOnQuit = false; showError(error); });
 });
 app.whenReady().then(async () => {
 if (!hasInstanceLock) return;
 store = new DesktopStore(app.getPath('userData'), safeStorage);
 if ('liquidGlass' in await store.read('preferences')) await store.update('preferences', value => { delete value.liquidGlass; return value; });
+let coreVersion = '1.5.0';
+try { coreVersion = JSON.parse(await fs.readFile(path.join(resources, 'core/package.json'), 'utf8')).version || coreVersion; } catch {}
+updater = new DesktopUpdater({
+  store,
+  currentVersion: app.getVersion(),
+  coreVersion,
+  arch: process.arch,
+  platform: process.platform,
+  isPackaged: app.isPackaged,
+  execPath: process.execPath,
+  userDataDir: app.getPath('userData'),
+  downloadsDir: process.env.ONBOARDER_DESKTOP_TEST_HOME ? path.join(path.resolve(process.env.ONBOARDER_DESKTOP_TEST_HOME), 'Downloads') : app.getPath('downloads'),
+  openPath: file => process.env.ONBOARDER_DESKTOP_TEST_HOME ? Promise.resolve('') : shell.openPath(file),
+  showItemInFolder: file => { if (!process.env.ONBOARDER_DESKTOP_TEST_HOME) shell.showItemInFolder(file); },
+  relaunchApp: () => { relaunchOnQuit = true; },
+  quitApp: () => app.quit(),
+  onStatus: status => { latestUpdateStatus = status; broadcast({ type: 'update-status', status }); updateMenu(); },
+  onProgress: progress => {
+    broadcast({ type: 'update-progress', progress });
+    for (const record of windows.values()) {
+      if (record.window.isDestroyed()) continue;
+      record.window.setProgressBar(progress.phase === 'complete' || progress.phase === 'error' ? -1 : progress.percent === null ? 2 : progress.percent / 100);
+    }
+  },
+});
+latestUpdateStatus = await updater.getStatus().catch(() => null);
 temporaryProjects = new TemporaryProjects(path.join(app.getPath('userData'), 'temporary-projects'));
 await temporaryProjects.sweep();
 nativeTheme.on('updated', () => { void refreshAppearance(); });
 systemPreferences.subscribeWorkspaceNotification('NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification', () => { void refreshAppearance(); });
-app.setAboutPanelOptions({ applicationName: 'Onboarder', applicationVersion: app.getVersion(), version: 'Desktop preview · core 1.2.0', copyright: 'MIT licensed · Amit Pandey', website: 'https://onboarder.amit.codes/' });
+app.setAboutPanelOptions({ applicationName: 'Onboarder', applicationVersion: app.getVersion(), version: `Desktop preview · core ${coreVersion}`, copyright: 'MIT licensed · Amit Pandey', website: 'https://onboarder.amit.codes/' });
 updateMenu();
 const requestedRoot = process.argv.find(arg => arg.startsWith('--project='))?.slice(10);
 if (pendingOpen.length) for (const selected of pendingOpen.splice(0)) await createWindow(selected).catch(showError);
 else await createWindow(requestedRoot || null).catch(showError);
+if (!process.env.ONBOARDER_DESKTOP_TEST_HOME || process.env.ONBOARDER_DESKTOP_UPDATE_API_URL) {
+  setTimeout(() => { void updater.startupCheck().catch(() => {}); }, 1500).unref();
+}
 }).catch(showError);

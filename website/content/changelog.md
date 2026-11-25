@@ -1,6 +1,25 @@
-Onboarder **1.4.0** moves the project home to [amit.codes](https://amit.codes/) and the product to [onboarder.amit.codes](https://onboarder.amit.codes/). The portfolio, GitHub links, npm homepage, install examples and public documentation now use the new domains.
+Onboarder **1.5.0** adds built-in update detection and controlled self-updates across the CLI, interactive chat and explorer, web workspace and HTTP API, alongside the updated **0.1.7 Apple Silicon Mac development preview**.
 
-## New in 1.4.0
+## New in 1.5.0
+
+- Added `onboarder update [check|install]`, cached update checks across `status`, `doctor`, `start`, and `config`, plus interactive `/update` in chat and `update` in the offline explorer.
+- Installs pin exact versions with `--ignore-scripts`, check Node.js compatibility before updating, keep non-global installs read-only with copyable commands, and honor `ONBOARDER_NO_UPDATE_CHECK=1`.
+- Added `GET /api/update`, SSE `POST /api/update/install`, and `POST /api/update/restart` (same-origin and self-hosted owner-only), plus topbar status, dismissible Project Home banner, live **Updates** drawer, and automatic-check toggle.
+- Updated the Apple Silicon Mac preview to **0.1.7**: checks `macos-v*` releases on GitHub Releases with HTTPS redirect validation, `SHA256SUMS` and `codesign` verification, atomic `.app` swap/relaunch (with `.dmg` installer fallback), native **Onboarder → Check for Updates…**, and **System** / **Updates** drawer integration.
+
+```sh
+npm install -g codebase-onboarder@1.5.0
+onboarder --version
+onboarder update check
+```
+
+[GitHub 1.5.0 release](https://github.com/Amitpandey88/onboarder/releases/tag/v1.5.0) · [Mac 0.1.7 preview](https://github.com/Amitpandey88/onboarder/releases/tag/macos-v0.1.7) · [npm 1.5.0](https://www.npmjs.com/package/codebase-onboarder/v/1.5.0)
+
+## Previous release: 1.4.0
+
+Onboarder **1.4.0** moves the project home to [amit.codes](https://amit.codes/) and the product to [onboarder.amit.codes](https://onboarder.amit.codes/). The portfolio, GitHub links, npm homepage, install examples and public documentation use the canonical domains.
+
+### Changes in 1.4.0
 
 - A new portfolio at [amit.codes](https://amit.codes/), deployed separately. Its source is maintained outside this repository and is not included in the npm package.
 - Onboarder now lives at [onboarder.amit.codes](https://onboarder.amit.codes/), with canonical metadata, sitemap and install links updated.

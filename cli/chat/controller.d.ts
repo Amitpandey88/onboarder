@@ -25,6 +25,7 @@ export interface ChatPorts {
     run?: typeof runAgent;
     browse?: (name: string, args: string[], root: string, signal: AbortSignal) => Promise<string>;
     utility?: (name: ChatUtility, signal: AbortSignal) => Promise<string>;
+    update?: (args: string[], signal: AbortSignal) => Promise<string>;
     chooseModel?: (configure: boolean, signal: AbortSignal) => Promise<boolean>;
     chooseFile?: (root: string, query: string, signal: AbortSignal) => Promise<FileSelection | null>;
     chooseConversation?: (records: ChatRecord[], signal: AbortSignal) => Promise<string | null>;

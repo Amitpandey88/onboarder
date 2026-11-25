@@ -1,4 +1,5 @@
 import type { ScanRequest } from '../../shared/contracts.js';
+import type { UpdateEvent, UpdateStatus } from '../../shared/update.js';
 // Server round-trips. Thin and honest: JSON in, JSON (or an SSE stream) out,
 // server error messages surfaced untouched.
 
@@ -76,46 +77,62 @@ export function runAnalysisTools(scanId, options: Record<string, any> = {}) {
   });
 }
 
-// Install a missing engine, streaming progress events. The server emits SSE
-// frames shaped like the explain stream, minus the OpenAI envelope:
-//   { type: 'log', line } / { type: 'plan', label } / { type: 'done', ok, … }
-// `onEvent` gets each one as it arrives; the promise resolves with the final
-// `done` event (or throws if the request itself failed).
-export async function streamToolInstall(tool, onEvent) {
-  const emit = typeof onEvent === 'function' ? onEvent : (..._args: unknown[]) => {};
-  const res = await fetch('/api/tools/install', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ tool }),
-  });
+async function readSseEvents<T extends { type: string }>(
+  res: Response,
+  fallbackError: string,
+  onEvent?: (event: T) => void,
+): Promise<T | null> {
   if (!res.ok || !res.body) {
     let detail = '';
     try { detail = (await res.json()).error || ''; } catch { /* generic below */ }
     throw new Error(detail || `The server said ${res.status}.`);
   }
-
+  const emit = typeof onEvent === 'function' ? onEvent : (..._args: unknown[]) => {};
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let done = null;
-  while (true) {
-    const { done: ended, value } = await reader.read();
-    if (ended) break;
-    buffer += decoder.decode(value, { stream: true });
-    const frames = buffer.split('\n\n');
-    buffer = frames.pop();
-    for (const frame of frames) {
-      for (const line of frame.split('\n')) {
-        if (!line.startsWith('data:')) continue;
-        try {
-          const event = JSON.parse(line.slice(5).trim());
-          emit(event);
-          if (event.type === 'done') done = event;
-        } catch { /* a partial frame — the next chunk completes it */ }
+  let done: T | null = null;
+  try {
+    while (true) {
+      const { done: ended, value } = await reader.read();
+      if (ended) break;
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split('\n\n');
+      buffer = frames.pop() ?? '';
+      for (const frame of frames) {
+        for (const line of frame.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          try {
+            const event = JSON.parse(line.slice(5).trim()) as T;
+            emit(event);
+            if (event.type === 'done') done = event;
+          } catch { /* a partial frame — the next chunk completes it */ }
+        }
       }
     }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
-  return done || { type: 'done', ok: false, error: 'The install stream ended without a verdict.' };
+  return done || ({ type: 'done', ok: false, error: fallbackError } as unknown as T);
+}
+
+// Install a missing engine, streaming progress events. The server emits SSE
+// frames shaped like the explain stream, minus the OpenAI envelope:
+//   { type: 'log', line } / { type: 'plan', label } / { type: 'done', ok, … }
+// `onEvent` gets each one as it arrives; the promise resolves with the final
+// `done` event (or throws if the request itself failed).
+export async function streamToolInstall(tool, onEvent): Promise<{ type: string; ok?: boolean; error?: string; method?: string; [key: string]: any }> {
+  const res = await fetch('/api/tools/install', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ tool }),
+  });
+  return readSseEvents<{ type: string; ok?: boolean; error?: string; method?: string; [key: string]: any }>(
+    res,
+    'The install stream ended without a verdict.',
+    onEvent,
+  );
 }
 
 // The MCP button's three round-trips. The status one is a plain GET like
@@ -251,4 +268,49 @@ export function rotateServerAccessKey() {
 
 export function logoutRemoteSession() {
   return postJSON('/api/auth/logout', {});
+}
+
+export async function fetchUpdateStatus(options: { refresh?: boolean; notes?: boolean; signal?: AbortSignal } = {}): Promise<UpdateStatus> {
+  const query = new URLSearchParams();
+  if (options.refresh) query.set('refresh', '1');
+  if (options.notes) query.set('notes', '1');
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const res = await fetch(`/api/update${suffix}`, { signal: options.signal });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error || `The server said ${res.status}.`);
+  return data as UpdateStatus;
+}
+
+export async function streamSelfUpdate(
+  options: { version?: string; force?: boolean; signal?: AbortSignal } = {},
+  onEvent?: (event: UpdateEvent) => void,
+): Promise<Extract<UpdateEvent, { type: 'done' }> | null> {
+  const res = await fetch('/api/update/install', {
+    method: 'POST',
+    signal: options.signal,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      ...(options.version ? { version: options.version } : {}),
+      ...(options.force ? { force: true } : {}),
+    }),
+  });
+  return readSseEvents<UpdateEvent>(res, 'The update stream ended without a final status.', onEvent) as Promise<Extract<UpdateEvent, { type: 'done' }> | null>;
+}
+
+export function restartOnboarderServer() {
+  return postJSON('/api/update/restart', {});
+}
+
+export async function waitForServerHealth(timeoutMs = 20000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    try {
+      const res = await fetch('/api/health', { cache: 'no-store' });
+      if (res.ok) return true;
+    } catch {
+      /* server is still restarting */
+    }
+  }
+  return false;
 }

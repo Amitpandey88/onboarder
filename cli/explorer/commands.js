@@ -289,6 +289,11 @@ export const COMMANDS = [
         run: (ctx) => ctx.web(),
     },
     {
+        name: 'update', aliases: ['upgrade'], group: 'session',
+        usage: 'update [check|install]', summary: 'Check for or install Onboarder updates.',
+        run: (ctx, args) => ctx.update(args),
+    },
+    {
         name: 'clear', aliases: ['cls'], group: 'session',
         usage: 'clear', summary: 'Clear the screen.',
         run: () => CLEAR,

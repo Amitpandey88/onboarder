@@ -19,6 +19,7 @@ export interface BannerInfo {
     rows?: number;
     fullscreen?: boolean;
     indexedFiles?: number;
+    updateAvailable?: string | null;
     catalog?: {
         name: string;
         description: string;

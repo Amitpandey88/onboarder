@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "commands": [
     {
       "name": "help",
@@ -407,6 +407,12 @@
       "name": "setup",
       "args": "",
       "description": "Prepare the dedicated Hermes profile",
+      "group": "Setup and controls"
+    },
+    {
+      "name": "update",
+      "args": "[check|install]",
+      "description": "Check for or install Onboarder updates",
       "group": "Setup and controls"
     },
     {
@@ -1220,6 +1226,18 @@
     {
       "method": "POST",
       "path": "/api/settings/access-key"
+    },
+    {
+      "method": "GET",
+      "path": "/api/update"
+    },
+    {
+      "method": "POST",
+      "path": "/api/update/install"
+    },
+    {
+      "method": "POST",
+      "path": "/api/update/restart"
     }
   ]
 }

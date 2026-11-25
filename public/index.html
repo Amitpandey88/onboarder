@@ -31,6 +31,9 @@
     </button>
     <button class="btn btn-ghost" id="newRepoBtn" data-tooltip="Open project home" hidden>New project</button>
     <button class="btn btn-ghost" id="serverBtn" title="Server mode, network, access key, and tunnels">Server</button>
+    <button class="btn btn-ghost update-trigger" id="updateBtn" title="Onboarder version and software updates">
+      <span class="update-dot" id="updateDot" aria-hidden="true"></span><span id="updateBtnLabel">Updates</span>
+    </button>
     <span class="me-links" title="Built by Amit Pandey">
       <a class="me-link" href="https://github.com/Amitpandey88" target="_blank" rel="noopener" title="Amit on GitHub" aria-label="Amit Pandey on GitHub">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
@@ -51,6 +54,18 @@
     <p class="landing-sub">
       A map of your code, a clearer view of your changes, and the context to get moving.
     </p>
+
+    <section class="update-banner" id="landingUpdateBanner" hidden aria-live="polite">
+      <div class="update-banner-copy">
+        <strong id="landingUpdateTitle">Update available</strong>
+        <span id="landingUpdateText"></span>
+      </div>
+      <div class="update-banner-actions">
+        <button class="btn btn-ink btn-sm" id="landingUpdateAction" type="button">Update now</button>
+        <button class="btn btn-ghost btn-sm" id="landingUpdateDetails" type="button">Details</button>
+        <button class="btn btn-ghost btn-sm" id="landingUpdateDismiss" type="button" aria-label="Dismiss update notice">Dismiss</button>
+      </div>
+    </section>
 
     <div class="home-dropzone" id="homeDropzone"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 13h14l5 5h19v23H5z"/><path d="M24 25v10m-4-4 4 4 4-4"/></svg><strong>Drop a project folder here</strong><span>Or open a folder or clone a repository below.</span></div>
     <label class="repository-goal" for="repositoryGoal">What would you like to do? <select id="repositoryGoal"><option value="resume">Resume the previous workspace</option><option value="understand">Understand this repository</option><option value="review">Review changes</option><option value="investigate">Investigate an issue</option><option value="implement">Plan and implement a task</option></select></label>
@@ -407,6 +422,10 @@
     <input type="checkbox" id="srvAutoOpen">
     <span>Open the browser when the server starts</span>
   </label>
+  <label class="check-row">
+    <input type="checkbox" id="srvUpdateCheck">
+    <span>Check for Onboarder updates automatically</span>
+  </label>
 
   <div class="server-section" id="srvKeySection" hidden>
     <span class="field-label">Access key</span>
@@ -470,8 +489,77 @@
   <p class="app-about-note">Repository analysis runs locally. Optional AI uses the provider you choose.</p>
   <footer class="app-about-footer">Created by Amit Pandey <span aria-hidden="true">·</span> MIT licensed</footer>
 </dialog>
-<dialog class="ui-settings-dialog" id="uiSettingsDialog" aria-labelledby="uiSettingsTitle"><div class="ui-settings-heading"><div><p class="workbench-eyebrow">MAKE IT YOURS</p><h2 id="uiSettingsTitle">System</h2></div><button class="btn btn-ghost" id="uiSettingsClose" aria-label="Close System settings">×</button></div><fieldset class="appearance-setting" id="themeOptions"><legend>Appearance</legend><div class="theme-options"><label class="theme-choice"><input id="themeLight" type="radio" name="themePreference" value="light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>Light</span></label><label class="theme-choice"><input id="themeDark" type="radio" name="themePreference" value="dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 13.1A9 9 0 0 1 10.9 3.2 9 9 0 1 0 20.8 13.1Z"/></svg><span>Dark</span></label><label class="theme-choice"><input id="themeSystem" type="radio" name="themePreference" value="system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span>System</span></label></div><p id="themeModeStatus" class="ui-setting-note"></p></fieldset><div class="ui-setting"><span><strong>AI connection</strong><small>Use Hermes or configure your own provider.</small></span><button class="btn btn-outline" id="settingsBtn" aria-haspopup="dialog">Configure <span aria-hidden="true">↗</span></button></div><label class="ui-setting"><span><strong>Animations</strong><small>macOS Reduce Motion always takes priority.</small></span><select id="motionSetting"><option value="system">Follow system</option><option value="reduced">Reduce motion</option></select></label><label class="ui-setting" id="defaultCloneSettingRow"><span><strong>Default clone storage</strong><small>Your choice is remembered for the next project.</small></span><select id="defaultCloneSetting"><option value="permanent">Keep on my Mac</option><option value="temporary">Temporary project</option></select></label></dialog>
+<dialog class="ui-settings-dialog" id="uiSettingsDialog" aria-labelledby="uiSettingsTitle"><div class="ui-settings-heading"><div><p class="workbench-eyebrow">MAKE IT YOURS</p><h2 id="uiSettingsTitle">System</h2></div><button class="btn btn-ghost" id="uiSettingsClose" aria-label="Close System settings">×</button></div><fieldset class="appearance-setting" id="themeOptions"><legend>Appearance</legend><div class="theme-options"><label class="theme-choice"><input id="themeLight" type="radio" name="themePreference" value="light"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg><span>Light</span></label><label class="theme-choice"><input id="themeDark" type="radio" name="themePreference" value="dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 13.1A9 9 0 0 1 10.9 3.2 9 9 0 1 0 20.8 13.1Z"/></svg><span>Dark</span></label><label class="theme-choice"><input id="themeSystem" type="radio" name="themePreference" value="system"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg><span>System</span></label></div><p id="themeModeStatus" class="ui-setting-note"></p></fieldset><div class="ui-setting"><span><strong>AI connection</strong><small>Use Hermes or configure your own provider.</small></span><button class="btn btn-outline" id="settingsBtn" aria-haspopup="dialog">Configure <span aria-hidden="true">↗</span></button></div><div class="ui-setting" id="systemUpdatesRow" hidden><span><strong>Updates</strong><small id="systemUpdatesDetail">Check for Onboarder desktop updates.</small></span><button class="btn btn-outline" id="systemUpdatesBtn" type="button">Updates <span aria-hidden="true">↗</span></button></div><label class="ui-setting"><span><strong>Animations</strong><small>macOS Reduce Motion always takes priority.</small></span><select id="motionSetting"><option value="system">Follow system</option><option value="reduced">Reduce motion</option></select></label><label class="ui-setting" id="defaultCloneSettingRow"><span><strong>Default clone storage</strong><small>Your choice is remembered for the next project.</small></span><select id="defaultCloneSetting"><option value="permanent">Keep on my Mac</option><option value="temporary">Temporary project</option></select></label></dialog>
 <div id="workspaceTooltip" class="workspace-tooltip" role="tooltip" hidden></div>
+<!-- ============================ UPDATES ============================ -->
+<div class="drawer-scrim" id="updateScrim" hidden></div>
+<aside class="drawer" id="updateDrawer" aria-label="Onboarder updates" hidden>
+  <header class="drawer-head">
+    <h2>Updates</h2>
+    <button class="btn btn-ghost btn-sm" id="updateClose">Close</button>
+  </header>
+  <p class="drawer-note" id="updateDrawerNote">
+    Check the npm registry for new Onboarder releases, review release notes, and update this installation in place.
+  </p>
+
+  <div class="update-summary-card">
+    <div class="update-summary-top">
+      <span class="update-status-pill" id="updateBadge">Checking…</span>
+      <span class="update-checked-at" id="updateCheckedAt"></span>
+    </div>
+    <dl class="update-meta-grid">
+      <div><dt>Installed</dt><dd id="updateCurrentVer">—</dd></div>
+      <div><dt>Latest</dt><dd id="updateLatestVer">—</dd></div>
+      <div><dt id="updateMethodLabel">Method</dt><dd id="updateMethod">—</dd></div>
+      <div><dt id="updateRuntimeLabel">Node.js</dt><dd id="updateNodeInfo">—</dd></div>
+    </dl>
+  </div>
+
+  <progress class="scan-progress update-progress" id="updateProgress" aria-label="Update progress" hidden></progress>
+  <p class="drawer-status" id="updateNotice" role="status"></p>
+
+  <div class="drawer-actions update-actions">
+    <button class="btn btn-outline" id="updateCheckBtn" type="button">Check now</button>
+    <button class="btn btn-ink" id="updateInstallBtn" type="button" hidden>Update now</button>
+    <button class="btn btn-ink" id="updateRestartBtn" type="button" hidden>Restart &amp; reload</button>
+  </div>
+
+  <div class="update-manual-box" id="updateManualBox" hidden>
+    <span class="field-label" id="updateManualLabel">Manual update command</span>
+    <div class="mcp-config-row">
+      <input type="text" class="text-input mcp-config-input" id="updateManualCmd" aria-label="Manual update command" readonly spellcheck="false">
+      <button class="btn btn-ghost btn-sm" id="updateCopyCmd" type="button">Copy</button>
+    </div>
+  </div>
+
+  <div class="analysis-console-wrap" id="updateConsoleWrap" hidden>
+    <span class="field-label">Update log</span>
+    <pre class="analysis-console" id="updateConsole"></pre>
+    <p class="analysis-console-verdict" id="updateConsoleVerdict"></p>
+  </div>
+
+  <div class="update-links" id="updateLinks" hidden>
+    <a class="linklike" id="updateReleaseLink" href="#" target="_blank" rel="noopener noreferrer">Release notes on GitHub ↗</a>
+    <a class="linklike" id="updateNpmLink" href="#" target="_blank" rel="noopener noreferrer">Package on npm ↗</a>
+  </div>
+
+  <section class="update-notes" id="updateNotesWrap" hidden>
+    <span class="field-label">Release notes</span>
+    <pre class="update-notes-body" id="updateNotesBody"></pre>
+  </section>
+
+  <div class="server-section">
+    <label class="check-row">
+      <input type="checkbox" id="updateAutoCheck">
+      <span>Check for updates automatically</span>
+    </label>
+  </div>
+
+  <p class="drawer-fine" id="updatePrivacyNote">
+    Only reads public version metadata from npmjs.org. No repository files, keys, or usage telemetry leave your machine.
+  </p>
+</aside>
+
 <div class="toast" id="toast" hidden></div>
 
 <script src="/vendor/mermaid.min.js?v=12.2.0-onboarder.1" integrity="sha384-VsaxeZYUc+woS89yxhptwVHc3rGZVs52BuO/DlXpD82TrEWKlbcAhY47Usk1KaCB" crossorigin="anonymous"></script>

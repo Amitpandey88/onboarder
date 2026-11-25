@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.5.0 — 2026-11-25
+
+- Added **update detection and controlled updates** across CLI, server HTTP API,
+  Web UI, interactive terminal shells, and the macOS Electron app.
+- CLI: `onboarder update [check|install]`, cached version check hints in
+  `status`, `doctor`, `start`, and `config set|get updateCheck`, plus `/update`
+  in chat and `update` in the offline explorer. Enforces `--ignore-scripts`,
+  compatible Node engine checks, and `ONBOARDER_NO_UPDATE_CHECK=1` opt-out.
+- Server & Web UI: added `GET /api/update`, SSE `POST /api/update/install`, and
+  `POST /api/update/restart` (same-origin + self-hosted owner-only), plus topbar
+  update badge, Project Home notification banner, **Updates** drawer with
+  release notes, and automatic-check toggle.
+- Apple Silicon Mac preview **0.1.7**: checks `macos-v*` releases on GitHub
+  Releases, verifies downloads against `SHA256SUMS`, validates `Info.plist` +
+  `/usr/bin/codesign --verify --deep --strict`, atomically replaces
+  `Onboarder.app` with rollback & clean relaunch (or verified `.dmg` download
+  fallback), and wires **Onboarder → Check for Updates…**, **System**, and the
+  Updates drawer.
+- Refreshed repository README with an editorial banner, badges, surface comparison
+  table, and collapsible reference sections. See
+  [1.5.0 release notes](docs/RELEASE_1.5.0.md).
+
 ## 1.4.0 — 2026-11-23
 
 - Moved the project home to [amit.codes](https://amit.codes/) and the product to

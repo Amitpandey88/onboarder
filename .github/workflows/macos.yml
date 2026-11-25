@@ -45,17 +45,17 @@ jobs:
           node scripts/backend-smoke.mjs
           node scripts/ui-smoke.mjs
           node scripts/controls-smoke.mjs
-          node scripts/smoke.mjs "$PWD/dist/packages/0.1.6/${{ matrix.appdir }}/Onboarder.app/Contents/MacOS/Onboarder"
-          node scripts/ui-smoke.mjs "$PWD/dist/packages/0.1.6/${{ matrix.appdir }}/Onboarder.app/Contents/MacOS/Onboarder"
-          node scripts/controls-smoke.mjs "$PWD/dist/packages/0.1.6/${{ matrix.appdir }}/Onboarder.app/Contents/MacOS/Onboarder"
+          node scripts/smoke.mjs "$PWD/dist/packages/0.1.7/${{ matrix.appdir }}/Onboarder.app/Contents/MacOS/Onboarder"
+          node scripts/ui-smoke.mjs "$PWD/dist/packages/0.1.7/${{ matrix.appdir }}/Onboarder.app/Contents/MacOS/Onboarder"
+          node scripts/controls-smoke.mjs "$PWD/dist/packages/0.1.7/${{ matrix.appdir }}/Onboarder.app/Contents/MacOS/Onboarder"
           node scripts/verify-packaged.mjs --arm64
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: onboarder-macos-${{ matrix.arch }}-preview
           path: |
-            integrations/macos/dist/packages/0.1.6/*DEVELOPMENT*.dmg
-            integrations/macos/dist/packages/0.1.6/*DEVELOPMENT*.zip
-            integrations/macos/dist/packages/0.1.6/SHA256SUMS
-            integrations/macos/dist/packages/0.1.6/BUILD-STATUS.json
+            integrations/macos/dist/packages/0.1.7/*DEVELOPMENT*.dmg
+            integrations/macos/dist/packages/0.1.7/*DEVELOPMENT*.zip
+            integrations/macos/dist/packages/0.1.7/SHA256SUMS
+            integrations/macos/dist/packages/0.1.7/BUILD-STATUS.json
             integrations/macos/dist/qa/

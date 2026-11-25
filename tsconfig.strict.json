@@ -57,6 +57,7 @@
     "src/public/js/graphScene.ts",
     "src/public/js/forceGraph.ts",
     "src/public/js/desktopHost.ts",
-    "src/public/js/workspaceShell.ts"
+    "src/public/js/workspaceShell.ts",
+    "src/shared/update.ts"
   ]
 }

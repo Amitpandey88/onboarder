@@ -102,6 +102,8 @@ export function chatBanner(settings, columns = 80, theme = plainTheme, version =
     }
     if (width >= 18)
         output.push(indent + theme.accent('╰' + '─'.repeat(width - 2) + '╯'));
+    if (info.updateAvailable)
+        output.push(indent + theme.accent(clip(`Update available: v${version || 'current'} → v${info.updateAvailable} · run /update`, width)));
     output.push('', line('Welcome. Ask a question or paste a GitHub URL to get started.'), line('Type / for live commands · ↑/↓ choose · Tab/Enter insert · Esc close'), '');
     return output.join('\n');
 }
@@ -155,6 +157,8 @@ function screenBanner(settings, columns, theme, version, info) {
         }
     }
     output.push(indent + theme.accent('╰' + '─'.repeat(width - 2) + '╯'));
+    if (info.updateAvailable && height - output.length >= 4)
+        output.push(indent + theme.accent(clip(`Update available: v${info.updateAvailable} · run /update`, width)));
     if (!expanded && height - output.length >= 5)
         output.push('', indent + theme.strong('Start here'), indent + clip('/map overview · /tour reading order · /open code files', width));
     output.push(indent + theme.muted(clip('Ctrl-P commands · Ctrl-O files · Ctrl-R resume · /help', width)));

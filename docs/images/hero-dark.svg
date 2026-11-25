@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="280" viewBox="0 0 1120 280" fill="none" role="img" aria-labelledby="heroDarkTitle heroDarkDesc">
+  <title id="heroDarkTitle">Onboarder — Codebase Visualizer and Architecture Explorer</title>
+  <desc id="heroDarkDesc">Dark editorial banner showing Onboarder code compass emblem, dependency graph constellation, and wordmark.</desc>
+  <defs>
+    <linearGradient id="bgDark" x1="0" y1="0" x2="1120" y2="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#13161E"/>
+      <stop offset="65%" stop-color="#181D27"/>
+      <stop offset="100%" stop-color="#141B19"/>
+    </linearGradient>
+    <radialGradient id="glowAmber" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(155 140) rotate(90) scale(130)">
+      <stop offset="0%" stop-color="#F5C451" stop-opacity="0.20"/>
+      <stop offset="100%" stop-color="#F5C451" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowGreen" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(920 135) rotate(90) scale(170)">
+      <stop offset="0%" stop-color="#3FA873" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#3FA873" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="gridDark" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#252B3B" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect x="2" y="2" width="1116" height="276" rx="18" fill="url(#bgDark)" stroke="#2E364A" stroke-width="2"/>
+  <rect x="2" y="2" width="1116" height="276" rx="18" fill="url(#gridDark)" opacity="0.55"/>
+  <circle cx="155" cy="140" r="130" fill="url(#glowAmber)"/>
+  <circle cx="920" cy="135" r="170" fill="url(#glowGreen)"/>
+
+  <!-- Right-side architecture constellation motif -->
+  <g opacity="0.9">
+    <path d="M740 84 L848 136 L760 202" stroke="#39435A" stroke-width="2" stroke-dasharray="5 5"/>
+    <path d="M848 136 L965 76 L1042 138 L954 206 L848 136 Z" stroke="#3FA873" stroke-width="2.2" opacity="0.7"/>
+    <path d="M965 76 L954 206" stroke="#F5C451" stroke-width="1.8" opacity="0.55"/>
+    <line x1="690" y1="140" x2="740" y2="84" stroke="#39435A" stroke-width="1.5"/>
+
+    <rect x="706" y="68" width="68" height="28" rx="6" fill="#1D2230" stroke="#47536E" stroke-width="1.5"/>
+    <text x="740" y="86" text-anchor="middle" fill="#A9B4CC" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">cli.ts</text>
+
+    <rect x="722" y="190" width="76" height="28" rx="6" fill="#1D2230" stroke="#47536E" stroke-width="1.5"/>
+    <text x="760" y="208" text-anchor="middle" fill="#A9B4CC" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">diff.ts</text>
+
+    <rect x="802" y="119" width="92" height="34" rx="7" fill="#202837" stroke="#F5C451" stroke-width="2"/>
+    <text x="848" y="140" text-anchor="middle" fill="#FFE9AD" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="700">router.ts</text>
+
+    <rect x="920" y="59" width="90" height="32" rx="7" fill="#182923" stroke="#3FA873" stroke-width="1.8"/>
+    <text x="965" y="79" text-anchor="middle" fill="#9EE5BE" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5">graph.ts</text>
+
+    <rect x="910" y="191" width="88" height="32" rx="7" fill="#1D2230" stroke="#47536E" stroke-width="1.5"/>
+    <text x="954" y="211" text-anchor="middle" fill="#C7D0E4" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11.5">review.ts</text>
+
+    <circle cx="1042" cy="138" r="10" fill="#202837" stroke="#3FA873" stroke-width="2.5"/>
+    <circle cx="1042" cy="138" r="4" fill="#3FA873"/>
+  </g>
+
+  <!-- Code-compass emblem -->
+  <g transform="translate(64, 62)">
+    <rect x="0" y="0" width="144" height="144" rx="34" fill="#1E2330" stroke="#F5C451" stroke-opacity="0.35" stroke-width="2"/>
+    <circle cx="72" cy="72" r="46" stroke="#F5C451" stroke-width="6"/>
+    <path d="M72 95 V53 M50 72 H94" stroke="#F5C451" stroke-width="5" stroke-linecap="round"/>
+    <path d="M72 39 L63 54 H81 Z" fill="#F5C451"/>
+    <circle cx="47" cy="72" r="6.5" fill="#FFE9AD"/>
+    <circle cx="97" cy="72" r="6.5" fill="#FFE9AD"/>
+    <circle cx="72" cy="98" r="6.5" fill="#3FA873"/>
+  </g>
+
+  <!-- Brand title + tagline -->
+  <g transform="translate(240, 86)">
+    <text x="0" y="10" fill="#8C97B2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" letter-spacing="2.4">LOCAL CODE INTELLIGENCE · v1.5.0</text>
+    <text x="0" y="68" fill="#F4F1EA" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="62" font-weight="800" letter-spacing="-1.8">onboarder<tspan fill="#3FA873">.</tspan></text>
+    <text x="2" y="102" fill="#C9D0DF" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="500">Drop a path. Get a map. Review and update on your own terms.</text>
+
+    <!-- Bottom editorial pills -->
+    <g transform="translate(2, 122)">
+      <rect x="0" y="0" width="112" height="24" rx="5" fill="#1F2824" stroke="#3FA873" stroke-opacity="0.6"/>
+      <text x="56" y="16" text-anchor="middle" fill="#9EE5BE" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">LOCAL FIRST</text>
+
+      <rect x="122" y="0" width="118" height="24" rx="5" fill="#282319" stroke="#F5C451" stroke-opacity="0.55"/>
+      <text x="181" y="16" text-anchor="middle" fill="#FFE9AD" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">0 RUNTIME DEPS</text>
+
+      <rect x="250" y="0" width="174" height="24" rx="5" fill="#1E2230" stroke="#5B6988" stroke-opacity="0.7"/>
+      <text x="337" y="16" text-anchor="middle" fill="#CBD4E8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11">CLI · WEB · MAC · MCP</text>
+    </g>
+  </g>
+</svg>

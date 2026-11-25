@@ -22,6 +22,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
     // Off in the schema so `npm start` from a checkout stays quiet; the setup
     // wizard offers to turn it on, which is where the people who want it are.
     autoOpen: false,
+    // Whether Onboarder periodically checks npm for newer releases.
+    updateCheck: true,
     account: Object.freeze({ name: '', email: '', provider: 'openai-compatible', baseUrl: '', model: '' }),
     tunnel: Object.freeze({ cloudflare: false, tailscale: false }),
 });
@@ -82,6 +84,7 @@ export function normalizeSettings(value = {}) {
         https: Boolean(value.https),
         accessKey: cleanString(value.accessKey, 256),
         autoOpen: value.autoOpen === undefined ? DEFAULT_SETTINGS.autoOpen : Boolean(value.autoOpen),
+        updateCheck: value.updateCheck === undefined ? DEFAULT_SETTINGS.updateCheck : Boolean(value.updateCheck),
         account: normalizeAccount(value.account),
         tunnel: normalizeTunnel(value.tunnel),
     };
@@ -135,6 +138,7 @@ export function publicSettings(value = DEFAULT_SETTINGS) {
         domain: settings.domain,
         https: settings.https,
         autoOpen: settings.autoOpen,
+        updateCheck: settings.updateCheck,
         hasAccessKey: Boolean(settings.accessKey),
         accessKeyMasked: maskAccessKey(settings.accessKey),
         account: settings.account,

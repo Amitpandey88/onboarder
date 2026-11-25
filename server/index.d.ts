@@ -1,11 +1,12 @@
 import http from 'node:http';
+import type { UpdateRouteConfig } from './apiUpdate.js';
 export declare const CONFIG: {
     projectRoot: string;
     publicDir: string;
     sharedDir: string;
     mcp: import("./mcp/runner.js").McpRunner;
 };
-export declare function createServer(config?: typeof CONFIG & import('./apiTriage.js').TriageIntegrations & {
+export declare function createServer(config?: typeof CONFIG & import('./apiTriage.js').TriageIntegrations & UpdateRouteConfig & {
     fixStore?: import('./fixStore.js').FixStore;
     configPath?: string;
     getSettings?: () => Promise<import('../shared/contracts.js').Settings>;
@@ -14,6 +15,7 @@ export declare function createServer(config?: typeof CONFIG & import('./apiTriag
         port: number;
         domain: string;
         https: boolean;
+        mode?: string;
     };
 }): http.Server<typeof http.IncomingMessage, typeof http.ServerResponse>;
 export declare function startupBanner(settings: any, { configFile, columns }?: Record<string, any>): string;
@@ -28,6 +30,7 @@ export declare function startServer({ configFile, openBrowser, log }?: Record<st
         https: boolean;
         accessKey: string;
         autoOpen: boolean;
+        updateCheck: boolean;
         account: import("../shared/contracts.js").AccountSettings;
         tunnel: {
             cloudflare: boolean;

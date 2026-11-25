@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('onboarderDesktop', {
   reveal: () => ipcRenderer.invoke('desktop:reveal'),
   credential: (action, endpoint, secret) => ipcRenderer.invoke('desktop:credential', action, endpoint, secret),
   terminal: (action, input) => ipcRenderer.invoke('desktop:terminal', action, input),
+  update: (action, input) => ipcRenderer.invoke('desktop:update', action, input),
   dropped: files => ipcRenderer.invoke('desktop:drop', files.slice(0, 8).map(file => webUtils.getPathForFile(file))),
   subscribe: listener => {
     const handler = (_event, data) => listener(data);

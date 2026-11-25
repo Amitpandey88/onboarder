@@ -48,3 +48,26 @@ export function terminalInput(action, input) {
   }
   return input;
 }
+export function updateInput(action, input) {
+  if (!['status', 'check', 'install', 'restart', 'dismiss', 'set-auto-check', 'open-release'].includes(action)) {
+    throw new Error('Unknown update action.');
+  }
+  if (input === undefined) return {};
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('Invalid update request.');
+  }
+  if (action === 'check' && 'force' in input && typeof input.force !== 'boolean') {
+    throw new Error('Invalid update check option.');
+  }
+  if (action === 'install' && 'mode' in input && !['auto', 'dmg'].includes(input.mode)) {
+    throw new Error('Invalid update install mode.');
+  }
+  if (action === 'dismiss') {
+    text(input.version, 128);
+    if (!input.version.trim()) throw new Error('Invalid update version.');
+  }
+  if (action === 'set-auto-check' && typeof input.autoCheck !== 'boolean') {
+    throw new Error('Invalid auto-check preference.');
+  }
+  return input;
+}

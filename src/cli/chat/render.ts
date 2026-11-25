@@ -12,7 +12,7 @@ export interface ChatTheme {
   selection?: (text: string) => string;
 }
 export const plainTheme: ChatTheme = { accent: s => s, muted: s => s, strong: s => s, success: s => s, error: s => s };
-export interface BannerInfo { model?: string; provider?: string; tools?: number; session?: string; rows?: number; fullscreen?: boolean; indexedFiles?: number; catalog?: { name: string; description: string }[] }
+export interface BannerInfo { model?: string; provider?: string; tools?: number; session?: string; rows?: number; fullscreen?: boolean; indexedFiles?: number; updateAvailable?: string | null; catalog?: { name: string; description: string }[] }
 export interface StatusInfo { model: string; repo: string; busy: boolean; elapsed: number; activity?: string; calls: number; tokens?: number; turns: number; tools: number }
 export function chatStatus(settings: ChatSettings, columns: number, info: StatusInfo): string {
   const room = Math.max(1, columns - 1), milliseconds = Math.max(0, info.elapsed), elapsed = Math.floor(milliseconds / 1000);
@@ -105,6 +105,7 @@ export function chatBanner(settings: ChatSettings, columns = 80, theme = plainTh
     }
   }
   if (width >= 18) output.push(indent + theme.accent('╰' + '─'.repeat(width - 2) + '╯'));
+  if (info.updateAvailable) output.push(indent + theme.accent(clip(`Update available: v${version || 'current'} → v${info.updateAvailable} · run /update`, width)));
   output.push('', line('Welcome. Ask a question or paste a GitHub URL to get started.'), line('Type / for live commands · ↑/↓ choose · Tab/Enter insert · Esc close'), '');
   return output.join('\n');
 }
@@ -153,6 +154,7 @@ function screenBanner(settings: ChatSettings, columns: number, theme: ChatTheme,
     }
   }
   output.push(indent + theme.accent('╰' + '─'.repeat(width - 2) + '╯'));
+  if (info.updateAvailable && height - output.length >= 4) output.push(indent + theme.accent(clip(`Update available: v${info.updateAvailable} · run /update`, width)));
   if (!expanded && height - output.length >= 5) output.push('', indent + theme.strong('Start here'), indent + clip('/map overview · /tour reading order · /open code files', width));
   output.push(indent + theme.muted(clip('Ctrl-P commands · Ctrl-O files · Ctrl-R resume · /help', width)));
   if (height - output.length > 0) output.push(indent + theme.muted(clip('Ask a question or paste a GitHub URL. PgUp/PgDn scroll.', width)));
