@@ -65,6 +65,7 @@ import { initSearch } from '/js/search.js';
 import { withTransition } from '/js/transitions.js';
 import { renderInsights } from '/js/insightsView.js';
 import { createServerDrawer } from '/js/serverSettings.js';
+import { createUpdateDrawer } from '/js/updateUI.js';
 import { renderDiffView, stopDiff } from '/js/diffView.js';
 import { renderReviewView, stopReview } from '/js/reviewView.js';
 import { renderTriage, stopTriage } from '/js/triageView.js';
@@ -95,7 +96,7 @@ const dom: Partial<AppElements> = {};
   'insightsView', 'diffView', 'reviewView', 'triageView', 'changeStackView', 'workflowsView', 'sbomView', 'searchTriggerBtn', 'inspSecurityTools', 'analysisView',
   'mcpBtn', 'mcpBtnLabel', 'mcpDot', 'mcpDrawer', 'mcpScrim', 'mcpClose', 'mcpPanelDot', 'mcpPanelState',
   'mcpStart', 'mcpStop', 'mcpStatus', 'mcpConfig', 'mcpCommandInput', 'mcpCopy', 'mcpTabJson', 'mcpTabToml',
-  'mcpConfigBlock', 'mcpToolsHint', 'serverBtn',
+  'mcpConfigBlock', 'mcpToolsHint', 'serverBtn', 'updateBtn',
   'mcpToolSearch', 'mcpCatalog', 'mcpCapabilities',
   'readableZoomBtn',
 ].forEach((id) => (dom[id] = $(id)));
@@ -1271,6 +1272,7 @@ async function openSettings() {
   // Same reason the MCP drawer closes settings: one scrim at a time.
   if (!dom.mcpDrawer.hidden) closeMcp();
   serverDrawer.close();
+  updateDrawer.close();
   const s = llm.getSettings(false);
   dom.setConnection.value = s.connection;
   dom.setBaseUrl.value = s.baseUrl;
@@ -1304,16 +1306,29 @@ dom.drawerClose.addEventListener('click', closeSettings);
 // The third drawer. Its content and round-trips live in js/serverSettings.js;
 // what stays here is the choreography it shares with the other two drawers —
 // one scrim at a time, Escape to dismiss.
-const serverDrawer = createServerDrawer({ toast });
-document.addEventListener('workspace-close-drawers', () => { closeSettings(); if (!dom.mcpDrawer.hidden) closeMcp(); serverDrawer.close(); });
+const updateDrawer = createUpdateDrawer({
+  toast,
+  onBeforeOpen: () => {
+    closeSettings();
+    if (!dom.mcpDrawer.hidden) closeMcp();
+    serverDrawer.close();
+  },
+});
+const serverDrawer = createServerDrawer({
+  toast,
+  onSaved: (settings) => updateDrawer.syncAutoCheckPreference(settings?.updateCheck !== false),
+});
+document.addEventListener('workspace-close-drawers', () => { closeSettings(); if (!dom.mcpDrawer.hidden) closeMcp(); serverDrawer.close(); updateDrawer.close(); });
 
 function openServer() {
   closeSettings();
   if (!dom.mcpDrawer.hidden) closeMcp();
+  updateDrawer.close();
   serverDrawer.open();
 }
 
 dom.serverBtn.addEventListener('click', () => (serverDrawer.isOpen() ? serverDrawer.close() : openServer()));
+dom.updateBtn.addEventListener('click', () => (updateDrawer.isOpen() ? updateDrawer.close() : void updateDrawer.open({ refresh: false })));
 
 // ------------------------------------------------------------------- mcp --
 
@@ -1458,6 +1473,7 @@ async function openMcp() {
   // assumes, and matches what the person was doing — switching panels.
   closeSettings();
   serverDrawer.close();
+  updateDrawer.close();
   dom.mcpDrawer.hidden = false;
   dom.mcpScrim.hidden = false;
   dom.mcpClose.focus();
@@ -1550,6 +1566,7 @@ dom.mcpStop.addEventListener('click', () => setMcpState('stop'));
 // One heartbeat at load. This first fetch is also what decides whether the button
 // already reads "MCP on" for a server that was left running from before.
 scheduleMcpPoll(0);
+void updateDrawer.check({ refresh: false, silent: true });
 
 
 dom.drawerScrim.addEventListener('click', closeSettings);
@@ -1621,6 +1638,7 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     if (!dom.mcpDrawer.hidden) return closeMcp();
     if (serverDrawer.isOpen()) return serverDrawer.close();
+    if (updateDrawer.isOpen()) return updateDrawer.close();
     return closeSettings();
   }
   if (!dom.mcpDrawer.hidden) {

@@ -17,6 +17,9 @@ import { terminalText, redact } from '../agent/process.js';
 import { repositoryFromRemote } from '../agent/github.js';
 import { scanOptionsFromFlags } from '../scanOptions.js';
 import { dim, bold, ok, bad, paint, colorEnabled } from '../ui.js';
+import { configPath } from '../../server/config.js';
+import { applyUpdate, checkForUpdates, refreshUpdateCacheInBackground } from '../../server/update.js';
+import { formatUpdateStatusText, readCachedUpdateHint } from '../update.js';
 export const CHAT_HELP = `
   Onboarder chat — a repository agent in your terminal
 
@@ -356,19 +359,61 @@ export async function runChat({ target = null, flags = {}, out = console.log, er
             const code = await agentCommand(name, [], {}, { root: controller.settings.root, signal, out: t => lines.push(t), err: t => lines.push(t) });
             return lines.join('\n') + (code ? '\nCheck the details above before running a task.' : '');
         },
+        update: async (args, signal) => {
+            const mode = args[0];
+            const file = flags.config || configPath();
+            print(dim('Checking for Onboarder updates…'));
+            const status = await checkForUpdates({ force: true, includeNotes: true, configFile: file, signal });
+            if (status.error && !status.latestVersion)
+                return bad(status.error);
+            if (mode === 'check' || !status.updateAvailable) {
+                return formatUpdateStatusText(status, { verbose: true });
+            }
+            if (!status.canAutoUpdate) {
+                return formatUpdateStatusText(status, { verbose: true }) + '\n' + safe(status.reason || '') + '\nManual command: ' + status.manualCommand;
+            }
+            if (mode !== 'install') {
+                const choice = await composer.choose({
+                    title: `Update Onboarder v${status.currentVersion} → v${status.latestVersion}`,
+                    hint: `${status.installMethod} · ${status.releaseUrl || ''}`,
+                    signal,
+                    choices: [
+                        { value: 'install', label: `Update to v${status.latestVersion} now`, detail: 'Runs official verified npm/git update' },
+                        { value: 'manual', label: 'Show manual command only', detail: status.manualCommand },
+                        { value: 'cancel', label: 'Keep current version', detail: `Stay on v${status.currentVersion}` },
+                    ],
+                });
+                if (!choice || choice === 'cancel')
+                    return `Keeping Onboarder v${status.currentVersion}.`;
+                if (choice === 'manual')
+                    return `Run in your terminal:\n  ${status.manualCommand}`;
+            }
+            print(dim(`Updating Onboarder v${status.currentVersion} → v${status.latestVersion}…`));
+            const result = await applyUpdate({ configFile: file, targetVersion: status.latestVersion || undefined, signal }, (event) => {
+                if (event.type === 'log')
+                    print(dim('  ' + safe(event.line)));
+            });
+            if (!result.ok) {
+                return bad(result.error || 'Update failed.') + (result.manualCommand ? `\nManual command: ${result.manualCommand}` : '');
+            }
+            cachedUpdateVersion = null;
+            return ok(`Updated Onboarder to v${result.currentVersion}.`) + '\nRestart `onboarder` to run the new version.';
+        },
     });
     const { scopedTools } = await import('../agent/mcp.js');
     const catalog = scopedTools({ schemaVersion: 1, id: randomUUID(), mode: controller.settings.mode, root, sourceRoot: root,
         repository: source.sourceUrl ? repositoryFromRemote(source.sourceUrl) : null, remote: source.sourceUrl || null, branch: null, baseBranch: null,
         task: '', permissions: { files: false, checks: false, github: false }, startedAt: '', timeoutSeconds: timeout, maxTurns, auditFile: '',
     }).map(({ name, description }) => ({ name, description }));
+    let cachedUpdateVersion = (await readCachedUpdateHint(flags.config || configPath()))?.latestVersion || null;
+    refreshUpdateCacheInBackground({ configFile: flags.config || configPath() });
     let bannerKey = '', bannerText = '';
     const banner = (columns, rows) => {
         const indexedFiles = browser.filesFor(controller.workspace).length;
-        const key = JSON.stringify([controller.settings, display, columns, rows, controller.record.id, indexedFiles]);
+        const key = JSON.stringify([controller.settings, display, columns, rows, controller.record.id, indexedFiles, cachedUpdateVersion]);
         if (key !== bannerKey) {
             bannerKey = key;
-            bannerText = chatBanner(controller.settings, columns, theme, version, { ...display, tools: catalog.length, catalog, session: controller.record.id, rows, fullscreen: true, indexedFiles });
+            bannerText = chatBanner(controller.settings, columns, theme, version, { ...display, tools: catalog.length, catalog, session: controller.record.id, rows, fullscreen: true, indexedFiles, updateAvailable: cachedUpdateVersion });
         }
         return bannerText;
     };

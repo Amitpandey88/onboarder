@@ -65,6 +65,7 @@ const HELP = `
     onboarder tunnel <name>       cloudflare | tailscale
     onboarder https <action>      check | setup | start | stop | status
     onboarder doctor              Check the machine and the config
+    onboarder update [check|install]  Detect and install the latest Onboarder release
 
   In the explorer
     map tour explain             what this is, where to start, and why
@@ -180,6 +181,10 @@ const OPTIONS: NonNullable<import('node:util').ParseArgsConfig['options']> = {
   check: { type: 'string', multiple: true },
   'check-digest': { type: 'string' },
   'trust-worktree': { type: 'boolean' },
+  'check-only': { type: 'boolean' },
+  restart: { type: 'boolean' },
+  notes: { type: 'boolean' },
+  force: { type: 'boolean' },
 };
 
 // parseArgs speaks kebab-case; the wizard's flags speak camelCase.
@@ -206,9 +211,21 @@ function normalizeFlags(values) {
 function extractNegatedFlags(argv) {
   const rest = [];
   let noColor = false;
+  let firstPositional: string | null = null;
+  let expectValue = false;
   for (const arg of argv) {
-    if (arg === '--no-color') noColor = true;
-    else rest.push(arg);
+    if (arg === '--no-color') { noColor = true; continue; }
+    if (expectValue) { expectValue = false; rest.push(arg); continue; }
+    if (!arg.startsWith('-')) {
+      if (firstPositional === null) firstPositional = arg;
+    } else if (!arg.includes('=') && ['--config', '--mode', '--host', '--port', '--domain', '--access-key', '--name', '--email', '--provider', '--base-url', '--model', '--lines', '-n', '--timeout', '--max-files', '--max-file-size', '--read-concurrency', '--base', '--head', '--profile', '--fail-on', '--run', '--finding', '--proposal', '--approve', '--report', '--check', '--check-digest', '--task', '--pr', '--issue', '--max-turns', '--resume', '--repo', '--state', '--page', '--limit', '--queue', '--sort', '--search', '--urgency', '--urgency-head', '--urgency-reason'].includes(arg)) {
+      expectValue = true;
+    }
+    if (arg === '--check' && (firstPositional === 'update' || firstPositional === 'upgrade')) {
+      rest.push('--check-only');
+    } else {
+      rest.push(arg);
+    }
   }
   return { argv: rest, noColor };
 }
@@ -240,7 +257,12 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   if (flags.help && ['chat', 'tui'].includes(positionals[0])) { console.log(CHAT_HELP); return 0; }
-  if (flags.help && !['agent', 'mcp', 'intelligence', 'team', 'fix', 'triage'].includes(positionals[0])) { console.log(HELP); return 0; }
+  if (flags.help && ['update', 'upgrade'].includes(positionals[0])) {
+    const { UPDATE_HELP } = await import('./update.js');
+    console.log(UPDATE_HELP);
+    return 0;
+  }
+  if (flags.help && !['agent', 'mcp', 'intelligence', 'team', 'fix', 'triage', 'update', 'upgrade'].includes(positionals[0])) { console.log(HELP); return 0; }
   if (flags.version) { console.log(PACKAGE.version); return 0; }
 
   const [cmd, sub, ...rest] = positionals;
@@ -357,6 +379,11 @@ export async function main(argv = process.argv.slice(2)) {
         return codeOf(await runHttps(sub || 'status', { flags }));
       case 'doctor':
         return codeOf(await runDoctor({ flags }));
+      case 'update':
+      case 'upgrade': {
+        const { updateCommand } = await import('./update.js');
+        return updateCommand(sub, rest, { flags });
+      }
       default:
         if (isRemoteSource(cmd)) {
           if (sub) throw new Error('Use onboarder chat <GitHub URL>, then type your question.');

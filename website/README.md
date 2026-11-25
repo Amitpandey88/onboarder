@@ -1,7 +1,7 @@
 # Onboarder public website and documentation
 
 Static source for https://onboarder.amit.codes/ and `/docs/`, describing
-Onboarder **1.4.0**. The website is separate from the repository-scanning web app.
+Onboarder **1.5.0**. The website is separate from the repository-scanning web app.
 It has no runtime package dependencies or application server.
 
 - `site/`: homepage, support/legal pages, shared theme, scripts, and local assets.
@@ -188,3 +188,9 @@ core 1.2.0; its signing and platform requirements are unchanged.
 The public website remains static and does not expose a repository scanner. Deploy
 only the validated `dist/` tree as a new immutable release, preserve the previous
 release for rollback, and leave Nginx, TLS and neighboring applications unchanged.
+
+## 1.5.0 release — 25 November 2026
+
+Build revision `20261125-v150`. Updates install/changelog/macOS docs to **1.5.0**
+and **macos-v0.1.7**, refreshes extracted reference metadata (`/update`, `/api/update*`),
+and links direct downloads to `Onboarder-0.1.7-DEVELOPMENT-arm64.dmg`.

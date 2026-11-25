@@ -389,18 +389,18 @@ export declare function openRepo(target?: string, options?: ScanOptions): Promis
     tempId?: string;
 }>;
 export declare function resolveTarget(repo: any, typed: any): {
-    error: string;
     file?: undefined;
     folder?: undefined;
+    error: string;
     candidates?: undefined;
 } | {
+    folder?: undefined;
     error?: undefined;
     file: any;
-    folder?: undefined;
     candidates?: undefined;
 } | {
-    error?: undefined;
     file?: undefined;
+    error?: undefined;
     folder: any;
     candidates?: undefined;
 } | {

@@ -34,6 +34,8 @@ import { runExternalAnalysis, toolsStatus } from '../../server/tools/scan.js';
 import { formatDiff, formatDeepAnalysis, formatEngines } from './featureViews.js';
 import { askConfig, askModel, askSetupMessage } from './assistant.js';
 import { wrapText } from './wrap.js';
+import { applyUpdate, checkForUpdates, refreshUpdateCacheInBackground } from '../../server/update.js';
+import { formatUpdateHintLine, formatUpdateStatusText, readCachedUpdateHint } from '../update.js';
 const VERSION = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version;
 // The one-time note. `onboarder` used to start a web server; now it opens this.
 // Someone who upgrades and has muscle memory for the old thing deserves to be
@@ -76,6 +78,11 @@ export async function runExplore({ target = null, flags = {}, out = console.log,
     }
     out('');
     out(overview(repo));
+    const cachedUpdate = await readCachedUpdateHint(flags.config || configPath());
+    const updateHint = formatUpdateHintLine(cachedUpdate);
+    if (updateHint)
+        out(updateHint.replace('`onboarder update`', '`update`'));
+    refreshUpdateCacheInBackground({ configFile: flags.config || configPath() });
     out('');
     if (await shouldShowHint(flags)) {
         out(dim('  Note: `onboarder` used to start the web server. That is now `onboarder start`'));
@@ -167,6 +174,34 @@ function session({ repo, flags, out, err, version }) {
             }
         },
         web: () => startWeb(ctx),
+        update: async (args = []) => {
+            const mode = args[0];
+            const file = ctx.flags.config || configPath();
+            const status = await checkForUpdates({ force: true, includeNotes: true, configFile: file });
+            if (mode === 'check' || !status.updateAvailable || !status.canAutoUpdate) {
+                return formatUpdateStatusText(status, { verbose: true });
+            }
+            out(formatUpdateStatusText(status, { verbose: true }));
+            if (mode !== 'install' && !ctx.flags.yes) {
+                const confirmRl = readlinePromises.createInterface({ input: process.stdin, output: process.stdout });
+                try {
+                    const answer = (await confirmRl.question(`  Update Onboarder from v${status.currentVersion} to v${status.latestVersion}? (Y/n) `)).trim().toLowerCase();
+                    if (answer && answer !== 'y' && answer !== 'yes') {
+                        return dim('  Update skipped. Manual command: ') + cyan(status.manualCommand);
+                    }
+                }
+                finally {
+                    confirmRl.close();
+                }
+            }
+            const result = await applyUpdate({ configFile: file, targetVersion: status.latestVersion || undefined }, (event) => {
+                if (event.type === 'log')
+                    out(dim('    ' + event.line));
+            });
+            if (!result.ok)
+                return '  ' + bad(result.error || 'Update failed.');
+            return '  ' + ok(`Updated Onboarder to v${result.currentVersion}. Restart to run the new version.`);
+        },
         diff: async (base = 'HEAD', head = '', file = '') => formatDiff(await getGitDiff(ctx.repo.root, { base, head, file }), ctx.repo.facts.importers || {}, ctx.repo.scan.files.length, file),
         engines: () => formatEngines(toolsStatus()),
         deep: async (tool) => {

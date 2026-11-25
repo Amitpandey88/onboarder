@@ -57,7 +57,7 @@ See [contextual AI review](/docs/ai-review/), [approved fixes](/docs/fixes/) and
 
 ## Slash commands
 
-The following list is generated from the **1.4.0 command registry**, grouped by task. Angle brackets indicate a required value; square brackets indicate an optional value. The installed `/help <command>` gives local usage.
+The following list is generated from the **1.5.0 command registry**, grouped by task. Angle brackets indicate a required value; square brackets indicate an optional value. The installed `/help <command>` gives local usage.
 
 {{commands}}
 

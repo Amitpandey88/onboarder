@@ -37,7 +37,8 @@ process.on('message', async message => {
       server = http.createServer((req, res) => {
         if (!validToken(req.headers['x-onboarder-desktop-token'], message.token)) { res.writeHead(403); res.end('Desktop session required.'); return; }
         if (req.method !== 'GET') { activeRequests++; emit({ type: 'activity', active: true }); let done = false; const finish = () => { if (!done) { done = true; activeRequests--; emit({ type: 'activity', active: activeRequests > 0 || jobs.size > 0 }); } }; res.once('close', finish); res.once('finish', finish); }
-        // This private instance never changes daemon/network settings or receives webhooks.
+        // This private instance never changes daemon/network settings, receives webhooks, or runs npm self-updates.
+        if (/^\/api\/update(?:\/|$|\?)/.test(req.url)) { res.writeHead(403, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'Use the Onboarder Mac app Updates drawer or Onboarder -> Check for Updates... to update this desktop app.' })); return; }
         if (/^\/api\/(?:settings|github\/webhook|auth\/login)/.test(req.url) && req.method !== 'GET') { res.writeHead(403, { 'content-type': 'application/json' }); res.end(JSON.stringify({ error: 'Manage the standalone web server from the CLI or browser, separately from this app.' })); return; }
         router(req, res);
       });

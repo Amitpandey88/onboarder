@@ -18,6 +18,7 @@ export declare function publicSettings(value?: SettingsInput): {
     domain: string;
     https: boolean;
     autoOpen: boolean;
+    updateCheck: boolean;
     hasAccessKey: boolean;
     accessKeyMasked: string;
     account: import("../shared/contracts.js").AccountSettings;

@@ -23,6 +23,8 @@ import { caddyRun, caddyValidate, httpsReadiness, httpsStatus, writeCaddyfile } 
 import { bold, cyan, dim, ok, warn, bad, paint, kv, tick, cross, dash, welcomeBanner, panel, row, hint } from './ui.js';
 import { buildSteps, unansweredSteps, defaultOf, applyFlags, answersToSettings, summaryLines } from './wizard.js';
 import { runSteps, WizardCancelled } from './prompt.js';
+import { formatUpdateHintLine, readCachedUpdateHint } from './update.js';
+import { checkForUpdates, readInstalledPackage } from '../server/update.js';
 
 // ---------------------------------------------------------------- setup ---
 
@@ -262,6 +264,10 @@ export async function runStart({ flags = {}, out = console.log, err = console.er
     out(dim('  Running in the foreground. Ctrl-C stops it; closing this terminal stops it too.'));
     out(dim('  To keep it alive after you close the terminal: ') + cyan('onboarder start background'));
   }
+  if (process.stdout.isTTY && !flags.json) {
+    const updateHint = formatUpdateHintLine(await readCachedUpdateHint(file, started.settings));
+    if (updateHint) out(updateHint);
+  }
   out('');
   // The listening server holds the event loop; resolve so callers/tests know
   // we are up, but leave the process running.
@@ -334,6 +340,10 @@ export async function runStartBackground({ flags = {}, out = console.log, err = 
   out(dim('  Follow the log: ') + cyan('onboarder logs -f'));
   out(dim('  Stop it:         ') + cyan('onboarder stop'));
   out(dim('  Check on it:     ') + cyan('onboarder status'));
+  if (process.stdout.isTTY) {
+    const updateHint = formatUpdateHintLine(await readCachedUpdateHint(file, settings));
+    if (updateHint) out(updateHint);
+  }
   out('');
   return 0;
 }
@@ -366,6 +376,8 @@ export async function runStatus({ flags = {}, out = console.log }: Record<string
   // The pid says whether it is up; the run record says *how* it came up, which
   // is what tells someone whether closing their terminal will kill it.
   const info = running ? readRunInfo(file) : null;
+  const cachedUpdate = await readCachedUpdateHint(file, settings);
+  const currentVersion = readInstalledPackage().version;
   const result = {
     running: Boolean(running || portBusy),
     pid: running ? pid : null,
@@ -378,6 +390,8 @@ export async function runStatus({ flags = {}, out = console.log }: Record<string
     uptimeMs: running && info?.startedAt ? Date.now() - Date.parse(info.startedAt) : null,
     log: running && info?.log ? info.log : null,
     startup: (await startupStatus()).installed,
+    version: currentVersion,
+    update: cachedUpdate ? { available: true, latestVersion: cachedUpdate.latestVersion } : { available: false },
   };
   if (flags.json) {
     out(JSON.stringify(result, null, 2));
@@ -397,6 +411,9 @@ export async function runStatus({ flags = {}, out = console.log }: Record<string
       ] : []),
       row('Config', dim(file)),
       row('At login', result.startup ? MARK.yes('Enabled') : MARK.no('Not enabled — `onboarder start startup install`')),
+      ...(cachedUpdate
+        ? [row('Update', warn(`v${cachedUpdate.latestVersion} available`) + dim(' — run `onboarder update`'))]
+        : []),
       ...(result.portBusy && !running
         ? [hint('Inspect the listener with `ss -ltnp` or `lsof -i :' + settings.port + '` before stopping another process.')]
         : []),
@@ -596,6 +613,7 @@ const SETTABLE = {
   domain: (v) => v,
   https: (v) => ['true', 'yes', '1', 'on'].includes(String(v).toLowerCase()),
   autoOpen: (v) => ['true', 'yes', '1', 'on'].includes(String(v).toLowerCase()),
+  updateCheck: (v) => ['true', 'yes', '1', 'on'].includes(String(v).toLowerCase()),
   'account.name': (v) => v,
   'account.email': (v) => v,
   'account.provider': (v) => v,
@@ -656,6 +674,7 @@ export async function runConfig(sub, args, { flags = {}, out = console.log }: Re
         }
       }
       out(kv('Auto-open', settings.autoOpen ? 'yes' : 'no'));
+      out(kv('Auto-update', settings.updateCheck ? 'check enabled' : 'check disabled'));
       return 0;
     }
     case 'get': {
@@ -792,6 +811,16 @@ export async function runDoctor({ flags = {}, out = console.log }: Record<string
       detail: found ? 'installed' : wanted ? 'not installed — ' + installHint(name) : 'not installed (not needed for your settings)',
     });
   }
+
+  const cachedUpdate = await checkForUpdates({ cacheOnly: true, configFile: file, settings }).catch(() => null);
+  checks.push({
+    id: 'updates',
+    ok: true,
+    required: false,
+    detail: cachedUpdate?.updateAvailable
+      ? `v${cachedUpdate.latestVersion} available (current: v${cachedUpdate.currentVersion}) — run \`onboarder update\``
+      : `v${cachedUpdate?.currentVersion || readInstalledPackage().version} (${cachedUpdate?.checkDisabled ? 'auto-check disabled' : 'run `onboarder update check` to query registry'})`,
+  });
 
   if (flags.json) {
     out(JSON.stringify({ ok: checks.every((c) => c.ok || !c.required), checks }, null, 2));

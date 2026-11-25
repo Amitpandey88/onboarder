@@ -4,9 +4,9 @@ Onboarder.app brings the existing analyzer, diagrams, code editor, Intelligence,
 Review, approved fixes and PR Triage into a Mac workspace. The shared interface
 also serves the browser; the CLI remains independently usable.
 
-The desktop package is versioned separately: **0.1.6 preview**, with core 1.2.0.
+The desktop package is versioned separately: **0.1.7 preview**, with core 1.5.0.
 Current builds target macOS 14 or later on Apple Silicon. The development preview is distributed from the
-[macOS preview release](https://github.com/Amitpandey88/onboarder/releases/tag/macos-v0.1.6). Intel cross-build code remains unverified and is not included in the
+[macOS preview release](https://github.com/Amitpandey88/onboarder/releases/tag/macos-v0.1.7). Intel cross-build code remains unverified and is not included in the
 retained downloads.
 
 ## Build and run
@@ -37,7 +37,7 @@ npm run package:arm64
 npm run package:x64
 ```
 
-Artifacts are in `dist/packages/0.1.6`: the Apple Silicon application, DMG
+Artifacts are in `dist/packages/0.1.7`: the Apple Silicon application, DMG
 and ZIP files, checksums and build status. Development archives have DEVELOPMENT
 in their filenames and an ad-hoc signature. They are not notarized and may be
 blocked by Gatekeeper on another Mac. Do not present them as a signed release.
@@ -94,6 +94,7 @@ Keep signing credentials out of source, logs and documentation.
   Keychain-backed; unavailable Keychain storage never falls back to plaintext.
   Browser keys remain in memory. Browser local storage is not automatically
   imported into the desktop app.
+- **In-app Updates** check GitHub Releases for `macos-v*` builds via **Onboarder → Check for Updates…**, **System**, Project Home, and the **Updates** drawer. Downloads are validated by HTTPS host allowlist, `SHA256SUMS`, `Info.plist`, and `/usr/bin/codesign --verify --deep --strict` before atomic bundle replacement (or `.dmg` fallback when unpackaged/translocated).
 - The private desktop backend does not reconfigure an existing daemon, network
   listener, tunnel, login item or self-hosted deployment. Use the standalone CLI
   or browser server settings for those operations.

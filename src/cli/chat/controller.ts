@@ -19,6 +19,7 @@ export interface ChatPorts {
   run?: typeof runAgent;
   browse?: (name: string, args: string[], root: string, signal: AbortSignal) => Promise<string>;
   utility?: (name: ChatUtility, signal: AbortSignal) => Promise<string>;
+  update?: (args: string[], signal: AbortSignal) => Promise<string>;
   chooseModel?: (configure: boolean, signal: AbortSignal) => Promise<boolean>;
   chooseFile?: (root: string, query: string, signal: AbortSignal) => Promise<FileSelection | null>;
   chooseConversation?: (records: ChatRecord[], signal: AbortSignal) => Promise<string | null>;
@@ -167,6 +168,14 @@ export class ChatController {
         this.settings.timeout = seconds; this.settings.maxTurns = turns; await this.persist(); this.say(`${seconds}s · ${turns} agent turns`); return;
       }
       if (name === 'setup' || name === 'doctor') { this.say(await this.utility(name)); return; }
+      if (name === 'update') {
+        if (args.length > 1 || (args[0] && !['check', 'install'].includes(args[0]))) {
+          throw new Error('Usage: /update [check|install]');
+        }
+        if (!this.ports.update) throw new Error('Run `onboarder update` in your terminal to check or install updates.');
+        this.say(await this.ports.update(args, this.abort.signal));
+        return;
+      }
       if ((name === 'deep' || name === 'engines') && this.ports.analysis) {
         const result = await this.ports.analysis(name, args, this.workspace, this.abort.signal, this.settings.checks);
         this.abort.signal.throwIfAborted();

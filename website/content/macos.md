@@ -1,13 +1,13 @@
 ## Download the Apple Silicon preview
 
-Onboarder for macOS **0.1.6 development preview** includes core **1.2.0**, Node and npm. It requires **macOS 14 or later on Apple Silicon**. No separate Node installation is needed for the app's backend, CLI or MCP workflows. Intel downloads are not provided.
+Onboarder for macOS **0.1.7 development preview** includes core **1.5.0**, Node and npm, plus built-in update checks against GitHub Releases. It requires **macOS 14 or later on Apple Silicon**. No separate Node installation is needed for the app's backend, CLI or MCP workflows. Intel downloads are not provided.
 
-- [Download the development DMG](https://github.com/Amitpandey88/onboarder/releases/download/macos-v0.1.6/Onboarder-0.1.6-DEVELOPMENT-arm64.dmg)
-- [Download the development ZIP](https://github.com/Amitpandey88/onboarder/releases/download/macos-v0.1.6/Onboarder-0.1.6-DEVELOPMENT-arm64.zip)
-- [SHA-256 checksums](https://github.com/Amitpandey88/onboarder/releases/download/macos-v0.1.6/SHA256SUMS)
-- [Build status and release notes](https://github.com/Amitpandey88/onboarder/releases/tag/macos-v0.1.6)
+- [Download the development DMG](https://github.com/Amitpandey88/onboarder/releases/download/macos-v0.1.7/Onboarder-0.1.7-DEVELOPMENT-arm64.dmg)
+- [Download the development ZIP](https://github.com/Amitpandey88/onboarder/releases/download/macos-v0.1.7/Onboarder-0.1.7-DEVELOPMENT-arm64.zip)
+- [SHA-256 checksums](https://github.com/Amitpandey88/onboarder/releases/download/macos-v0.1.7/SHA256SUMS)
+- [Build status and release notes](https://github.com/Amitpandey88/onboarder/releases/tag/macos-v0.1.7)
 
-> This build is ad-hoc signed and not notarized. There is no configured Developer ID identity for production distribution. Gatekeeper may block it on another Mac. Review the source or wait for a notarized build if your device policy requires one. The preview has no automatic updater; check the release page manually.
+> This build is ad-hoc signed and not notarized. There is no configured Developer ID identity for production distribution. Gatekeeper may block it on another Mac. Review the source or wait for a notarized build if your device policy requires one. Starting in 0.1.7, **Onboarder → Check for Updates…** and the **Updates** drawer verify release archives against `SHA256SUMS` and `codesign` before replacing writable `.app` bundles (or download the verified `.dmg` when running translocated or from source).
 
 Open the DMG and drag Onboarder into Applications, or unpack the ZIP. Keep your current app until you have verified the new one. Existing preferences, repository checkouts, conversations and history are retained.
 

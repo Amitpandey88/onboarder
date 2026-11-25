@@ -24,6 +24,8 @@ try {
   const url = `http://127.0.0.1:${first.port}`;
   assert.equal((await fetch(url + '/api/health')).status, 403);
   assert.equal((await fetch(url + '/api/health', { headers: { 'x-onboarder-desktop-token': second.token } })).status, 403);
+  assert.equal((await fetch(url + '/api/update', { headers: { 'x-onboarder-desktop-token': first.token } })).status, 403);
+  assert.equal((await fetch(url + '/api/update/install', { method: 'POST', headers: { 'x-onboarder-desktop-token': first.token } })).status, 403);
   const response = await fetch(url + '/api/scan', { method: 'POST', headers: { 'content-type': 'application/json', 'x-onboarder-desktop-token': first.token }, body: JSON.stringify({ path: repository }) });
   assert.equal(response.status, 200); assert.equal((await response.json()).scan.stats.filesParsed, 1);
   const shell = await first.request('terminal', { action: 'create', input: { kind: 'shell', cols: 100, rows: 24 } });

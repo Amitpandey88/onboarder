@@ -62,11 +62,18 @@ export function initWorkspaceShell(openProject: (path: string) => void) {
   async function openUISettings() {
     (el('aboutOnboarderDialog') as HTMLDialogElement).close();
     closeNav(); document.dispatchEvent(new CustomEvent('workspace-close-drawers'));
-    if (host) { try { const prefs = await host.preferences(); applyAppearance(prefs.appearance); setCloneStorage(prefs.cloneStorage); } catch (e) { error(e); } }
-    else { el('defaultCloneSettingRow').hidden = true; }
+    if (host) {
+      el('systemUpdatesRow').hidden = false;
+      try { const prefs = await host.preferences(); applyAppearance(prefs.appearance); setCloneStorage(prefs.cloneStorage); } catch (e) { error(e); }
+    }
+    else { el('defaultCloneSettingRow').hidden = true; el('systemUpdatesRow').hidden = true; }
     const dialog = el('uiSettingsDialog') as HTMLDialogElement; if (!dialog.open) dialog.showModal();
   }
   for (const id of ['appearanceSettingsBtn', 'appearanceHeaderBtn']) el(id).addEventListener('click', () => { void openUISettings(); });
+  el('systemUpdatesBtn').addEventListener('click', () => {
+    (el('uiSettingsDialog') as HTMLDialogElement).close();
+    document.dispatchEvent(new CustomEvent('workspace-open-updates', { detail: { refresh: true } }));
+  });
   el('uiSettingsClose').addEventListener('click', () => (el('uiSettingsDialog') as HTMLDialogElement).close());
   el('uiSettingsDialog').addEventListener('close', () => { if (el('settingsDrawer').hidden) el('appearanceHeaderBtn').focus(); });
   el('motionSetting').addEventListener('change', () => {
@@ -154,6 +161,15 @@ export function initWorkspaceShell(openProject: (path: string) => void) {
         if (event.action === 'settings') void openUISettings();
         if (event.action === 'search') el('searchTriggerBtn').click();
         if (event.action === 'terminal') el('terminalToggle').click();
+        if (event.action === 'check-updates') document.dispatchEvent(new CustomEvent('workspace-open-updates', { detail: { refresh: true } }));
+      }
+      if (event.type === 'update-status' && event.status) {
+        const s = event.status;
+        el('systemUpdatesDetail').textContent = s.updateReadyToRestart
+          ? `Restart Onboarder to finish updating to v${s.pendingVersion}.`
+          : s.updateAvailable && s.latestVersion
+            ? `Version v${s.latestVersion} is available (installed v${s.currentVersion}).`
+            : `Onboarder for Mac v${s.currentVersion}.`;
       }
       if (event.type === 'appearance') applyAppearance(event.appearance);
       if (event.type === 'clone-progress') { if (cloning) progress(event.phase, event.percent, event.detail); }

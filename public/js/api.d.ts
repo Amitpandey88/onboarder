@@ -1,4 +1,5 @@
 import type { ScanRequest } from '../../shared/contracts.js';
+import type { UpdateEvent, UpdateStatus } from '../../shared/update.js';
 export declare function scanOnServer(payload: ScanRequest, options?: {
     signal?: AbortSignal;
 }): Promise<any>;
@@ -6,7 +7,13 @@ export declare function cleanupClone(cloneId: any): Promise<void>;
 export declare function fetchFileText(scanId: any, path: any): Promise<string>;
 export declare function fetchToolsStatus(): Promise<any>;
 export declare function runAnalysisTools(scanId: any, options?: Record<string, any>): Promise<any>;
-export declare function streamToolInstall(tool: any, onEvent: any): Promise<any>;
+export declare function streamToolInstall(tool: any, onEvent: any): Promise<{
+    type: string;
+    ok?: boolean;
+    error?: string;
+    method?: string;
+    [key: string]: any;
+}>;
 export declare function fetchMcpStatus(): Promise<any>;
 export declare function startMcpServer(): Promise<any>;
 export declare function stopMcpServer(): Promise<any>;
@@ -27,3 +34,17 @@ export declare function fetchServerSettings(): Promise<any>;
 export declare function updateServerSettings(patch: any): Promise<any>;
 export declare function rotateServerAccessKey(): Promise<any>;
 export declare function logoutRemoteSession(): Promise<any>;
+export declare function fetchUpdateStatus(options?: {
+    refresh?: boolean;
+    notes?: boolean;
+    signal?: AbortSignal;
+}): Promise<UpdateStatus>;
+export declare function streamSelfUpdate(options?: {
+    version?: string;
+    force?: boolean;
+    signal?: AbortSignal;
+}, onEvent?: (event: UpdateEvent) => void): Promise<Extract<UpdateEvent, {
+    type: 'done';
+}> | null>;
+export declare function restartOnboarderServer(): Promise<any>;
+export declare function waitForServerHealth(timeoutMs?: number): Promise<boolean>;

@@ -35,6 +35,7 @@ import { safeRelative } from '../cli/agent/files.js';
 import { handleToolsInstall, handleToolsRun, handleToolsStatus } from './apiTools.js';
 import { handleMcpStart, handleMcpStatus, handleMcpStop, handleMcpCommand } from './apiMcp.js';
 import { handleGetSettings, handleRotateAccessKey, handleUpdateSettings } from './apiSettings.js';
+import { handleUpdateInstall, handleUpdateRestart, handleUpdateStatus } from './apiUpdate.js';
 import { handleAuthStatus, handleLogin, handleLogout } from './apiAuth.js';
 import { accessKeysMatch, allowedHosts, authReason, bearerToken, DEFAULT_SETTINGS } from './config.js';
 import { hasValidSession } from './auth.js';
@@ -171,6 +172,18 @@ const ROUTES = [
         // is itself behind the current key, so rotation requires possession.
         method: 'POST', path: '/api/settings/access-key', body: true,
         run: ({ req, res, config }) => handleRotateAccessKey(req, res, config),
+    },
+    {
+        method: 'GET', path: '/api/update', sameOrigin: true,
+        run: ({ res, url, config, settings }) => handleUpdateStatus(res, url, config, settings),
+    },
+    {
+        method: 'POST', path: '/api/update/install', body: true,
+        run: ({ req, res, body, config, settings }) => handleUpdateInstall(req, res, body, config, settings),
+    },
+    {
+        method: 'POST', path: '/api/update/restart', body: true,
+        run: ({ res, config }) => handleUpdateRestart(res, config),
     },
 ];
 // The table itself, for the test that walks it. Exported read-only: the routes

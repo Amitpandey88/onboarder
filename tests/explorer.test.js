@@ -232,6 +232,7 @@ test('every command in the table produces output from the fixture', async () => 
     github: async () => 'asked',
     agent: async () => 'agent result',
     web: async () => 'started',
+    update: async () => 'up to date',
     selectSource: async () => 'choose a source',
     diff: async () => 'changed files',
     engines: () => 'engine status',

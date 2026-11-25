@@ -1,7 +1,7 @@
 {
   "name": "onboarder-macos",
   "productName": "Onboarder",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "type": "module",
   "main": "src/main.mjs",
@@ -34,7 +34,7 @@
     "appId": "io.github.amitpandey88.onboarder",
     "productName": "Onboarder",
     "directories": {
-      "output": "dist/packages/0.1.6"
+      "output": "dist/packages/0.1.7"
     },
     "files": [
       "src/main.mjs",
@@ -45,7 +45,8 @@
       "package.json",
       "!node_modules/**",
       "src/appearance.mjs",
-      "src/clones.mjs"
+      "src/clones.mjs",
+      "src/updater.mjs"
     ],
     "extraResources": [
       {

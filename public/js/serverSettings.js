@@ -22,13 +22,14 @@ export function createServerDrawer(options = {}) {
     // in tests/frontend.test.js only understands plain params, and `toast` must
     // show up as a declaration, not a dangling call.
     const toast = typeof options.toast === 'function' ? options.toast : (..._args) => { };
+    const onSaved = typeof options.onSaved === 'function' ? options.onSaved : (..._args) => { };
     const dom = {};
     [
         'serverDrawer', 'serverScrim', 'serverClose', 'serverModeNote', 'srvMode', 'srvHost', 'srvPort',
         'srvDomain', 'srvDomainField', 'srvHttps', 'srvHttpsField', 'srvHttpsStatus', 'srvAutoOpen', 'srvKeySection', 'srvKeyMasked', 'srvRotate', 'srvLogout',
         'srvFreshKeyRow', 'srvFreshKey', 'srvCopyKey', 'srvKeyHint', 'srvName', 'srvEmail',
         'srvTunnelCloudflare', 'srvTunnelCloudflareStatus', 'srvTunnelTailscale', 'srvTunnelTailscaleStatus',
-        'srvSave', 'srvStatus', 'srvConfigPath',
+        'srvSave', 'srvStatus', 'srvConfigPath', 'srvUpdateCheck',
     ].forEach((id) => (dom[id] = $(id)));
     let current = null; // the last settings body the server sent
     function status(text, cls = '') {
@@ -61,6 +62,7 @@ export function createServerDrawer(options = {}) {
             ? `Caddy ${data.https.caddyVersion || 'installed'}. ${s.https ? 'Run `onboarder https setup` after saving.' : 'Enable HTTPS above, save, then run the command.'}`
             : 'Caddy is not installed. Ubuntu: sudo apt install caddy; macOS: brew install caddy.';
         dom.srvAutoOpen.checked = Boolean(s.autoOpen);
+        dom.srvUpdateCheck.checked = s.updateCheck !== false;
         dom.srvName.value = s.account?.name || '';
         dom.srvEmail.value = s.account?.email || '';
         dom.srvTunnelCloudflare.checked = Boolean(s.tunnel?.cloudflare);
@@ -106,6 +108,7 @@ export function createServerDrawer(options = {}) {
             host: dom.srvHost.value.trim() || '127.0.0.1',
             port: Number(dom.srvPort.value),
             autoOpen: dom.srvAutoOpen.checked,
+            updateCheck: dom.srvUpdateCheck.checked,
             account: { name: dom.srvName.value.trim(), email: dom.srvEmail.value.trim() },
             tunnel: { cloudflare: dom.srvTunnelCloudflare.checked, tailscale: dom.srvTunnelTailscale.checked },
         };
@@ -117,6 +120,7 @@ export function createServerDrawer(options = {}) {
         try {
             const data = await updateServerSettings(patch);
             render({ ...current, settings: data.settings });
+            onSaved(data.settings);
             const restart = (data.restartRequired || []).join(' and ');
             const httpsChanged = (data.restartRequired || []).some((key) => key === 'domain' || key === 'https');
             status(httpsChanged

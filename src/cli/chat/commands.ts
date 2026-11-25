@@ -69,6 +69,7 @@ export const CHAT_COMMANDS = [
   ['discard', '', 'Discard the message composed with /paste'],
   ['doctor', '', 'Check the Hermes runtime and profile'],
   ['setup', '', 'Prepare the dedicated Hermes profile'],
+  ['update', '[check|install]', 'Check for or install Onboarder updates'],
   ['clear', '', 'Clear the screen; keep the conversation'],
   ['exit', '', 'Save and exit (Ctrl-D also works)'],
 ] as const;
@@ -79,7 +80,7 @@ const COMMAND_GROUPS: Record<string, readonly string[]> = {
   'Health and security': ['diff', 'health', 'rescan', 'security', 'risks', 'log', 'hotspots', 'blame', 'workflows', 'sbom', 'engines', 'deep'],
   'AI workflows': [...AGENT_MODES, 'mode', 'tools', 'skills'],
   'Conversations': ['new', 'history', 'resume', 'paste', 'send', 'discard', 'runs', 'run', 'export', 'clear'],
-  'Setup and controls': ['help', 'model', 'status', 'permissions', 'limits', 'doctor', 'setup', 'cancel', 'exit'],
+  'Setup and controls': ['help', 'model', 'status', 'permissions', 'limits', 'doctor', 'setup', 'update', 'cancel', 'exit'],
 };
 export function commandGroup(name: string): string {
   return Object.entries(COMMAND_GROUPS).find(([, names]) => names.includes(name))?.[0] || 'Other commands';
@@ -133,6 +134,7 @@ export function completeChat(line: string, files: string[] = []): [string[], str
   if (command === '/mode') candidates = AGENT_MODES;
   if (command === '/permissions') candidates = args.length === 1 ? ['checks', 'github'] : ['on', 'off'];
   if (command === '/model' && args.length === 1) candidates = ['configure', 'default'];
+  if (command === '/update' && args.length === 1) candidates = ['check', 'install'];
   if (command === '/deep') candidates = args.length === 1 ? ['all', 'security', 'dead-code', 'semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck', 'results', 'explain', 'export', 'options', 'help'] : args[0] === 'options' ? ['semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck'] : args[0] === 'results' ? ['critical', 'high', 'medium', 'low', 'info', 'semgrep', 'gitleaks', 'knip', 'vulture', 'depcheck'] : [];
   if (['/show', '/tree', '/repo', '/deps', '/inspect', '/graph', '/blast', '/symbols', '/explain', '/blame', '/docs', '/diagram'].includes(command!)) candidates = files;
   return [candidates.filter(c => c.startsWith(fragment)).slice(0, 100), fragment];

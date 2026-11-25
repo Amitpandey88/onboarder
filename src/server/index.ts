@@ -24,8 +24,10 @@ import { createMcpRunner } from './mcp/runner.js';
 import { browserUrl, configPath, isLoopbackHost, readSettings, serverUrls } from './config.js';
 import { tunnelStatus } from './tunnel.js';
 import { pidIsAlive, readPidFile, removePidFile, writePidFile, writeRunInfo, runInfoPath } from './pidfile.js';
-import { logPath } from './daemon.js';
+import { logPath, spawnDetached } from './daemon.js';
 import { panel, row } from './layout.js';
+import { refreshUpdateCacheInBackground } from './update.js';
+import type { UpdateRouteConfig } from './apiUpdate.js';
 
 const logger = createLogger();
 
@@ -52,7 +54,7 @@ export const CONFIG = {
 
 // The tests want a server they can put on an ephemeral port; `npm start` wants
 // one from the settings file. Same router either way.
-export function createServer(config: typeof CONFIG & import('./apiTriage.js').TriageIntegrations & { fixStore?: import('./fixStore.js').FixStore; configPath?: string; getSettings?: () => Promise<import('../shared/contracts.js').Settings>; boot?: { host: string; port: number; domain: string; https: boolean } } = CONFIG) {
+export function createServer(config: typeof CONFIG & import('./apiTriage.js').TriageIntegrations & UpdateRouteConfig & { fixStore?: import('./fixStore.js').FixStore; configPath?: string; getSettings?: () => Promise<import('../shared/contracts.js').Settings>; boot?: { host: string; port: number; domain: string; https: boolean; mode?: string } } = CONFIG) {
     const router = createRouter(config);
   return http.createServer((req, res) => {
     const start = Date.now();
@@ -141,11 +143,40 @@ export async function startServer({ configFile = configPath(), openBrowser, log 
   const port = Number(process.env.PORT) || settings.port;
   const live = { ...settings, host, port };
 
-  const server = createServer({
+  const mode = process.env.ONBOARDER_LAUNCH || (process.env.ONBOARDER_BACKGROUND ? 'background' : 'foreground');
+  const logFile = mode === 'foreground' ? null : logPath(configFile);
+  let server: ReturnType<typeof createServer>;
+  const restartManagedServer = () => {
+    if (mode !== 'background') return;
+    const restartLog = logPath(configFile);
+    let spawned = false;
+    const spawnOnce = () => {
+      if (spawned) return;
+      spawned = true;
+      try {
+        spawnDetached({ configFile, log: restartLog });
+      } catch (err) {
+        logger.error('failed to spawn restarted server', { error: err instanceof Error ? err.message : String(err) });
+      }
+      process.exit(0);
+    };
+    if (mcp.running) void mcp.stop().catch((..._args: unknown[]) => {});
+    removePidFile(configFile, process.pid);
+    server.close(spawnOnce);
+    server.closeAllConnections?.();
+    setTimeout(spawnOnce, 1500).unref();
+  };
+
+  server = createServer({
     ...CONFIG,
     configPath: configFile,
     getSettings: () => readSettings(configFile),
-    boot: { host, port, domain: settings.domain, https: settings.https },
+    boot: { host, port, domain: settings.domain, https: settings.https, mode },
+    update: {
+      serverMode: mode,
+      canRestart: mode === 'background',
+      restart: restartManagedServer,
+    },
   });
 
   installExitCleanup();
@@ -177,8 +208,6 @@ export async function startServer({ configFile = configPath(), openBrowser, log 
   // How this process was launched. `background` is a detached child with a log
   // file; `startup` is one the OS supervisor started at login (also with a log
   // file); anything else is a person typing `onboarder start` in a terminal.
-  const mode = process.env.ONBOARDER_LAUNCH || (process.env.ONBOARDER_BACKGROUND ? 'background' : 'foreground');
-  const logFile = mode === 'foreground' ? null : logPath(configFile);
   try {
     // Beside the pid: how this instance was launched and where its log goes, so
     // `onboarder status` answers "how long has it been up, and how do I see its
@@ -198,6 +227,7 @@ export async function startServer({ configFile = configPath(), openBrowser, log 
   process.once('exit', () => removePidFile(configFile));
 
   log(startupBanner(live, { configFile }));
+  refreshUpdateCacheInBackground({ configFile, settings: live, serverMode: mode, canRestart: mode === 'background' });
 
   const shouldOpen = openBrowser ?? (live.autoOpen && process.stdout.isTTY && !process.env.NO_OPEN);
   // Local requests never need a credential. Remote browsers are sent to the
